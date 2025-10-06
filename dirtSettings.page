@@ -13,85 +13,87 @@ $cfg['datetime_format']	= $cfg['datetime_format'] ?? "f";
 $cfg['dbdir'] = $cfg['dbdir'] ?? "/boot/config/plugins/$plugin/";
 $cfg['share'] = $cfg['share'] ?? implode(',', array_diff(array_column($shares, 'name'), $blacklist));
 ?>
-<link type="text/css" rel="stylesheet" href="<?autov('/webGui/styles/jquery.filetree.css')?>">
-<link type="text/css" rel="stylesheet" href="<?autov('/webGui/styles/jquery.switchbutton.css')?>">
-<link type="text/css" rel="stylesheet" href="<?autov('/plugins/dynamix.vm.manager/sheets/VMSettings.css')?>">
-<link type="text/css" rel="stylesheet" href="<?autov('/plugins/dynamix.vm.manager/sheets/VMSettings-black.css')?>">
-<!--<link type="text/css" rel="stylesheet" href="--><?//autov('/plugins/dynamix.vm.manager/sheets/VMSettings-white.css')?><!--">-->
-<!--<link type="text/css" rel="stylesheet" href="--><?//autov('/plugins/dynamix.vm.manager/sheets/VMSettings-gray.css')?><!--">-->
-<!--<link type="text/css" rel="stylesheet" href="--><?//autov('/plugins/dynamix.vm.manager/sheets/VMSettings-azure.css')?><!--">-->
+<link type="text/css" rel="stylesheet" href="<?= autov('/webGui/styles/jquery.filetree.css') ?>">
 
 
 <form markdown="1" name="dirt_settings" method="POST" action="/update.php" target="progressFrame" onsubmit="prepareShare(this)">
-<input type="hidden" name="#file" value="<?=$plugin?>/<?=$plugin?>.cfg">
+<input type="hidden" name="#file" value="<?= htmlspecialchars($plugin . '/' . $plugin . '.cfg') ?>">
 
 _(Included share(s))_:
 : <select id="share" name="share" multiple style="display:none">
-  <?foreach ($shares as $share):?>
-  <?=mk_option_check($cfg['share'], $share['name'], $share['name'])?>
-  <?endforeach;?>
+  <? foreach ($shares as $share):?>
+  <?= mk_option_check($cfg['share'], $share['name'], $share['name']) ?>
+  <? endforeach;?>
   </select>
 
 _(Datetime format)_:
-: <input name="datetime_format" type="text" value="<?=$cfg['datetime_format']?>">
+: <input name="datetime_format" type="text" value="<?= htmlspecialchars($cfg['datetime_format']) ?>">
 
 :dirt_plug:
 > The datetime format for file metadata. See here for available options: [Luxon Date Tokens](https://moment.github.io/luxon/#/parsing?id=table-of-tokens)
 :end
 
 _(Database directory)_:
-: <input type="text" id="dbdir" name="dbdir" autocomplete="off" spellcheck="false" value="<?=$cfg['dbdir']?>" data-pickfolders="true" data-pickfilter="HIDE_FILES_FILTER"> <?if (!is_dir($cfg['dbdir'])):?><span><i class="fa fa-warning icon warning"></i> _(Path does not exist)_</span><?endif;?>
-<script src="<?autov('/webGui/javascript/jquery.filetree.js')?>" charset="utf-8"></script>
-<script src="<?autov('/webGui/javascript/jquery.switchbutton.js')?>"></script>
-<script src="<?autov('/plugins/dynamix.vm.manager/javascript/dynamix.vm.manager.js')?>"></script>
-<script>
-  document.querySelectorAll('#share option:checked').forEach(opt => opt.selected = true);
-</script>
+: <input type="text" id="dbdir" name="dbdir" autocomplete="off" spellcheck="false" value="<?= htmlspecialchars($cfg['dbdir']) ?>" data-pickfolders="true" data-pickfilter="HIDE_FILES_FILTER"> <? if (!is_dir($cfg['dbdir'])):?><span><i class="fa fa-warning icon warning"></i> _(Path does not exist)_</span><? endif;?>
+
 <input type="submit" name="#default" value="_(Default)_" onclick="if(confirm('Are you sure?')) {$('input[class^=share]').prop('checked', false);}">
-: <input type="submit" name="#apply" value="_(Apply)_"><input type="button" value="_(Scan)_" onclick="dataObj = Array.from(document.querySelectorAll('#share option:checked')).map(o => o.value); dirtySock('scan', dataObj);"><input type="button" value="_(Test)_" onclick="alert();">
+: <input type="submit" name="#apply" value="_(Apply)_"><input type="button" value="_(Scan)_" onclick="dataObj = Array.from(document.querySelectorAll('#share option:checked')).map(o => o.value); dirtySock('scan', dataObj);">
 </form>
 
+<script src="<?= autov('/webGui/javascript/jquery.filetree.js') ?>" charset="utf-8"></script>
 <script>
-$('#dbdir').fileTreeAttach();
+$(function() {
+  $('#share').dropdownchecklist({emptyText:'_(None)_', width:<?= $width[0] ?>, explicitClose:'..._(close)_'});
+  $('#dbdir').fileTreeAttach();
+  document.querySelectorAll('#share option:checked').forEach(opt => opt.selected = true);
+  connect();
+});
 
-// function scan() {
-//   fetch(`<?php echo "http://" . $_SERVER["SERVER_ADDR"] . ":3000"; ?>/scan`)
-//     .then(response => response.json())
-//     .then(data => {
-//       console.log(data);
-//     })
-//     .catch(error => {
-//       console.error('Error:', error);
-//     });
-// }
+let socket;
+
+function connect() {
+  socket = new WebSocket(`ws://<?= $_SERVER["SERVER_ADDR"] ?>:3000?clientId=dirtSettings.page`);
+
+  socket.onopen = function() {
+    console.log("WebSocket connection established.");
+  };
+
+  socket.onmessage = function(event) {
+    console.log("Message from server: ", event.data);
+  };
+
+  socket.onclose = function(event) {
+    console.log("WebSocket connection closed. Reconnecting in 1 second...");
+    setTimeout(function() {
+      connect();
+    }, 1000);
+  };
+
+  socket.onerror = function(error) {
+    console.error("WebSocket error: ", error);
+    socket.close();
+  };
+}
 
 function dirtySock(action, dataObj) {
 	if (dataObj.length > 0) {
-    const socket = new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://<?php echo $_SERVER["SERVER_ADDR"]; ?>:3000?clientId=dirtSettings.page`);
-    ws.onopen = () => resolve(ws);
-    ws.onerror = reject;
-});
     const message = {
-            clientId: "dirtSettings.page",
-            action: action,
-            data: dataObj
-        };
-        socket.then(ws => {
-    ws.send(JSON.stringify(message));
-    ws.close();
-}).catch(console.error);
-
+      clientId: "dirtSettings.page",
+      action: action,
+      data: dataObj
+    };
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(message));
+    } else {
+      console.error("WebSocket is not connected. Message not sent:", message);
+    }
   }
 }
 
-function alert() {
-  swal("Hello world!");
-}
 
 function prepareShare(form) {
   var share = '';
-  // console.log(JSON.stringify(<?php echo json_encode($_SERVER); ?>, null, 2));
+  // console.log(JSON.stringify(<?= json_encode($_SERVER) ?>, null, 2));
 
 
   for (var i=0,item; item=form.share.options[i]; i++) {
@@ -118,9 +120,4 @@ function prepareShare(form) {
   item.selected = true;
   $('input.thin').prop('disabled',false);
 }
-
-$(function() {
-  $('#share').dropdownchecklist({emptyText:'_(None)_', width:<?=$width[0]?>, explicitClose:'..._(close)_'});
-});
-
 </script>
