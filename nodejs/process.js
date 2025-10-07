@@ -40,9 +40,9 @@ async function processDuplicates(initialGroup, size) {
             for (const currentGroup of activeGroups) {
                 if (currentGroup.length <= 1) continue;
 
-                const buffersThisRound = new Map(); // Map<buffer.toString('hex'), {fileInfo, buffer}[]>
+                const hashesThisRound = new Map(); // Map<intermediateHash, fileInfo[]>
 
-                // Read the next chunk for each file in the current group.
+                // Read the next chunk and calculate intermediate hash for each file in the current group.
                 for (const fileInfo of currentGroup) {
                     const handle = fileHandles.get(fileInfo.fileObject.ino);
                     const buffer = Buffer.alloc(currentChunkSize);
@@ -51,23 +51,25 @@ async function processDuplicates(initialGroup, size) {
                     if (read === 0) continue;
 
                     const actualBuffer = read < currentChunkSize ? buffer.slice(0, read) : buffer;
-                    const bufferKey = actualBuffer.toString('hex');
 
-                    if (!buffersThisRound.has(bufferKey)) {
-                        buffersThisRound.set(bufferKey, []);
+                    // Update the persistent hasher for the file.
+                    fileInfo.hasher.update(actualBuffer);
+
+                    // To get an intermediate hash for comparison, we clone the persistent hasher
+                    // and call digest() on the clone. This avoids finalizing the main hasher.
+                    const intermediateHash = fileInfo.hasher.clone().digest('hex');
+
+                    if (!hashesThisRound.has(intermediateHash)) {
+                        hashesThisRound.set(intermediateHash, []);
                     }
-                    buffersThisRound.get(bufferKey).push({ fileInfo, buffer: actualBuffer });
+                    hashesThisRound.get(intermediateHash).push(fileInfo);
                 }
 
-                // For each new sub-group, if it's non-unique, update the hashers and add it to the list for the next round.
-                for (const subGroup of buffersThisRound.values()) {
+                // For each group of matching intermediate hashes, if the group contains more than one file,
+                // it's a candidate for the next round of comparison.
+                for (const subGroup of hashesThisRound.values()) {
                     if (subGroup.length > 1) {
-                        const nextGroup = [];
-                        for (const { fileInfo, buffer } of subGroup) {
-                            fileInfo.hasher.update(buffer);
-                            nextGroup.push(fileInfo);
-                        }
-                        nextIterationGroups.push(nextGroup);
+                        nextIterationGroups.push(subGroup);
                     }
                 }
             }
