@@ -64,9 +64,9 @@ async function processDuplicates(initialGroup, size) {
                     // Update the persistent hasher for the file.
                     fileInfo.hasher.update(actualBuffer);
 
-                    // To get an intermediate hash for comparison, we clone the persistent hasher
-                    // and call digest() on the clone. This avoids finalizing the main hasher.
-                    const intermediateHash = fileInfo.hasher.clone().digest('hex');
+                    // To get an intermediate hash for comparison, we can call digest() directly.
+                    // The blake3 hasher can be updated again afterwards, so no clone is needed.
+                    const intermediateHash = fileInfo.hasher.digest('hex');
 
                     if (!hashesThisRound.has(intermediateHash)) {
                         hashesThisRound.set(intermediateHash, []);
