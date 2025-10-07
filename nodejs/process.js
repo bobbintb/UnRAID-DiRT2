@@ -1,6 +1,14 @@
 const fs = require('fs');
+const blake3 = require('blake3');
 
 const CHUNK_SIZE = 1024 * 1024; // 1MB
+
+// Create a promise that resolves with the createHash function once blake3 is loaded.
+// This ensures that blake3.load() is only called once, the first time this module is required.
+const getCreateHash = (async () => {
+    await blake3.load();
+    return blake3.createHash;
+})();
 
 /**
  * Processes a group of files to find true duplicates by performing an efficient,
@@ -8,9 +16,11 @@ const CHUNK_SIZE = 1024 * 1024; // 1MB
  *
  * @param {object[]} initialGroup An array of file objects that have the same size.
  * @param {number} size The size of the files in the group.
- * @param {function} createHash The pre-initialized blake3.createHash function.
  */
-async function processDuplicates(initialGroup, size, createHash) {
+async function processDuplicates(initialGroup, size) {
+    // Await the initialization promise to get the createHash function.
+    const createHash = await getCreateHash;
+
     console.log(`[DIRT] Starting definitive incremental comparison for group of ${initialGroup.length} files with size ${size}.`);
 
     // Map<ino, { fileObject: object, hasher: Hasher }>

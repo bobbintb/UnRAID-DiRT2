@@ -99,10 +99,9 @@ async function traverse(directory, filesBySize) {
  * Scans directories recursively, groups files by their exact size, and handles hard links.
  *
  * @param {string[]} paths An array of absolute paths to start scanning from.
- * @param {function} createHash The pre-initialized blake3.createHash function.
  * @returns {Promise<Map<number, object[]>>} A Promise that resolves to a Map of files grouped by size.
  */
-async function scan(paths, createHash) {
+async function scan(paths) {
   const filesBySize = new Map();
 
   for (const p of paths) {
@@ -125,7 +124,7 @@ async function scan(paths, createHash) {
   for (const [size, files] of filesBySize.entries()) {
     if (files.length > 1) {
       groupsFound++;
-      await processDuplicates(files, size, createHash);
+      await processDuplicates(files, size);
     }
   }
 
