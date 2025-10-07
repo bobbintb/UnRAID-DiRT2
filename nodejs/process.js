@@ -1,17 +1,16 @@
 const fs = require('fs');
-const { createHash } = require('blake3');
 
 const CHUNK_SIZE = 1024 * 1024; // 1MB
 
 /**
  * Processes a group of files to find true duplicates by performing an efficient,
- * incremental comparison using direct buffer comparison, and updating persistent
- * hashers only when necessary.
+ * incremental comparison using intermediate hashes.
  *
  * @param {object[]} initialGroup An array of file objects that have the same size.
  * @param {number} size The size of the files in the group.
+ * @param {function} createHash The pre-initialized blake3.createHash function.
  */
-async function processDuplicates(initialGroup, size) {
+async function processDuplicates(initialGroup, size, createHash) {
     console.log(`[DIRT] Starting definitive incremental comparison for group of ${initialGroup.length} files with size ${size}.`);
 
     // Map<ino, { fileObject: object, hasher: Hasher }>
