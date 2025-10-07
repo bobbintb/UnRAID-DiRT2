@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "blake3": "^2.1.7",
     "ws": "^8.13.0"
   }
 }
