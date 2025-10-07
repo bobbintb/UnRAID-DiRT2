@@ -1,0 +1,14 @@
+{
+  "name": "dirt-backend",
+  "version": "1.0.0",
+  "description": "Backend WebSocket server for the DIRT Unraid plugin.",
+  "main": "dirt.js",
+  "scripts": {
+    "start": "node dirt.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.13.0"
+  }
+}

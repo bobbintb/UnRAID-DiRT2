@@ -52,7 +52,7 @@ $(function() {
 let socket;
 
 function connect() {
-  socket = new WebSocket(`ws://<?= $_SERVER["SERVER_ADDR"] ?>:3000?clientId=dirtSettings.page`);
+  socket = new WebSocket(`ws://<?= $_SERVER["SERVER_ADDR"] ?>:41820?clientId=dirtSettings.page`);
 
   socket.onopen = function() {
     console.log("WebSocket connection established.");
