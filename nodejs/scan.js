@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
+const { processDuplicates } = require('./process.js');
 
 /**
  * Retrieves statistics for a single file.
@@ -10,9 +11,15 @@ const path = require('path');
  */
 async function getFileStats(fullPath) {
   try {
-    const stats = await fs.stat(fullPath);
-    const { ino, size, nlink, atime, mtime, ctime } = stats;
-    return { ino, size, nlink, atime, mtime, ctime };
+    const stats = await fs.stat(fullPath, { bigint: true });
+    return {
+      ino: stats.ino.toString(),
+      size: Number(stats.size),
+      nlink: Number(stats.nlink),
+      atime: stats.atime,
+      mtime: stats.mtime,
+      ctime: stats.ctime,
+    };
   } catch (error) {
     console.error(`[DIRT] Error stating file ${fullPath}:`, error.message);
     return null;
@@ -111,7 +118,22 @@ async function scan(paths) {
     }
   }
 
-  console.log('[DIRT] Scan complete.');
+  console.log('[DIRT] Scan complete. Processing potential duplicates...');
+
+  let groupsFound = 0;
+  for (const [size, files] of filesBySize.entries()) {
+    if (files.length > 1) {
+      groupsFound++;
+      await processDuplicates(files, size);
+    }
+  }
+
+  if (groupsFound > 0) {
+    console.log(`[DIRT] Finished processing ${groupsFound} groups of potential duplicates.`);
+  } else {
+    console.log('[DIRT] No potential duplicates found to process.');
+  }
+
   return filesBySize;
 }
 
