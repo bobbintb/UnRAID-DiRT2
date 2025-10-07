@@ -27,6 +27,7 @@ async function getFileStats(fullPath) {
  * @param {Map<number, object[]>} filesBySize The map grouping files by size.
  */
 async function processFile(fullPath, filesBySize) {
+  console.log(`[DIRT] Processing file: ${fullPath}`);
   const stats = await getFileStats(fullPath);
   if (!stats) {
     return; // Error was already logged in getFileStats
@@ -37,6 +38,7 @@ async function processFile(fullPath, filesBySize) {
 
   if (!fileList) {
     // This is the first file found of this specific size.
+    console.log(`[DIRT] Creating new size group for size ${size} with file: ${fullPath}`);
     const newFileObject = { ino, path: [fullPath], nlink, atime, mtime, ctime };
     filesBySize.set(size, [newFileObject]);
   } else {
@@ -45,6 +47,7 @@ async function processFile(fullPath, filesBySize) {
     for (const file of fileList) {
       if (file.ino === ino) {
         // Found a hard link. The inode number matches.
+        console.log(`[DIRT] Found hard link for inode ${ino}. Adding path: ${fullPath}`);
         file.path.push(fullPath);
         foundHardLink = true;
         break;
@@ -53,6 +56,7 @@ async function processFile(fullPath, filesBySize) {
 
     if (!foundHardLink) {
       // It's a different file that just happens to be the same size.
+      console.log(`[DIRT] Found new file with existing size ${size} but different inode: ${fullPath}`);
       const newFileObject = { ino, path: [fullPath], nlink, atime, mtime, ctime };
       fileList.push(newFileObject);
     }
@@ -65,6 +69,7 @@ async function processFile(fullPath, filesBySize) {
  * @param {Map<number, object[]>} filesBySize The map to populate with file data.
  */
 async function traverse(directory, filesBySize) {
+  console.log(`[DIRT] Traversing directory: ${directory}`);
   let entries;
   try {
     entries = await fs.readdir(directory, { withFileTypes: true });
@@ -93,6 +98,7 @@ async function scan(paths) {
   const filesBySize = new Map();
 
   for (const p of paths) {
+    console.log(`[DIRT] Starting scan for root path: ${p}`);
     try {
       const stats = await fs.stat(p);
       if (stats.isDirectory()) {

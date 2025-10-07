@@ -19,7 +19,8 @@ wss.on('connection', ws => {
       switch (action) {
         case 'scan':
           console.log(`[DIRT] Scan initiated for shares: ${data.join(', ')}`);
-          scan(data); // Fire-and-forget for now
+          const paths = data.map(share => `/mnt/user/${share}`);
+          scan(paths); // Fire-and-forget for now
           break;
         case 'addShare':
           // Placeholder for addShare logic
@@ -44,5 +45,13 @@ wss.on('connection', ws => {
 
   ws.on('error', error => {
     console.error('[DIRT] WebSocket error:', error);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('[DIRT] SIGINT received. Shutting down gracefully...');
+  wss.close(() => {
+    console.log('[DIRT] WebSocket server closed.');
+    process.exit(0);
   });
 });
