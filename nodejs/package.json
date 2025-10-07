@@ -9,6 +9,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "blake3": "^3.0.0",
     "ws": "^8.13.0"
+  },
+  "overrides": {
+    "blake3-wasm": "3.0.0",
+    "@c4312/blake3-internal": "3.0.0"
   }
 }
