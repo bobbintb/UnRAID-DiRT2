@@ -1,4 +1,5 @@
 const WebSocket = require('ws');
+const { scan } = require('./scan.js');
 
 const port = 41820;
 const wss = new WebSocket.Server({ port });
@@ -17,8 +18,8 @@ wss.on('connection', ws => {
 
       switch (action) {
         case 'scan':
-          // Placeholder for scan logic
-          console.log(`[DIRT] Placeholder: Scan initiated for shares: ${data.join(', ')}`);
+          console.log(`[DIRT] Scan initiated for shares: ${data.join(', ')}`);
+          scan(data); // Fire-and-forget for now
           break;
         case 'addShare':
           // Placeholder for addShare logic
