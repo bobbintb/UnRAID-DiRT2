@@ -96,6 +96,30 @@ async function traverse(directory, filesBySize) {
 }
 
 /**
+ * Handles zero-byte files by assigning a static hash and logging them.
+ * This function modifies the filesBySize map by removing the zero-byte group.
+ *
+ * @param {Map<number, object[]>} filesBySize The map grouping files by size.
+ */
+function handleZeroByteFiles(filesBySize) {
+  const zeroByteFiles = filesBySize.get(0);
+  if (zeroByteFiles && zeroByteFiles.length > 1) {
+    console.log('[DIRT] Found a group of zero-byte files. Assigning static hash and logging.');
+    const staticHash = 'af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262';
+    for (const file of zeroByteFiles) {
+      file.hash = staticHash;
+      // Log each path associated with the file object
+      for (const filePath of file.path) {
+        console.log(`[DIRT] Zero-byte file identified: ${filePath}`);
+      }
+    }
+    // Remove the group so it's not sent to processDuplicates
+    filesBySize.delete(0);
+    console.log('[DIRT] Finished handling zero-byte files.');
+  }
+}
+
+/**
  * Scans directories recursively, groups files by their exact size, and handles hard links.
  *
  * @param {string[]} paths An array of absolute paths to start scanning from.
@@ -119,6 +143,8 @@ async function scan(paths) {
   }
 
   console.log('[DIRT] Scan complete. Processing potential duplicates...');
+
+  handleZeroByteFiles(filesBySize);
 
   let groupsFound = 0;
   for (const [size, files] of filesBySize.entries()) {
