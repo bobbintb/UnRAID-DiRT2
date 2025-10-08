@@ -1,6 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
-const { processDuplicates } = require('./process.js');
+const { processDuplicates, createWorkerPool, terminateWorkerPool } = require('./process.js');
 
 /**
  * Retrieves statistics for a single file.
@@ -126,41 +126,46 @@ function handleZeroByteFiles(filesBySize) {
  * @returns {Promise<Map<number, object[]>>} A Promise that resolves to a Map of files grouped by size.
  */
 async function scan(paths) {
-  const filesBySize = new Map();
+    const filesBySize = new Map();
 
-  for (const p of paths) {
-    console.log(`[DIRT] Starting scan for root path: ${p}`);
+    for (const p of paths) {
+        console.log(`[DIRT] Starting scan for root path: ${p}`);
+        try {
+            const stats = await fs.stat(p);
+            if (stats.isDirectory()) {
+                await traverse(p, filesBySize);
+            } else {
+                console.error(`[DIRT] Provided path is not a directory: ${p}`);
+            }
+        } catch (error) {
+            console.error(`[DIRT] Error accessing path ${p}:`, error.message);
+        }
+    }
+
+    console.log('[DIRT] Scan complete. Processing potential duplicates...');
+
+    handleZeroByteFiles(filesBySize);
+
+    const workerPool = createWorkerPool(); // Create the pool once before processing.
     try {
-      const stats = await fs.stat(p);
-      if (stats.isDirectory()) {
-        await traverse(p, filesBySize);
-      } else {
-        console.error(`[DIRT] Provided path is not a directory: ${p}`);
-      }
-    } catch (error) {
-      console.error(`[DIRT] Error accessing path ${p}:`, error.message);
+        let groupsFound = 0;
+        for (const [size, files] of filesBySize.entries()) {
+            if (files.length > 1) {
+                groupsFound++;
+                await processDuplicates(files, size, workerPool); // Pass the pool to the function.
+            }
+        }
+
+        if (groupsFound > 0) {
+            console.log(`[DIRT] Finished processing ${groupsFound} groups of potential duplicates.`);
+        } else {
+            console.log('[DIRT] No potential duplicates found to process.');
+        }
+    } finally {
+        await terminateWorkerPool(workerPool); // Ensure the pool is terminated after all groups are processed.
     }
-  }
 
-  console.log('[DIRT] Scan complete. Processing potential duplicates...');
-
-  handleZeroByteFiles(filesBySize);
-
-  let groupsFound = 0;
-  for (const [size, files] of filesBySize.entries()) {
-    if (files.length > 1) {
-      groupsFound++;
-      await processDuplicates(files, size);
-    }
-  }
-
-  if (groupsFound > 0) {
-    console.log(`[DIRT] Finished processing ${groupsFound} groups of potential duplicates.`);
-  } else {
-    console.log('[DIRT] No potential duplicates found to process.');
-  }
-
-  return filesBySize;
+    return filesBySize;
 }
 
 module.exports = { scan };
