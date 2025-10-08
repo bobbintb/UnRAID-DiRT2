@@ -40,6 +40,7 @@ async function processDuplicates(initialGroup, size) {
             fileHandles.set(file.ino, handle);
         }
 
+        const buffer = Buffer.alloc(CHUNK_SIZE);
         let bytesRead = 0;
         while (activeGroups.length > 0 && bytesRead < size) {
             const currentChunkSize = Math.min(CHUNK_SIZE, size - bytesRead);
@@ -54,12 +55,13 @@ async function processDuplicates(initialGroup, size) {
                 // Read the next chunk and calculate intermediate hash for each file in the current group.
                 for (const fileInfo of currentGroup) {
                     const handle = fileHandles.get(fileInfo.fileObject.ino);
-                    const buffer = Buffer.alloc(currentChunkSize);
                     const { bytesRead: read } = await handle.read(buffer, 0, currentChunkSize, bytesRead);
 
                     if (read === 0) continue;
 
-                    const actualBuffer = read < currentChunkSize ? buffer.slice(0, read) : buffer;
+                    // Since we are reusing a single large buffer, we must slice it to the actual number of bytes
+                    // read to avoid processing old data from a previous, larger read operation.
+                    const actualBuffer = buffer.slice(0, read);
 
                     // Update the persistent hasher for the file.
                     fileInfo.hasher.update(actualBuffer);
