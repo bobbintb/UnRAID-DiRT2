@@ -22,10 +22,10 @@ This section identifies potential bugs and logical issues that could lead to inc
     *   **Impact**: **Low Severity.** A truncated file's hash will be based on its partial content, which could lead to it being incorrectly matched with other files that are identical up to that point. This is an edge case but compromises the integrity of the comparison.
     *   **Recommendation**: Consider adding a check to ensure the total bytes read match the initial file size. If they don't, the file should be flagged or excluded from the final duplicate groups.
 
-*   **3. Incomplete Hashing for Unique Files**
-    *   **Observation**: Files that are determined to be unique (i.e., they are not part of a final duplicate group) never have their `hash` property assigned, even though their full hash has been computed by the `hasher` instance.
-    *   **Impact**: **Minor Severity.** This is a design limitation more than a bug. If the calling context expects every processed file to have a final hash, this expectation is not met.
-    *   **Recommendation**: After the main loop, iterate through all files in the original `fileInfoMap` and assign the final hash to every file object, regardless of whether it is a duplicate.
+*   **3. No Final Hash for Unique Files**
+    *   **Observation**: When a file is determined to be unique (i.e., it differs from other files in its group at an intermediate chunk), the algorithm correctly and efficiently stops processing it further. As a result, its `hasher` instance only contains a partial hash based on the chunks read up to the point of divergence. The `hash` property on the file object is never assigned a value.
+    *   **Impact**: **Minor Severity.** This is a design limitation, not a bug. The primary goal of finding duplicates is achieved efficiently by avoiding unnecessary work. However, it means that file objects for unique files are left in an incomplete state with no `hash` property.
+    *   **Recommendation**: This behavior is acceptable and efficient for pure duplicate detection. No change is recommended unless the application's requirements change to need a hash (even a partial one) for every file processed.
 
 ---
 
