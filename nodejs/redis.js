@@ -1,4 +1,4 @@
-import { Client, Schema, Repository } from "redis-om";
+const { Client, Schema } = require("redis-om");
 
 const fileMetadataSchema = new Schema(
 	"ino",
@@ -20,7 +20,7 @@ const fileMetadataSchema = new Schema(
 let client;
 let fileMetadataRepository;
 
-export async function connectToRedis() {
+async function connectToRedis() {
 	if (!client) {
 		client = new Client();
 		await client.open("redis://localhost:6379");
@@ -30,17 +30,24 @@ export async function connectToRedis() {
 	return { client, fileMetadataRepository };
 }
 
-export function getFileMetadataRepository() {
+function getFileMetadataRepository() {
 	if (!fileMetadataRepository) {
 		throw new Error("Redis repository not initialized. Call connectToRedis() first.");
 	}
 	return fileMetadataRepository;
 }
 
-export async function closeRedis() {
+async function closeRedis() {
 	if (client) {
 		await client.close();
 		client = null;
 		fileMetadataRepository = null;
 	}
 }
+
+module.exports = {
+    connectToRedis,
+    getFileMetadataRepository,
+    closeRedis,
+    fileMetadataSchema
+};
