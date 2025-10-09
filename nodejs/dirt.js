@@ -1,6 +1,7 @@
 const { performance } = require('perf_hooks');
 const WebSocket = require('ws');
 const { scan } = require('./scan.js');
+require('./worker.js'); // This will start the worker process
 
 const port = 41820;
 const wss = new WebSocket.Server({ port });

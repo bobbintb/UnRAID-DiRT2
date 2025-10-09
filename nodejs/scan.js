@@ -1,6 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
-const { processDuplicates } = require('./process.js');
+const { fileProcessingQueue } = require('./queue.js');
 
 /**
  * Retrieves statistics for a single file.
@@ -146,16 +146,19 @@ async function scan(paths) {
 
   handleZeroByteFiles(filesBySize);
 
-  let groupsFound = 0;
+  const jobs = [];
   for (const [size, files] of filesBySize.entries()) {
     if (files.length > 1) {
-      groupsFound++;
-      await processDuplicates(files, size);
+      jobs.push({
+        name: 'file-group',
+        data: { files, size },
+      });
     }
   }
 
-  if (groupsFound > 0) {
-    console.log(`[DIRT] Finished processing ${groupsFound} groups of potential duplicates.`);
+  if (jobs.length > 0) {
+    await fileProcessingQueue.addBulk(jobs);
+    console.log(`[DIRT] Added ${jobs.length} groups of potential duplicates to the processing queue.`);
   } else {
     console.log('[DIRT] No potential duplicates found to process.');
   }
