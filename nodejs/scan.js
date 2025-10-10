@@ -165,12 +165,13 @@ async function scan(paths) {
     }
   }
 
-  // Save all unique files to Redis in a single bulk operation.
+  // Save all unique files to Redis concurrently.
   if (uniqueFilesToSave.length > 0) {
     try {
       const fileRepository = getFileMetadataRepository();
       console.log(`[DIRT] Saving ${uniqueFilesToSave.length} unique file(s) to Redis...`);
-      await fileRepository.saveAll(uniqueFilesToSave);
+      // Use Promise.all to save files concurrently, which is more performant.
+      await Promise.all(uniqueFilesToSave.map(file => fileRepository.save(file)));
       console.log('[DIRT] Successfully saved unique files to Redis.');
     } catch (error) {
       console.error('[DIRT] Failed to save unique files to Redis:', error.message);

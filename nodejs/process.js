@@ -25,7 +25,8 @@ async function saveWithRetries(filesToSave) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`[DIRT] Attempt ${attempt}: Saving ${filesToSave.length} processed file(s) to Redis...`);
-      await fileRepository.saveAll(filesToSave);
+      // Use Promise.all to save files concurrently, which is more performant.
+      await Promise.all(filesToSave.map(file => fileRepository.save(file)));
       console.log('[DIRT] Successfully saved processed files to Redis.');
       return; // Success, exit the function
     } catch (error) {
