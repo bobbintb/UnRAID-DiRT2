@@ -190,6 +190,7 @@ function finalizeHashes(finalGroupsWithHashes) {
  */
 async function processDuplicates(initialGroup, size, workerPool) {
     console.log(`[DIRT] Starting definitive incremental comparison for group of ${initialGroup.length} files with size ${size}.`);
+    console.log();
 
     const fileInfoMap = initializeFileInfo(initialGroup);
     let activeGroups = [Array.from(fileInfoMap.values())];
@@ -216,7 +217,7 @@ async function processDuplicates(initialGroup, size, workerPool) {
 
             if (activeGroups.length > 0) {
                 const totalFiles = activeGroups.reduce((sum, group) => sum + group.length, 0);
-                console.log(`[DIRT] Chunk comparison complete. ${totalFiles} potential duplicates remain in ${activeGroups.length} group(s).`);
+                console.log(`[1A[0K[DIRT] Chunk comparison complete. ${totalFiles} potential duplicates remain in ${activeGroups.length} group(s).`);
             } else {
                 break;
             }
