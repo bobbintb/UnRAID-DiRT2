@@ -46,6 +46,86 @@ async function saveWithRetries(filesToSave) {
 }
 
 /**
+ * Opens file handles for a list of files concurrently.
+ * @param {object[]} files - An array of file objects.
+ * @returns {Promise<Map<string, fs.promises.FileHandle>>} A map of inode numbers to file handles.
+ */
+async function openFileHandles(files) {
+    const fileHandles = new Map();
+    const openPromises = files.map(async (file) => {
+        const handle = await fs.promises.open(file.path[0], 'r');
+        fileHandles.set(file.ino, handle);
+    });
+    await Promise.all(openPromises);
+    return fileHandles;
+}
+
+/**
+ * Processes one chunk of data for a set of active file groups to identify subgroups
+ * with matching intermediate hashes.
+ * @param {Array<Array<object>>} activeGroups - The current groups of potential duplicates.
+ * @param {Map<string, fs.promises.FileHandle>} fileHandles - A map of inode numbers to open file handles.
+ * @param {Buffer} buffer - The buffer to use for reading file chunks.
+ * @param {number} chunkSize - The size of the chunk to read.
+ * @param {number} bytesRead - The offset in the files to start reading from.
+ * @returns {Promise<Array<Array<object>>>} The next iteration of active groups.
+ */
+async function processSingleChunk(activeGroups, fileHandles, buffer, chunkSize, bytesRead) {
+    const nextIterationGroups = [];
+
+    for (const currentGroup of activeGroups) {
+        if (currentGroup.length <= 1) continue;
+
+        const hashesThisRound = new Map(); // Map<intermediateHash, fileInfo[]>
+
+        for (const fileInfo of currentGroup) {
+            const handle = fileHandles.get(fileInfo.fileObject.ino);
+            const { bytesRead: read } = await handle.read(buffer, 0, chunkSize, bytesRead);
+
+            if (read === 0) continue;
+
+            const actualBuffer = buffer.slice(0, read);
+            fileInfo.hasher.update(actualBuffer);
+            const intermediateHash = fileInfo.hasher.digest('hex');
+
+            if (!hashesThisRound.has(intermediateHash)) {
+                hashesThisRound.set(intermediateHash, []);
+            }
+            hashesThisRound.get(intermediateHash).push(fileInfo);
+        }
+
+        for (const subGroup of hashesThisRound.values()) {
+            if (subGroup.length > 1) {
+                nextIterationGroups.push(subGroup);
+            }
+        }
+    }
+
+    return nextIterationGroups;
+}
+
+/**
+ * Finalizes the hashing process for confirmed duplicate groups.
+ * @param {Array<Array<object>>} finalGroups - The groups of files confirmed to be duplicates.
+ */
+function finalizeDuplicateGroups(finalGroups) {
+    if (finalGroups.length > 0) {
+        console.log('[DIRT] Incremental comparison complete. Finalizing hashes...');
+        for (const finalGroup of finalGroups) {
+            if (finalGroup.length > 1) {
+                const finalHash = finalGroup[0].hasher.digest('hex');
+                for (const fileInfo of finalGroup) {
+                    fileInfo.fileObject.hash = finalHash;
+                    console.log(`[DIRT] Assigned final hash ${finalHash} to file object for path(s): ${fileInfo.fileObject.path.join(', ')}`);
+                }
+            }
+        }
+    } else {
+        console.log('[DIRT] No identical files confirmed in this group.');
+    }
+}
+
+/**
  * Processes a group of files to find true duplicates by performing an efficient,
  * incremental comparison using intermediate hashes.
  *
@@ -64,94 +144,33 @@ async function processDuplicates(initialGroup, size) {
         fileInfoMap.set(file.ino, { fileObject: file, hasher: createHash() });
     });
 
-    // Start with a single list containing one group of all files.
     let activeGroups = [Array.from(fileInfoMap.values())];
-    const fileHandles = new Map();
+    const fileHandles = await openFileHandles(initialGroup);
 
     try {
-        // Open file handles for all files.
-        for (const file of initialGroup) {
-            const handle = await fs.promises.open(file.path[0], 'r');
-            fileHandles.set(file.ino, handle);
-        }
-
         const buffer = Buffer.alloc(CHUNK_SIZE);
         let bytesRead = 0;
+
         while (activeGroups.length > 0 && bytesRead < size) {
             const currentChunkSize = Math.min(CHUNK_SIZE, size - bytesRead);
-            const nextIterationGroups = [];
 
-            // Process each group from the previous iteration.
-            for (const currentGroup of activeGroups) {
-                if (currentGroup.length <= 1) continue;
-
-                const hashesThisRound = new Map(); // Map<intermediateHash, fileInfo[]>
-
-                // Read the next chunk and calculate intermediate hash for each file in the current group.
-                for (const fileInfo of currentGroup) {
-                    const handle = fileHandles.get(fileInfo.fileObject.ino);
-                    const { bytesRead: read } = await handle.read(buffer, 0, currentChunkSize, bytesRead);
-
-                    if (read === 0) continue;
-
-                    // Since we are reusing a single large buffer, we must slice it to the actual number of bytes
-                    // read to avoid processing old data from a previous, larger read operation.
-                    const actualBuffer = buffer.slice(0, read);
-
-                    // Update the persistent hasher for the file.
-                    fileInfo.hasher.update(actualBuffer);
-
-                    // To get an intermediate hash for comparison, we can call digest() directly.
-                    // The blake3 hasher can be updated again afterwards, so no clone is needed.
-                    const intermediateHash = fileInfo.hasher.digest('hex');
-
-                    if (!hashesThisRound.has(intermediateHash)) {
-                        hashesThisRound.set(intermediateHash, []);
-                    }
-                    hashesThisRound.get(intermediateHash).push(fileInfo);
-                }
-
-                // For each group of matching intermediate hashes, if the group contains more than one file,
-                // it's a candidate for the next round of comparison.
-                for (const subGroup of hashesThisRound.values()) {
-                    if (subGroup.length > 1) {
-                        nextIterationGroups.push(subGroup);
-                    }
-                }
-            }
+            activeGroups = await processSingleChunk(activeGroups, fileHandles, buffer, currentChunkSize, bytesRead);
 
             bytesRead += currentChunkSize;
-            activeGroups = nextIterationGroups;
 
             if (activeGroups.length > 0) {
-                 const totalFiles = activeGroups.reduce((sum, group) => sum + group.length, 0);
-                 console.log(`[DIRT] Chunk comparison complete. ${totalFiles} potential duplicates remain in ${activeGroups.length} group(s).`);
+                const totalFiles = activeGroups.reduce((sum, group) => sum + group.length, 0);
+                console.log(`[DIRT] Chunk comparison complete. ${totalFiles} potential duplicates remain in ${activeGroups.length} group(s).`);
             } else {
                 break; // No more potential duplicates.
             }
         }
 
-        // If any groups survived the entire process, they are confirmed duplicates.
-        if (activeGroups.length > 0) {
-            console.log('[DIRT] Incremental comparison complete. Finalizing hashes...');
-            for (const finalGroup of activeGroups) {
-                if (finalGroup.length > 1) {
-                    // All files in this final group are identical. Call digest() on the first one's hasher.
-                    const finalHash = finalGroup[0].hasher.digest('hex');
-                    for (const fileInfo of finalGroup) {
-                        fileInfo.fileObject.hash = finalHash;
-                        console.log(`[DIRT] Assigned final hash ${finalHash} to file object for path(s): ${fileInfo.fileObject.path.join(', ')}`);
-                    }
-                }
-            }
-        } else {
-            console.log('[DIRT] No identical files confirmed in this group.');
-        }
+        finalizeDuplicateGroups(activeGroups);
 
     } catch (error) {
         console.error(`[DIRT] Error during incremental comparison for size ${size}:`, error);
     } finally {
-        // Ensure all file handles are closed.
         for (const handle of fileHandles.values()) {
             await handle.close();
         }
