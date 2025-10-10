@@ -1,24 +1,8 @@
-const { Client, Schema } = require("redis-om");
+const { Client } = require("redis-om");
 const { createClient } = require("redis");
 const fs = require("fs").promises;
 const path = require("path");
-
-const fileMetadataSchema = new Schema(
-	"ino",
-	{
-		path: { type: "string[]" },
-		size: { type: "number" },
-		nlink: { type: "number" },
-		atime: { type: "date" },
-		mtime: { type: "date" },
-		ctime: { type: "date" },
-		hash: { type: "string" },
-		action: { type: "string" },
-	},
-	{
-		dataStructure: "HASH",
-	}
-);
+const { fileMetadataSchema } = require("./schema");
 
 let redisClient;
 let omClient;
@@ -80,11 +64,11 @@ async function findBySize(size) {
 
 async function findWithMultiplePaths() {
 	const repository = getFileMetadataRepository();
-	const prefix = repository.schemaDefinition.prefix;
-	const separator = repository.schemaDefinition.separator;
+	const prefix = fileMetadataSchema.prefix;
+	const separator = fileMetadataSchema.separator;
 
 	const results = await redisClient.evalSha(findWithMultiplePathsScriptSha, {
-		arguments: [`${prefix}:*`, separator],
+		arguments: [`${prefix}${separator}*`, separator],
 	});
 
 	const entities = results.map(result => {
@@ -100,10 +84,12 @@ async function findWithMultiplePaths() {
 
 async function findWithNonUniqueHashes() {
 	const repository = getFileMetadataRepository();
-	const prefix = repository.schemaDefinition.prefix;
+	const prefix = fileMetadataSchema.prefix;
+	const separator = fileMetadataSchema.separator;
+
 
 	const results = await redisClient.evalSha(findWithNonUniqueHashesScriptSha, {
-		arguments: [`${prefix}:*`],
+		arguments: [`${prefix}${separator}*`],
 	});
 
 	const entities = results.map(result => {
