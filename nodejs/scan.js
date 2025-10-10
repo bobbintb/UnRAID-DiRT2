@@ -171,7 +171,10 @@ async function scan(paths) {
       const fileRepository = getFileMetadataRepository();
       console.log(`[DIRT] Saving ${uniqueFilesToSave.length} unique file(s) to Redis...`);
       // Use Promise.all to save files concurrently, which is more performant.
-      await Promise.all(uniqueFilesToSave.map(file => fileRepository.save(file)));
+      await Promise.all(uniqueFilesToSave.map(file => {
+        const { ino, ...fileData } = file;
+        return fileRepository.save(ino, fileData);
+      }));
       console.log('[DIRT] Successfully saved unique files to Redis.');
     } catch (error) {
       console.error('[DIRT] Failed to save unique files to Redis:', error.message);
