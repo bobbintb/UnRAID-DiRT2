@@ -1,6 +1,8 @@
 const fs = require('fs').promises;
 const path = require('path');
 const { fileProcessingQueue } = require('./queue.js');
+const { getFileMetadataRepository } = require('./redis.js');
+const { sharedEmitter } = require('./events.js');
 
 /**
  * Retrieves statistics for a single file.
@@ -147,23 +149,56 @@ async function scan(paths) {
   handleZeroByteFiles(filesBySize);
 
   const jobs = [];
+  const uniqueFilesToSave = [];
   for (const [size, files] of filesBySize.entries()) {
     if (files.length > 1) {
+      // This is a group of potential duplicates, add it to the job queue.
       jobs.push({
         name: 'file-group',
         data: { files, size },
       });
+    } else if (files.length === 1) {
+      // This file is unique by size, prepare it to be saved to Redis.
+      const file = files[0];
+      // The file object already contains most of what we need. We just add the size.
+      uniqueFilesToSave.push({ ...file, size });
     }
   }
 
-  if (jobs.length > 0) {
-    await fileProcessingQueue.addBulk(jobs);
-    console.log(`[DIRT] Added ${jobs.length} groups of potential duplicates to the processing queue.`);
-  } else {
-    console.log('[DIRT] No potential duplicates found to process.');
+  // Save all unique files to Redis concurrently.
+  if (uniqueFilesToSave.length > 0) {
+    try {
+      const fileRepository = getFileMetadataRepository();
+      console.log(`[DIRT] Saving ${uniqueFilesToSave.length} unique file(s) to Redis...`);
+      // Use Promise.all to save files concurrently, which is more performant.
+      await Promise.all(uniqueFilesToSave.map(file => {
+        const { ino, ...fileData } = file;
+        return fileRepository.save(ino, fileData);
+      }));
+      console.log('[DIRT] Successfully saved unique files to Redis.');
+    } catch (error) {
+      console.error('[DIRT] Failed to save unique files to Redis:', error.message);
+      // As per requirements, we log the error and continue.
+    }
   }
 
-  return filesBySize;
+  // Add all potential duplicate groups to the queue.
+  if (jobs.length > 0) {
+    // Return a promise that resolves when the queue is idle.
+    return new Promise(async (resolve) => {
+      sharedEmitter.once('queueIdle', () => {
+        console.log('[DIRT] All processing jobs completed.');
+        resolve(filesBySize);
+      });
+      await fileProcessingQueue.addBulk(jobs);
+      console.log(`[DIRT] Added ${jobs.length} groups of potential duplicates to the processing queue.`);
+      console.log('[DIRT] Waiting for all processing jobs to complete...');
+    });
+  } else {
+    // If there are no jobs, we can resolve immediately.
+    console.log('[DIRT] No potential duplicates found to process.');
+    return filesBySize;
+  }
 }
 
 module.exports = { scan };
