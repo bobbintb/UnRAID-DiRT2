@@ -1,5 +1,6 @@
 const fs = require('fs');
 const blake3 = require('blake3');
+const { getFileMetadataRepository } = require('./redis.js');
 
 const CHUNK_SIZE = 1024 * 1024; // 1MB
 
@@ -9,6 +10,36 @@ const getCreateHash = (async () => {
     await blake3.load();
     return blake3.createHash;
 })();
+
+/**
+ * A helper function to save file metadata to Redis with a retry mechanism.
+ * @param {object[]} filesToSave An array of file objects to save.
+ */
+async function saveWithRetries(filesToSave) {
+  if (filesToSave.length === 0) return;
+
+  const fileRepository = getFileMetadataRepository();
+  const maxRetries = 3;
+  const delay = 5000; // 5 seconds
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[DIRT] Attempt ${attempt}: Saving ${filesToSave.length} processed file(s) to Redis...`);
+      await fileRepository.saveAll(filesToSave);
+      console.log('[DIRT] Successfully saved processed files to Redis.');
+      return; // Success, exit the function
+    } catch (error) {
+      console.error(`[DIRT] Attempt ${attempt} failed to save processed files to Redis:`, error.message);
+      if (attempt < maxRetries) {
+        console.log(`[DIRT] Retrying in ${delay / 1000} seconds...`);
+        await new Promise(res => setTimeout(res, delay));
+      } else {
+        console.error('[DIRT] All retry attempts failed. Could not save processed files to Redis.');
+        // As per requirements, we log the error and allow the job to complete.
+      }
+    }
+  }
+}
 
 /**
  * Processes a group of files to find true duplicates by performing an efficient,
@@ -120,8 +151,19 @@ async function processDuplicates(initialGroup, size) {
         for (const handle of fileHandles.values()) {
             await handle.close();
         }
-        console.log(`[DIRT] Finished processing group for size ${size}.`);
+        console.log(`[DIRT] Finished hashing group for size ${size}.`);
     }
+
+    // After processing, prepare all files from the original group to be saved.
+    // This includes files that were confirmed as duplicates (with a hash) and those
+    // that were unique within the group (without a hash).
+    const filesToSave = Array.from(fileInfoMap.values()).map(info => ({
+        ...info.fileObject,
+        size // Add the size back, as it's part of the schema but not the file object.
+    }));
+
+    await saveWithRetries(filesToSave);
+    console.log(`[DIRT] Finished processing and saving data for group size ${size}.`);
 }
 
 module.exports = { processDuplicates };
