@@ -2,6 +2,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const { fileProcessingQueue } = require('./queue.js');
 const { getFileMetadataRepository } = require('./redis.js');
+const { sharedEmitter } = require('./events.js');
 
 /**
  * Retrieves statistics for a single file.
@@ -160,7 +161,6 @@ async function scan(paths) {
       // This file is unique by size, prepare it to be saved to Redis.
       const file = files[0];
       // The file object already contains most of what we need. We just add the size.
-      // The `ino` will be used as the entity ID by redis-om.
       uniqueFilesToSave.push({ ...file, size });
     }
   }
@@ -184,13 +184,21 @@ async function scan(paths) {
 
   // Add all potential duplicate groups to the queue.
   if (jobs.length > 0) {
-    await fileProcessingQueue.addBulk(jobs);
-    console.log(`[DIRT] Added ${jobs.length} groups of potential duplicates to the processing queue.`);
+    // Return a promise that resolves when the queue is idle.
+    return new Promise(async (resolve) => {
+      sharedEmitter.once('queueIdle', () => {
+        console.log('[DIRT] All processing jobs completed.');
+        resolve(filesBySize);
+      });
+      await fileProcessingQueue.addBulk(jobs);
+      console.log(`[DIRT] Added ${jobs.length} groups of potential duplicates to the processing queue.`);
+      console.log('[DIRT] Waiting for all processing jobs to complete...');
+    });
   } else {
+    // If there are no jobs, we can resolve immediately.
     console.log('[DIRT] No potential duplicates found to process.');
+    return filesBySize;
   }
-
-  return filesBySize;
 }
 
 module.exports = { scan };
