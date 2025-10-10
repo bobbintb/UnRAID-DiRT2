@@ -1,3 +1,6 @@
+Menu="dirtSettings:2"
+Title="Debug"
+---
 <div id="debug-content">
     <h2>Debug Queries</h2>
     <p>Run manual queries against the Redis database for debugging purposes. Results will be logged to the browser's developer console and the Node.js console.</p>

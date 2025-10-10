@@ -1,8 +1,5 @@
-Menu="Utilities"
-Type="xmenu"
-Tabs="true"
-Title="Deduplication in Real-Time"
-Icon="fa-search-minus"
+Menu="dirtSettings:1"
+Title="Main"
 ---
 <?
 //require_once "$docroot/plugins/dynamix.vm.manager/include/libvirt_helpers.php";
@@ -116,7 +113,7 @@ function prepareShare(form) {
   console.log("Added:", added);
   dirtySock('removeShare', removed)
   dirtySock('addShare', added)
-  
+
   item = form.share.options[0];
   item.value = share;
   item.selected = true;
