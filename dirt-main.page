@@ -1,4 +1,6 @@
 Menu="Utilities"
+Type="xmenu"
+Tabs="true"
 Title="Deduplication in Real-Time"
 Icon="fa-search-minus"
 ---

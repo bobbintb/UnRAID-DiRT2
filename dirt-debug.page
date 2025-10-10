@@ -1,0 +1,89 @@
+<div id="debug-content">
+    <h2>Debug Queries</h2>
+    <p>Run manual queries against the Redis database for debugging purposes. Results will be logged to the browser's developer console and the Node.js console.</p>
+
+    <hr>
+
+    <div>
+        <h4>Find Files by Size</h4>
+        <input type="number" id="size-input" placeholder="Enter file size in bytes">
+        <button id="by-size-btn">Run Query</button>
+    </div>
+
+    <hr>
+
+    <div>
+        <h4>Find Files with Multiple Paths (Hard Links)</h4>
+        <button id="multiple-paths-btn">Run Query</button>
+    </div>
+
+    <hr>
+
+    <div>
+        <h4>Find Files with Non-Unique Hashes (Duplicates)</h4>
+        <button id="non-unique-hash-btn">Run Query</button>
+    </div>
+</div>
+
+<script>
+$(function() {
+    let socket;
+
+    function connect() {
+      socket = new WebSocket(`ws://<?= $_SERVER["SERVER_ADDR"] ?>:41820?clientId=dirt-debug.page`);
+
+      socket.onopen = function() {
+        console.log("Debug Tab: WebSocket connection established.");
+      };
+
+      socket.onmessage = function(event) {
+        console.log("Debug Tab: Message from server: ", event.data);
+      };
+
+      socket.onclose = function(event) {
+        console.log("Debug Tab: WebSocket connection closed. Reconnecting in 1 second...");
+        setTimeout(connect, 1000);
+      };
+
+      socket.onerror = function(error) {
+        console.error("Debug Tab: WebSocket error: ", error);
+        socket.close();
+      };
+    }
+
+    function dirtySock(action, data) {
+        const message = {
+          clientId: "dirt-debug.page",
+          action: action,
+          data: data
+        };
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(message));
+          console.log(`Debug Tab: Sent action '${action}' with data:`, data);
+        } else {
+          console.error("Debug Tab: WebSocket is not connected. Message not sent:", message);
+        }
+    }
+
+    // Connect on page load
+    connect();
+
+    // --- Event Listeners ---
+    $('#by-size-btn').on('click', function() {
+        const size = $('#size-input').val();
+        if (size && !isNaN(size)) {
+            dirtySock('debugFindFilesBySize', parseInt(size, 10));
+        } else {
+            console.error("Invalid size input. Please enter a number.");
+        }
+    });
+
+    $('#multiple-paths-btn').on('click', function() {
+        dirtySock('debugFindFilesWithMultiplePaths', null);
+    });
+
+    $('#non-unique-hash-btn').on('click', function() {
+        dirtySock('debugFindFilesWithNonUniqueHashes', null);
+    });
+});
+</script>

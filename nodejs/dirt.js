@@ -2,6 +2,11 @@ const { performance } = require('perf_hooks');
 const WebSocket = require('ws');
 const { scan } = require('./scan.js');
 const { connectToRedis, closeRedis } = require('./redis.js');
+const {
+  debugFindFilesBySize,
+  debugFindFilesWithMultiplePaths,
+  debugFindFilesWithNonUniqueHashes
+} = require('./debug.js');
 
 async function main() {
   try {
@@ -45,6 +50,15 @@ async function main() {
             case 'removeShare':
               // Placeholder for removeShare logic
               console.log(`[DIRT] Placeholder: 'removeShare' action received for: ${data.join(', ')}`);
+              break;
+            case 'debugFindFilesBySize':
+              await debugFindFilesBySize(data);
+              break;
+            case 'debugFindFilesWithMultiplePaths':
+              await debugFindFilesWithMultiplePaths();
+              break;
+            case 'debugFindFilesWithNonUniqueHashes':
+              await debugFindFilesWithNonUniqueHashes();
               break;
             default:
               console.log(`[DIRT] Received unknown action: ${action}`);
