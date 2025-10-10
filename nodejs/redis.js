@@ -1,4 +1,5 @@
 const { Client, Schema } = require("redis-om");
+const { createClient } = require("redis");
 const fs = require("fs").promises;
 const path = require("path");
 
@@ -19,26 +20,33 @@ const fileMetadataSchema = new Schema(
 	}
 );
 
-let client;
+let redisClient;
+let omClient;
 let fileMetadataRepository;
 let findWithMultiplePathsScriptSha;
 let findWithNonUniqueHashesScriptSha;
 
 async function connectToRedis() {
-	if (!client) {
-		client = new Client();
-		await client.open("redis://localhost:6379");
-		fileMetadataRepository = client.fetchRepository(fileMetadataSchema);
+	if (!redisClient) {
+		// Create and connect the node-redis client
+		redisClient = createClient({ url: "redis://localhost:6379" });
+		await redisClient.connect();
+
+		// Use the connected client to initialize redis-om
+		omClient = new Client();
+		await omClient.use(redisClient);
+
+		fileMetadataRepository = omClient.fetchRepository(fileMetadataSchema);
 		await fileMetadataRepository.createIndex();
 
 		const luaDir = path.join(__dirname, "lua");
 		const findWithMultiplePathsLua = await fs.readFile(path.join(luaDir, "findWithMultiplePaths.lua"), "utf8");
 		const findWithNonUniqueHashesLua = await fs.readFile(path.join(luaDir, "findWithNonUniqueHashes.lua"), "utf8");
 
-		findWithMultiplePathsScriptSha = await client.nodeRedis.scriptLoad(findWithMultiplePathsLua);
-		findWithNonUniqueHashesScriptSha = await client.nodeRedis.scriptLoad(findWithNonUniqueHashesLua);
+		findWithMultiplePathsScriptSha = await redisClient.scriptLoad(findWithMultiplePathsLua);
+		findWithNonUniqueHashesScriptSha = await redisClient.scriptLoad(findWithNonUniqueHashesLua);
 	}
-	return { client, fileMetadataRepository };
+	return { redisClient, fileMetadataRepository };
 }
 
 function getFileMetadataRepository() {
@@ -49,9 +57,10 @@ function getFileMetadataRepository() {
 }
 
 async function closeRedis() {
-	if (client) {
-		await client.close();
-		client = null;
+	if (redisClient) {
+		await redisClient.quit();
+		redisClient = null;
+		omClient = null;
 		fileMetadataRepository = null;
 	}
 }
@@ -74,7 +83,7 @@ async function findWithMultiplePaths() {
 	const prefix = repository.schema.prefix;
 	const separator = repository.schema.separator;
 
-	const results = await client.nodeRedis.evalSha(findWithMultiplePathsScriptSha, {
+	const results = await redisClient.evalSha(findWithMultiplePathsScriptSha, {
 		arguments: [`${prefix}:*`, separator],
 	});
 
@@ -93,7 +102,7 @@ async function findWithNonUniqueHashes() {
 	const repository = getFileMetadataRepository();
 	const prefix = repository.schema.prefix;
 
-	const results = await client.nodeRedis.evalSha(findWithNonUniqueHashesScriptSha, {
+	const results = await redisClient.evalSha(findWithNonUniqueHashesScriptSha, {
 		arguments: [`${prefix}:*`],
 	});
 
