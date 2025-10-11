@@ -8,10 +8,12 @@ repeat
   cursor = scan_results[1]
   local keys = scan_results[2]
   for i, key in ipairs(keys) do
-    local path_str = redis.call('HGET', key, 'path')
-    if path_str and string.find(path_str, separator) then
-      local obj = redis.call('HGETALL', key)
-      table.insert(all_results, obj)
+    if redis.call('TYPE', key).ok == 'hash' then
+      local path_str = redis.call('HGET', key, 'path')
+      if path_str and string.find(path_str, separator) then
+        local obj = redis.call('HGETALL', key)
+        table.insert(all_results, obj)
+      end
     end
   end
 until cursor == '0'

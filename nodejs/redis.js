@@ -64,7 +64,7 @@ async function findBySize(size) {
 
 async function findWithMultiplePaths() {
 	const repository = getFileMetadataRepository();
-	const prefix = 'file';
+	const prefix = 'ino';
 	const separator = ':';
 
 	const results = await redisClient.evalSha(
@@ -88,7 +88,7 @@ async function findWithMultiplePaths() {
 
 async function findWithNonUniqueHashes() {
 	const repository = getFileMetadataRepository();
-	const prefix = 'file';
+	const prefix = 'ino';
 	const separator = ':';
 
 

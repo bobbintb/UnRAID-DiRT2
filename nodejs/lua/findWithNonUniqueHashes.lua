@@ -9,13 +9,15 @@ repeat
     cursor = scan_results[1]
     local keys = scan_results[2]
     for i, key in ipairs(keys) do
-        local hash = redis.call('HGET', key, 'hash')
-        if hash then
-            if hashes[hash] == nil then
-                hashes[hash] = {}
+        if redis.call('TYPE', key).ok == 'hash' then
+            local hash = redis.call('HGET', key, 'hash')
+            if hash then
+                if hashes[hash] == nil then
+                    hashes[hash] = {}
+                end
+                local obj = redis.call('HGETALL', key)
+                table.insert(hashes[hash], obj)
             end
-            local obj = redis.call('HGETALL', key)
-            table.insert(hashes[hash], obj)
         end
     end
 until cursor == '0'
