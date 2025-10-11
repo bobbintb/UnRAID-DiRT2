@@ -35,9 +35,9 @@ async function main() {
           switch (action) {
             case 'scan': {
               console.log(`[DIRT] Scan initiated for shares: ${data.join(', ')}`);
-              const paths = data.map(share => `/mnt/user/${share}`);
+              const sharesToScan = data.map(share => ({ share, path: `/mnt/user/${share}` }));
               const startTime = performance.now();
-              await scan(paths); // Await the scan to complete
+              await scan(sharesToScan); // Await the scan to complete
               const endTime = performance.now();
               const duration = ((endTime - startTime) / 1000).toFixed(3);
               console.log(`[DIRT] Full scan completed in ${duration} seconds.`);
