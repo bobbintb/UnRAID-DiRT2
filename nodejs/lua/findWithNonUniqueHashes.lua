@@ -1,47 +1,31 @@
-local cursor = '0'
+-- ARGV[1]: pattern to match keys (e.g., 'file:*')
 local pattern = ARGV[1]
-local hash_counts = {}
-local duplicate_hashes = {}
-local all_results = {}
+local cursor = '0'
+local hashes = {}
 
--- First pass: count hashes
+-- First and only pass: scan keys and group by hash
 repeat
-  local scan_results = redis.call('SCAN', cursor, 'MATCH', pattern)
-  cursor = scan_results[1]
-  local keys = scan_results[2]
-  for i, key in ipairs(keys) do
-    local hash = redis.call('HGET', key, 'hash')
-    if hash then
-      hash_counts[hash] = (hash_counts[hash] or 0) + 1
+    local scan_results = redis.call('SCAN', cursor, 'MATCH', pattern)
+    cursor = scan_results[1]
+    local keys = scan_results[2]
+    for i, key in ipairs(keys) do
+        local hash = redis.call('HGET', key, 'hash')
+        if hash then
+            if hashes[hash] == nil then
+                hashes[hash] = {}
+            end
+            local obj = redis.call('HGETALL', key)
+            table.insert(hashes[hash], obj)
+        end
     end
-  end
 until cursor == '0'
 
--- Identify duplicate hashes
-for hash, count in pairs(hash_counts) do
-  if count > 1 then
-    table.insert(duplicate_hashes, hash)
-  end
+-- Filter out hashes that are not duplicates
+local result = {}
+for hash, objects in pairs(hashes) do
+    if #objects > 1 then
+        table.insert(result, objects)
+    end
 end
 
--- Second pass: find all objects with duplicate hashes
-cursor = '0'
-repeat
-  local scan_results = redis.call('SCAN', cursor, 'MATCH', pattern)
-  cursor = scan_results[1]
-  local keys = scan_results[2]
-  for i, key in ipairs(keys) do
-    local hash = redis.call('HGET', key, 'hash')
-    if hash then
-      for _, dup_hash in ipairs(duplicate_hashes) do
-        if hash == dup_hash then
-          local obj = redis.call('HGETALL', key)
-          table.insert(all_results, obj)
-          break
-        end
-      end
-    end
-  end
-until cursor == '0'
-
-return all_results
+return result

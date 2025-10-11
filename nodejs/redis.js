@@ -64,12 +64,16 @@ async function findBySize(size) {
 
 async function findWithMultiplePaths() {
 	const repository = getFileMetadataRepository();
-	const prefix = fileMetadataSchema.prefix;
-	const separator = fileMetadataSchema.separator;
+	const prefix = 'file';
+	const separator = ':';
 
-	const results = await redisClient.evalSha(findWithMultiplePathsScriptSha, {
-		arguments: [`${prefix}${separator}*`, separator],
-	});
+	const results = await redisClient.evalSha(
+		findWithMultiplePathsScriptSha,
+		{
+			keys: [],
+			arguments: [`${prefix}${separator}*`, separator],
+		},
+	);
 
 	const entities = results.map(result => {
 		const parsed = parseHGetAll(result);
@@ -84,22 +88,31 @@ async function findWithMultiplePaths() {
 
 async function findWithNonUniqueHashes() {
 	const repository = getFileMetadataRepository();
-	const prefix = fileMetadataSchema.prefix;
-	const separator = fileMetadataSchema.separator;
+	const prefix = 'file';
+	const separator = ':';
 
 
-	const results = await redisClient.evalSha(findWithNonUniqueHashesScriptSha, {
-		arguments: [`${prefix}${separator}*`],
+	const results = await redisClient.evalSha(
+		findWithNonUniqueHashesScriptSha,
+		{
+			keys: [],
+			arguments: [`${prefix}${separator}*`],
+		},
+	);
+
+	// The Lua script returns an array of arrays, where each inner array
+	// is a group of HGETALL results for a set of duplicate files.
+	const groupedEntities = results.map(group => {
+		return group.map(result => {
+			const parsed = parseHGetAll(result);
+			const entity = repository.createEntity(parsed);
+			// Manually add the entityId that redis-om uses internally
+			entity.entityId = parsed.entityId;
+			return entity;
+		});
 	});
 
-	const entities = results.map(result => {
-		const parsed = parseHGetAll(result);
-		const entity = repository.createEntity(parsed);
-		entity.entityId = parsed.entityId;
-		return entity;
-	});
-
-	return entities;
+	return groupedEntities;
 }
 
 module.exports = {
