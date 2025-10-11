@@ -1,7 +1,7 @@
 local cursor = '0'
 local pattern = ARGV[1]
 local separator = ARGV[2]
-local all_results = {}
+local all_keys = {}
 
 repeat
   local scan_results = redis.call('SCAN', cursor, 'MATCH', pattern)
@@ -11,11 +11,10 @@ repeat
     if redis.call('TYPE', key).ok == 'hash' then
       local path_str = redis.call('HGET', key, 'path')
       if path_str and string.find(path_str, separator) then
-        local obj = redis.call('HGETALL', key)
-        table.insert(all_results, obj)
+        table.insert(all_keys, key)
       end
     end
   end
 until cursor == '0'
 
-return all_results
+return all_keys

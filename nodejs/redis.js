@@ -67,7 +67,7 @@ async function findWithMultiplePaths() {
 	const prefix = 'ino';
 	const separator = ':';
 
-	const results = await redisClient.evalSha(
+	const keys = await redisClient.evalSha(
 		findWithMultiplePathsScriptSha,
 		{
 			keys: [],
@@ -75,15 +75,7 @@ async function findWithMultiplePaths() {
 		},
 	);
 
-	const entities = results.map(result => {
-		const parsed = parseHGetAll(result);
-		const entity = repository.createEntity(parsed);
-        // Manually add the entityId that redis-om uses internally
-		entity.entityId = parsed.entityId;
-		return entity;
-	});
-
-	return entities;
+	return Promise.all(keys.map(key => repository.fetch(key.split(':').pop())));
 }
 
 async function findWithNonUniqueHashes() {
@@ -92,7 +84,7 @@ async function findWithNonUniqueHashes() {
 	const separator = ':';
 
 
-	const results = await redisClient.evalSha(
+	const groupedKeys = await redisClient.evalSha(
 		findWithNonUniqueHashesScriptSha,
 		{
 			keys: [],
@@ -101,18 +93,12 @@ async function findWithNonUniqueHashes() {
 	);
 
 	// The Lua script returns an array of arrays, where each inner array
-	// is a group of HGETALL results for a set of duplicate files.
-	const groupedEntities = results.map(group => {
-		return group.map(result => {
-			const parsed = parseHGetAll(result);
-			const entity = repository.createEntity(parsed);
-			// Manually add the entityId that redis-om uses internally
-			entity.entityId = parsed.entityId;
-			return entity;
-		});
-	});
-
-	return groupedEntities;
+	// is a group of keys for a set of duplicate files.
+	return Promise.all(
+		groupedKeys.map(keyGroup =>
+			Promise.all(keyGroup.map(key => repository.fetch(key.split(':').pop())))
+		)
+	);
 }
 
 module.exports = {

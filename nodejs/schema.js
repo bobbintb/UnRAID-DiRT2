@@ -14,10 +14,6 @@ const fileMetadataSchema = new Schema(
 	},
 	{
 		dataStructure: "HASH",
-		// The prefix for the keys in Redis. Defaults to the class name.
-		prefix: 'file',
-		// The separator for the keys in Redis. Defaults to ':'.
-		separator: ':',
 	}
 );
 

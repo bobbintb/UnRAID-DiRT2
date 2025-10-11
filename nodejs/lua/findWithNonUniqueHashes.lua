@@ -15,8 +15,7 @@ repeat
                 if hashes[hash] == nil then
                     hashes[hash] = {}
                 end
-                local obj = redis.call('HGETALL', key)
-                table.insert(hashes[hash], obj)
+                table.insert(hashes[hash], key)
             end
         end
     end
@@ -24,9 +23,9 @@ until cursor == '0'
 
 -- Filter out hashes that are not duplicates
 local result = {}
-for hash, objects in pairs(hashes) do
-    if #objects > 1 then
-        table.insert(result, objects)
+for hash, keys in pairs(hashes) do
+    if #keys > 1 then
+        table.insert(result, keys)
     end
 end
 
