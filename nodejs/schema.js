@@ -4,6 +4,7 @@ const fileMetadataSchema = new Schema(
 	"ino",
 	{
 		path: { type: "string[]" },
+		shares: { type: "string[]", searchable: true },
 		size: { type: "number" },
 		nlink: { type: "number" },
 		atime: { type: "date" },

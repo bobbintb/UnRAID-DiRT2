@@ -34,8 +34,9 @@ async function getFileStats(fullPath) {
  *
  * @param {string} fullPath The full path to the file.
  * @param {Map<number, object[]>} filesBySize The map grouping files by size.
+ * @param {string} share The name of the share the file belongs to.
  */
-async function processFile(fullPath, filesBySize) {
+async function processFile(fullPath, filesBySize, share) {
   console.log(`[DIRT] Processing file: ${fullPath}`);
   const stats = await getFileStats(fullPath);
   if (!stats) {
@@ -48,7 +49,7 @@ async function processFile(fullPath, filesBySize) {
   if (!fileList) {
     // This is the first file found of this specific size.
     console.log(`[DIRT] Creating new size group for size ${size} with file: ${fullPath}`);
-    const newFileObject = { ino, path: [fullPath], nlink, atime, mtime, ctime };
+    const newFileObject = { ino, path: [fullPath], shares: [share], nlink, atime, mtime, ctime };
     filesBySize.set(size, [newFileObject]);
   } else {
     // Other files of this size already exist. Check for a hard link.
@@ -58,6 +59,7 @@ async function processFile(fullPath, filesBySize) {
         // Found a hard link. The inode number matches.
         console.log(`[DIRT] Found hard link for inode ${ino}. Adding path: ${fullPath}`);
         file.path.push(fullPath);
+        file.shares.push(share); // Also add the new share
         foundHardLink = true;
         break;
       }
@@ -66,7 +68,7 @@ async function processFile(fullPath, filesBySize) {
     if (!foundHardLink) {
       // It's a different file that just happens to be the same size.
       console.log(`[DIRT] Found new file with existing size ${size} but different inode: ${fullPath}`);
-      const newFileObject = { ino, path: [fullPath], nlink, atime, mtime, ctime };
+      const newFileObject = { ino, path: [fullPath], shares: [share], nlink, atime, mtime, ctime };
       fileList.push(newFileObject);
     }
   }
@@ -76,8 +78,9 @@ async function processFile(fullPath, filesBySize) {
  * Recursively traverses a directory.
  * @param {string} directory The path of the directory to traverse.
  * @param {Map<number, object[]>} filesBySize The map to populate with file data.
+ * @param {string} share The name of the share being traversed.
  */
-async function traverse(directory, filesBySize) {
+async function traverse(directory, filesBySize, share) {
   console.log(`[DIRT] Traversing directory: ${directory}`);
   let entries;
   try {
@@ -90,9 +93,9 @@ async function traverse(directory, filesBySize) {
   for (const entry of entries) {
     const fullPath = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      await traverse(fullPath, filesBySize);
+      await traverse(fullPath, filesBySize, share);
     } else if (entry.isFile()) {
-      await processFile(fullPath, filesBySize);
+      await processFile(fullPath, filesBySize, share);
     }
   }
 }
@@ -124,18 +127,18 @@ function handleZeroByteFiles(filesBySize) {
 /**
  * Scans directories recursively, groups files by their exact size, and handles hard links.
  *
- * @param {string[]} paths An array of absolute paths to start scanning from.
+ * @param {object[]} sharesToScan An array of objects, each with a `share` name and a `path` to scan.
  * @returns {Promise<Map<number, object[]>>} A Promise that resolves to a Map of files grouped by size.
  */
-async function scan(paths) {
+async function scan(sharesToScan) {
   const filesBySize = new Map();
 
-  for (const p of paths) {
-    console.log(`[DIRT] Starting scan for root path: ${p}`);
+  for (const { share, path: p } of sharesToScan) {
+    console.log(`[DIRT] Starting scan for root path: ${p} (Share: ${share})`);
     try {
       const stats = await fs.stat(p);
       if (stats.isDirectory()) {
-        await traverse(p, filesBySize);
+        await traverse(p, filesBySize, share);
       } else {
         console.error(`[DIRT] Provided path is not a directory: ${p}`);
       }
