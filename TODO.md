@@ -1,4 +1,4 @@
-# D.I.R.T. Project TODO List
+# DiRT Project TODO List
 
 This document tracks outstanding tasks, bugs, and potential improvements for the D.I.R.T. project, consolidated from multiple code evaluations.
 
@@ -55,3 +55,8 @@ This document tracks outstanding tasks, bugs, and potential improvements for the
 *   **Issue:** The code compares intermediate hashes as hex strings (`hasher.digest('hex')`).
 *   **Recommendation:** For a minor performance gain, compare raw `Buffer` objects directly by using `hasher.digest()`. This avoids the overhead of hex string conversion and allocation.
 *   **Source:** `process_js_evaluation-chatgpt.md`
+
+### 5. Evaluate `isHardLinked` Tag Proposal
+*   **Issue:** The current method for finding hard-linked files involves a full database scan. A proposal has been made to add a searchable `isHardLinked` tag to optimize this and the share deletion workflow.
+*   **Recommendation:** Review the trade-offs outlined in `hard_link_tag_evaluation.md` and decide whether to implement the `isHardLinked` tag.
+*   **Source:** `hard_link_tag_evaluation.md`
