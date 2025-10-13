@@ -16,6 +16,8 @@ It is critical to understand that the events below are not a direct 1:1 mapping 
 *   A file moved from an unmonitored location to a **monitored** share is interpreted as a `file.upsert` event.
 *   A file moved between two **monitored** locations is a true `file.moved` event.
 
+Furthermore, the hashing process itself is robust against concurrent filesystem changes. This is because opening a file provides the process with a file descriptor that points directly to the file's inode (the underlying data on disk), not its path. As a result, if a file is moved or even its last path is deleted while it is being hashed, the process can continue reading the file's contents without interruption. The file's data is only reclaimed by the operating system after the last open file descriptor is closed.
+
 ### 1.1 `file.upsert`
 
 This event is triggered when a new file is created, an existing file's contents have changed, or a file is moved into a monitored share from an unmonitored location.
@@ -25,12 +27,11 @@ This event is triggered when a new file is created, an existing file's contents 
 *   **Required Action**:
     1.  Get file stats for the given `path` to retrieve its `ino` and `size`.
     2.  Query Redis for all known files with the **exact same size**.
-    3.  **If no files of the same size exist:**
-        *   The file is unique by size. Hash the file's contents.
-        *   Save the new metadata (including the hash) to Redis, using the `ino` as the primary key.
-    4.  **If files of the same size exist:**
-        *   This indicates potential duplicates. Add a new job to the queue for a targeted hashing process.
-        *   This new job will contain the `path` of the triggering file and the list of paths of the potential duplicates. The hashing worker will then efficiently compare the new file against the existing ones.
+    3.  **If hashing is required (either for a unique file or for duplicate checking):**
+        *   The hashing process must be made cancellable to prevent wasted work. Before starting, the worker must subscribe to a unique Redis Pub/Sub channel based on the file's `ino` (e.g., `cancel-hashing:<ino>`).
+        *   The file must be read and hashed in chunks. Between processing each chunk, the worker must check if a "cancel" message has been received on the channel.
+        *   If a cancellation message is received, the hashing process must be aborted immediately, and the job should fail gracefully.
+        *   If the hash completes successfully, the results are saved to Redis.
 
 ### 1.2 `file.removed`
 
@@ -40,9 +41,10 @@ This event is triggered when a file path is deleted or a file is moved from a mo
 *   **Data Payload**: `{ "path": "/mnt/user/share/removed.txt", "ino": "12345" }`
     *   **Note**: The `ino` must be captured by the file watcher *before* the file is deleted/moved.
 *   **Required Action**:
-    1.  Fetch the file's record from Redis using the `ino` from the payload.
-    2.  If the record exists, remove the `path` from the `paths` array.
-    3.  Check the `paths` array:
+    1.  **Publish Cancellation Signal:** Immediately publish a "cancel" message to the Redis Pub/Sub channel for this file's `ino` (e.g., `cancel-hashing:<ino>`). This is a crucial step to abort any in-progress hashing job for the same file.
+    2.  Fetch the file's record from Redis using the `ino` from the payload.
+    3.  If the record exists, remove the `path` from the `paths` array.
+    4.  Check the `paths` array:
         *   If the array is now **empty**, it was the last hard link. Delete the entire record from Redis.
         *   If the array is **not empty**, other hard links still exist. Save the updated record.
 
