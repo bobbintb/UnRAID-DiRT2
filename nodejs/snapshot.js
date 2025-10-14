@@ -13,7 +13,7 @@ async function saveDbSnapshot() {
     const initialLastSave = await redisClient.lastSave();
     console.log(`[Snapshot] Initial LASTSAVE: ${initialLastSave}`);
 
-    await redisClient.bgsave();
+    await redisClient.bgSave();
     console.log('[Snapshot] BGSAVE command issued.');
 
     let currentLastSave = initialLastSave;
