@@ -1,7 +1,10 @@
 const { performance } = require('perf_hooks');
 const WebSocket = require('ws');
+const fs = require('fs').promises;
+const crypto = require('crypto');
 const { scan } = require('./scan.js');
 const { connectToRedis, closeRedis } = require('./redis.js');
+const { fileProcessingQueue } = require('./queue.js');
 const { saveDbSnapshot } = require('./snapshot.js');
 const {
   debugFindFilesBySize,
@@ -52,6 +55,37 @@ async function main() {
               // Placeholder for removeShare logic
               console.log(`[DIRT] Placeholder: 'removeShare' action received for: ${data.join(', ')}`);
               break;
+            case 'debugCreateFileAndUpsert': {
+              const { path, size } = data;
+              if (!path || !size || isNaN(size)) {
+                console.error(`[DIRT] Invalid data for debugCreateFileAndUpsert:`, data);
+                break;
+              }
+              try {
+                const buffer = crypto.randomBytes(size);
+                await fs.writeFile(path, buffer);
+                console.log(`[DIRT] Successfully created file ${path} with ${size} bytes.`);
+                await fileProcessingQueue.add('file.upsert', { path });
+                console.log(`[DIRT] Queued 'file.upsert' job for ${path}.`);
+              } catch (err) {
+                console.error(`[DIRT] Error creating or queuing file for debugCreateFileAndUpsert:`, err);
+              }
+              break;
+            }
+            case 'debugUpsertExistingFile': {
+              const { path } = data;
+              if (!path) {
+                console.error(`[DIRT] Invalid data for debugUpsertExistingFile:`, data);
+                break;
+              }
+              try {
+                await fileProcessingQueue.add('file.upsert', { path });
+                console.log(`[DIRT] Queued 'file.upsert' job for existing file ${path}.`);
+              } catch (err) {
+                console.error(`[DIRT] Error queuing job for debugUpsertExistingFile:`, err);
+              }
+              break;
+            }
             case 'debugFindFilesBySize':
               await debugFindFilesBySize(data);
               break;

@@ -34,6 +34,25 @@ Title="Debug"
         <p>Triggers a background save of the Redis database and copies the snapshot to the plugin directory.</p>
         <button id="save-db-snapshot-btn">Save DB Snapshot</button>
     </div>
+
+    <hr>
+
+    <div>
+        <h4>Create New File and Trigger Upsert</h4>
+        <p>Creates a file of a specified size with random data at the given path, then queues a <code>file.upsert</code> job for it.</p>
+        <input type="text" id="create-path-input" placeholder="Enter full file path" style="width: 300px;">
+        <input type="number" id="create-size-input" placeholder="Enter size in bytes">
+        <button id="create-file-btn">Create and Upsert</button>
+    </div>
+
+    <hr>
+
+    <div>
+        <h4>Trigger Upsert for Existing File</h4>
+        <p>Queues a <code>file.upsert</code> job for an existing file path. Does not verify if the file exists.</p>
+        <input type="text" id="upsert-path-input" placeholder="Enter full file path" style="width: 300px;">
+        <button id="upsert-file-btn">Upsert File</button>
+    </div>
 </div>
 
 <script>
@@ -99,6 +118,25 @@ $(function() {
 
     $('#save-db-snapshot-btn').on('click', function() {
         dirtySock('saveDbSnapshot', null);
+    });
+
+    $('#create-file-btn').on('click', function() {
+        const path = $('#create-path-input').val();
+        const size = $('#create-size-input').val();
+        if (path && size && !isNaN(size)) {
+            dirtySock('debugCreateFileAndUpsert', { path: path, size: parseInt(size, 10) });
+        } else {
+            console.error("Invalid input. Please provide a valid path and numeric size.");
+        }
+    });
+
+    $('#upsert-file-btn').on('click', function() {
+        const path = $('#upsert-path-input').val();
+        if (path) {
+            dirtySock('debugUpsertExistingFile', { path: path });
+        } else {
+            console.error("Invalid input. Please provide a valid path.");
+        }
     });
 });
 </script>
