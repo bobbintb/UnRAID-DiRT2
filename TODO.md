@@ -60,3 +60,7 @@ This document tracks outstanding tasks, bugs, and potential improvements for the
 *   **Issue:** The current method for finding hard-linked files involves a full database scan. A proposal has been made to add a searchable `isHardLinked` tag to optimize this and the share deletion workflow.
 *   **Recommendation:** Review the trade-offs outlined in `hard_link_tag_evaluation.md` and decide whether to implement the `isHardLinked` tag.
 *   **Source:** `hard_link_tag_evaluation.md`
+
+---
+## Uncategorized
+* Find out what happens to the inode in Unraid shfs if moved from one disk to another. We need to know if it invaliates the database record.
