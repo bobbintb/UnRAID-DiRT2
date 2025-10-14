@@ -1,5 +1,9 @@
 const { Worker } = require('bullmq');
-const { processDuplicates, createWorkerPool, terminateWorkerPool } = require('./process.js');
+// handlers.js will be created in a subsequent step and will contain the job processing logic.
+const handlers = require('./handlers.js');
+// The worker pool logic will also be moved to the new handlers file.
+const { createWorkerPool, terminateWorkerPool } = require('./handlers.js');
+
 const { fileProcessingQueue } = require('./queue.js');
 const { sharedEmitter } = require('./events.js');
 
@@ -11,11 +15,26 @@ const connection = {
 // Create a persistent worker pool to be used by all jobs.
 const workerPool = createWorkerPool();
 
-const worker = new Worker('file-processing', async job => {
-  const { files, size } = job.data;
-  console.log(`[WORKER] Processing job ${job.id} for file group of size ${size}`);
-  // Pass the persistent worker pool to the job processor.
-  await processDuplicates(files, size, workerPool);
+const worker = new Worker('file-processing', async (job) => {
+  console.log(`[WORKER] Received job ${job.id} of type ${job.name}`);
+
+  switch (job.name) {
+    case 'scan':
+      await handlers.handleScan(job, workerPool);
+      break;
+    case 'file.upsert':
+      await handlers.handleUpsert(job);
+      break;
+    case 'file.removed':
+      await handlers.handleRemoved(job);
+      break;
+    case 'file.moved':
+      await handlers.handleMoved(job);
+      break;
+    default:
+      console.error(`[WORKER] Unknown job name: ${job.name}`);
+      throw new Error(`Unknown job name: ${job.name}`);
+  }
 }, { connection });
 
 // Gracefully shut down the worker pool when the process is terminated.

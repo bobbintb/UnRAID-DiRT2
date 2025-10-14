@@ -182,13 +182,12 @@ function finalizeHashes(finalGroupsWithHashes) {
 }
 
 /**
- * Processes a group of files to find true duplicates by performing an efficient,
- * incremental comparison using intermediate hashes.
- *
- * @param {object[]} initialGroup An array of file objects that have the same size.
- * @param {number} size The size of the files in the group.
+ * The main handler for 'scan' jobs. Processes a group of files to find true duplicates.
+ * @param {object} job The BullMQ job object.
+ * @param {Worker[]} workerPool The pool of worker threads.
  */
-async function processDuplicates(initialGroup, size, workerPool) {
+const handleScan = async (job, workerPool) => {
+    const { files: initialGroup, size } = job.data;
     console.log(`[DIRT] Starting definitive incremental comparison for group of ${initialGroup.length} files with size ${size}.`);
     console.log();
 
@@ -217,7 +216,7 @@ async function processDuplicates(initialGroup, size, workerPool) {
 
             if (activeGroups.length > 0) {
                 const totalFiles = activeGroups.reduce((sum, group) => sum + group.length, 0);
-                console.log(`[1A[0K[DIRT] Chunk comparison complete. ${totalFiles} potential duplicates remain in ${activeGroups.length} group(s).`);
+                console.log(` [1A [0K[DIRT] Chunk comparison complete. ${totalFiles} potential duplicates remain in ${activeGroups.length} group(s).`);
             } else {
                 break;
             }
@@ -245,7 +244,19 @@ async function processDuplicates(initialGroup, size, workerPool) {
 
     await saveWithRetries(filesToSave);
     console.log(`[DIRT] Finished processing and saving data for group size ${size}.`);
-}
+};
+
+const handleUpsert = async (job) => {
+  console.log(`[HANDLER] Processing file.upsert job ${job.id} for path: ${job.data.path}`);
+};
+
+const handleRemoved = async (job) => {
+  console.log(`[HANDLER] Processing file.removed job ${job.id} for path: ${job.data.path}`);
+};
+
+const handleMoved = async (job) => {
+  console.log(`[HANDLER] Processing file.moved job ${job.id} from ${job.data.oldPath} to ${job.data.newPath}`);
+};
 
 /**
  * Creates a pool of worker threads to handle CPU-intensive hashing tasks.
@@ -276,7 +287,10 @@ async function terminateWorkerPool(workerPool) {
 }
 
 module.exports = {
-    processDuplicates,
+    handleScan,
+    handleUpsert,
+    handleRemoved,
+    handleMoved,
     createWorkerPool,
     terminateWorkerPool,
 };
