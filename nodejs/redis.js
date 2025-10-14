@@ -40,6 +40,13 @@ function getFileMetadataRepository() {
 	return fileMetadataRepository;
 }
 
+function getRedisClient() {
+	if (!redisClient) {
+		throw new Error("Redis client not initialized. Call connectToRedis() first.");
+	}
+	return redisClient;
+}
+
 async function closeRedis() {
 	if (redisClient) {
 		await redisClient.quit();
@@ -103,6 +110,7 @@ async function findWithNonUniqueHashes() {
 module.exports = {
     connectToRedis,
     getFileMetadataRepository,
+    getRedisClient,
     closeRedis,
     fileMetadataSchema,
     findBySize,

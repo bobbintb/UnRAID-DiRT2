@@ -26,6 +26,14 @@ Title="Debug"
         <h4>Find Files with Non-Unique Hashes (Duplicates)</h4>
         <button id="non-unique-hash-btn">Run Query</button>
     </div>
+
+    <hr>
+
+    <div>
+        <h4>Save Database Snapshot</h4>
+        <p>Triggers a background save of the Redis database and copies the snapshot to the plugin directory.</p>
+        <button id="save-db-snapshot-btn">Save DB Snapshot</button>
+    </div>
 </div>
 
 <script>
@@ -87,6 +95,10 @@ $(function() {
 
     $('#non-unique-hash-btn').on('click', function() {
         dirtySock('debugFindFilesWithNonUniqueHashes', null);
+    });
+
+    $('#save-db-snapshot-btn').on('click', function() {
+        dirtySock('saveDbSnapshot', null);
     });
 });
 </script>

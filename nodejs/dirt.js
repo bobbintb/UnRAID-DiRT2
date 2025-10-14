@@ -2,6 +2,7 @@ const { performance } = require('perf_hooks');
 const WebSocket = require('ws');
 const { scan } = require('./scan.js');
 const { connectToRedis, closeRedis } = require('./redis.js');
+const { saveDbSnapshot } = require('./snapshot.js');
 const {
   debugFindFilesBySize,
   debugFindFilesWithMultiplePaths,
@@ -60,6 +61,16 @@ async function main() {
             case 'debugFindFilesWithNonUniqueHashes':
               await debugFindFilesWithNonUniqueHashes();
               break;
+            case 'saveDbSnapshot': {
+              const result = await saveDbSnapshot();
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                  action: 'snapshotResult',
+                  data: result,
+                }));
+              }
+              break;
+            }
             default:
               console.log(`[DIRT] Received unknown action: ${action}`);
               break;
