@@ -13,51 +13,68 @@ const {
   debugFindFilesWithNonUniqueHashes
 } = require('./debug.js');
 
+let inboxListenerClient;
+
+async function startInboxListener() {
+  // A dedicated client is needed for blocking commands like BRPOP
+  inboxListenerClient = createClient({ url: 'redis://localhost:6379' });
+  await inboxListenerClient.connect();
+  console.log('[DIRT] Inbox listener connected to Redis.');
+
+  // The '0' timeout means it will block indefinitely until an item is available.
+  const inboxKey = 'dirt-inbox';
+  const timeout = 0;
+
+  while (true) {
+    try {
+      const result = await inboxListenerClient.brPop(inboxKey, timeout);
+      // brPop returns an object like { key: 'dirt-inbox', element: '...' }
+      if (result) {
+        const message = result.element;
+        console.log(`[DIRT] Received event from '${inboxKey}':`, message);
+        const event = JSON.parse(message);
+
+        // Basic validation
+        if (!event.eventType || !event.ino) {
+          console.error('[DIRT] Invalid event received from inbox. Missing eventType or ino:', event);
+          continue; // Continue to the next iteration
+        }
+
+        const allowedEvents = ['file.upsert', 'file.removed', 'file.moved'];
+        if (!allowedEvents.includes(event.eventType)) {
+          console.error(`[DIRT] Unknown eventType received from inbox: ${event.eventType}`);
+          continue; // Continue to the next iteration
+        }
+
+        // Add the job to the queue, using the inode as the groupId
+        // to ensure sequential processing for the same file.
+        await fileProcessingQueue.add(event.eventType, event, {
+          groupId: event.ino.toString(), // groupId must be a string
+        });
+
+        console.log(`[DIRT] Queued job '${event.eventType}' for ino '${event.ino}' from inbox.`);
+      }
+    } catch (error) {
+      // If brPop times out or if there's a connection issue, it might throw.
+      // Also handles JSON parsing errors.
+      console.error('[DIRT] Error processing message from dirt-inbox:', error);
+      // Add a small delay before retrying to prevent a tight error loop in case of connection issues.
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+}
+
 async function main() {
   try {
     // Establish the connection to Redis and get the repository
     await connectToRedis();
     console.log('[DIRT] Successfully connected to Redis.');
 
+    // Start the inbox listener as a background process
+    startInboxListener();
+
     // Now that Redis is connected, start the worker and the WebSocket server.
     require('./worker.js'); // This will start the worker process
-
-    // Create a dedicated Redis client for pub/sub.
-    // A client in subscriber mode cannot issue any other commands.
-    const subscriber = createClient({ url: 'redis://localhost:6379' });
-    await subscriber.connect();
-    console.log('[DIRT] Redis subscriber connected.');
-
-    // Subscribe to the channel for external events
-    await subscriber.subscribe('dirt:events', (message) => {
-      try {
-        const event = JSON.parse(message);
-        console.log(`[DIRT] Received event from 'dirt:events':`, event);
-
-        // Basic validation
-        if (!event.eventType || !event.ino) {
-          console.error('[DIRT] Invalid event received. Missing eventType or ino:', event);
-          return;
-        }
-
-        const allowedEvents = ['file.upsert', 'file.removed', 'file.moved'];
-        if (!allowedEvents.includes(event.eventType)) {
-          console.error(`[DIRT] Unknown eventType received: ${event.eventType}`);
-          return;
-        }
-
-        // Add the job to the queue, using the inode as the groupId
-        // to ensure sequential processing for the same file.
-        fileProcessingQueue.add(event.eventType, event, {
-          groupId: event.ino.toString(), // groupId must be a string
-        });
-
-        console.log(`[DIRT] Queued job '${event.eventType}' for ino '${event.ino}'`);
-
-      } catch (error) {
-        console.error('[DIRT] Error processing message from dirt:events channel:', error);
-      }
-    });
 
     const port = 41820;
     const wss = new WebSocket.Server({ port });
@@ -164,9 +181,9 @@ async function main() {
     process.on('SIGINT', async () => {
       console.log('[DIRT] SIGINT received. Shutting down gracefully...');
       // It's important to close all connections before exiting
-      if (subscriber.isOpen) {
-        await subscriber.quit();
-        console.log('[DIRT] Redis subscriber disconnected.');
+      if (inboxListenerClient && inboxListenerClient.isOpen) {
+        await inboxListenerClient.quit();
+        console.log('[DIRT] Inbox listener Redis client disconnected.');
       }
       await closeRedis();
       console.log('[DIRT] Redis connection closed.');
