@@ -22,7 +22,7 @@ async function startInboxListener() {
   console.log('[DIRT] Inbox listener connected to Redis.');
 
   // The '0' timeout means it will block indefinitely until an item is available.
-  const inboxKey = 'dirt-inbox';
+  const inboxKey = 'dirt-events';
   const timeout = 0;
 
   while (true) {
