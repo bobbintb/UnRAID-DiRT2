@@ -6,12 +6,17 @@ This document tracks outstanding tasks, bugs, and potential improvements for the
 
 ## High Priority
 
-### 1. Improve Job Failure Reporting in `process.js`
+### 1. Address Inode Instability on Cross-Disk Moves (User Priority)
+*   **Issue:** The application relies on file inodes as stable identifiers. In Unraid's `shfs`/FUSE file system, moving a file between underlying physical disks (e.g., from `disk1` to `disk2`) is a copy-then-delete operation, which assigns a **new inode** to the file on the destination disk. Furthermore, any action on the underlying disks that bypasses the FUSE layer will not be tracked at all.
+*   **Recommendation:** Investigate the impact of this behavior on data integrity. The current inode-based tracking can lead to orphaned records or incorrect file associations when out-of-band moves occur. A more resilient identification strategy needs to be designed, potentially involving periodic scans, content hashing, or a combination of file path and metadata to detect and reconcile these changes.
+*   **Source:** User request.
+
+### 2. Improve Job Failure Reporting in `process.js`
 *   **Issue:** The main `try...catch` block in `processDuplicates` catches errors but does not propagate them. If a job fails due to an I/O error, the BullMQ worker will report it as 'completed' successfully, leading to silent failures where duplicate groups are not processed.
 *   **Recommendation:** Modify the `catch` block to re-throw the error. This will cause the BullMQ job to be marked as 'failed', providing accurate feedback on the processing status and preventing data integrity issues.
 *   **Source:** `process_js_evaluation.md`, `process_js_evaluation-claude.md`
 
-### 2. Use File Path as Primary Key Instead of Inode
+### 3. Use File Path as Primary Key Instead of Inode
 *   **Issue:** The application currently uses the file `ino` (inode number) as the primary key for maps and data structures. While generally unique on a single `ext4`/`xfs` filesystem, inode numbers can be reused or be non-unique across different filesystems, especially with network mounts (NFS/SMB) or complex setups like `overlayfs`. This could lead to incorrect file identification.
 *   **Recommendation:** Refactor the code to use the full, absolute file path (`file.path[0]`) as the primary key for all maps (`fileInfoMap`, `fileHandles`) and for the Redis primary key. This guarantees uniqueness across all environments.
 *   **Source:** `process_js_evaluation-chatgpt.md`
@@ -60,7 +65,3 @@ This document tracks outstanding tasks, bugs, and potential improvements for the
 *   **Issue:** The current method for finding hard-linked files involves a full database scan. A proposal has been made to add a searchable `isHardLinked` tag to optimize this and the share deletion workflow.
 *   **Recommendation:** Review the trade-offs outlined in `hard_link_tag_evaluation.md` and decide whether to implement the `isHardLinked` tag.
 *   **Source:** `hard_link_tag_evaluation.md`
-
----
-## Uncategorized
-* Find out what happens to the inode in Unraid shfs if moved from one disk to another. We need to know if it invaliates the database record.
