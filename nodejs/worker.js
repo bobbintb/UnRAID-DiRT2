@@ -1,8 +1,10 @@
-const { Worker } = require('bullmq');
+const { Worker: BullWorker } = require('bullmq'); // Renamed to avoid conflict
+const os = require('os');
+const path = require('path');
+const { Worker } = require('worker_threads');
+const { handleFileGroup } = require('./file-group-processor.js');
 // handlers.js will be created in a subsequent step and will contain the job processing logic.
 const handlers = require('./handlers.js');
-// The worker pool logic will also be moved to the new handlers file.
-const { createWorkerPool, terminateWorkerPool } = require('./handlers.js');
 
 const { fileProcessingQueue } = require('./redis.js');
 const { sharedEmitter } = require('./events.js');
@@ -12,15 +14,43 @@ const connection = {
   port: 6379
 };
 
+/**
+ * Creates a pool of worker threads to handle CPU-intensive hashing tasks.
+ * @returns {Worker[]} An array of worker instances.
+ */
+function createWorkerPool() {
+    // Leave one core for the main thread and other system tasks.
+    const numCores = os.cpus().length;
+    const numWorkers = Math.max(1, numCores - 1);
+    const workers = [];
+
+    console.log(`[DIRT] Initializing a pool of ${numWorkers} worker thread(s) for hashing.`);
+
+    for (let i = 0; i < numWorkers; i++) {
+        const workerPath = path.resolve(__dirname, 'hash-worker.js');
+        workers.push(new Worker(workerPath));
+    }
+    return workers;
+}
+
+/**
+ * Terminates all workers in the pool.
+ * @param {Worker[]} workerPool - The pool of workers to terminate.
+ */
+async function terminateWorkerPool(workerPool) {
+    console.log('[DIRT] Terminating worker pool.');
+    await Promise.all(workerPool.map(worker => worker.terminate()));
+}
+
 // Create a persistent worker pool to be used by all jobs.
 const workerPool = createWorkerPool();
 
-const worker = new Worker('file-processing', async (job) => {
+const worker = new BullWorker('file-processing', async (job) => {
   console.log(`[WORKER] Received job ${job.id} of type ${job.name}`);
 
   switch (job.name) {
     case 'file-group':
-      await handlers.handleFileGroup(job, workerPool);
+      await handleFileGroup(job, workerPool);
       break;
     case 'file.upsert':
       await handlers.handleUpsert(job);
