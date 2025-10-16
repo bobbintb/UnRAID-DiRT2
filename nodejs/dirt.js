@@ -32,27 +32,27 @@ async function startInboxListener() {
       if (result) {
         const message = result.element;
         console.log(`[DIRT] Received event from '${inboxKey}':`, message);
-        const event = JSON.parse(message);
+        const fs_event = JSON.parse(message);
 
         // Basic validation
-        if (!event.eventType || !event.ino) {
-          console.error('[DIRT] Invalid event received from inbox. Missing eventType or ino:', event);
+        if (!fs_event.event || !fs_event.path) {
+          console.error('[DIRT] Invalid event received from inbox. Missing event or path:', fs_event);
           continue; // Continue to the next iteration
         }
 
-        const allowedEvents = ['file.upsert', 'file.removed', 'file.moved'];
-        if (!allowedEvents.includes(event.eventType)) {
-          console.error(`[DIRT] Unknown eventType received from inbox: ${event.eventType}`);
+        const allowedEvents = ['upsert', 'remove', 'move'];
+        if (!allowedEvents.includes(fs_event.event)) {
+          console.error(`[DIRT] Unknown event received from inbox: ${fs_event.event}`);
           continue; // Continue to the next iteration
         }
 
-        // Add the job to the queue, using the inode as the groupId
+        // Add the job to the queue, using the file path as the groupId
         // to ensure sequential processing for the same file.
-        await fileProcessingQueue.add(event.eventType, event, {
-          groupId: event.ino.toString(), // groupId must be a string
+        await fileProcessingQueue.add(fs_event.event, fs_event, {
+          groupId: fs_event.path,
         });
 
-        console.log(`[DIRT] Queued job '${event.eventType}' for ino '${event.ino}' from inbox.`);
+        console.log(`[DIRT] Queued job '${fs_event.event}' for path '${fs_event.path}' from inbox.`);
       }
     } catch (error) {
       // If brPop times out or if there's a connection issue, it might throw.
