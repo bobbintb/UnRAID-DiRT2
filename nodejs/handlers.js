@@ -7,24 +7,27 @@ const handleUpsert = async (job) => {
 };
 
 const handleRemoved = async (job) => {
-  const { path: removedPath, ino } = job.data;
-  console.log(`[HANDLER] Processing file.removed job ${job.id} for ino: ${ino}, path: ${removedPath}`);
+  const { path: removedPath } = job.data;
+  console.log(`[HANDLER] Processing file.removed job ${job.id} for path: ${removedPath}`);
 
   try {
-    // 1. Publish cancellation signal.
+    // 1. Publish cancellation signal immediately, using the path.
     const pubClient = getRedisPublisherClient();
-    const channel = `cancel-hashing:${ino}`;
+    const channel = `cancel-hashing:${removedPath}`;
     await pubClient.publish(channel, 'cancel');
     console.log(`[HANDLER] Published cancellation signal to ${channel}`);
 
-    // 2. Fetch the record from Redis using the inode.
+    // 2. Search for the file record by its path.
     const fileRepository = getFileMetadataRepository();
-    const fileEntity = await fileRepository.fetch(ino);
+    const fileEntity = await fileRepository.search().where('path').eq(removedPath).return.first();
 
-    // 3. If no record, throw error to fail the job.
+    // 3. If no record is found, the file is not in our system. Log and exit gracefully.
     if (!fileEntity) {
-      throw new Error(`[HANDLER] Could not find file record in Redis for ino: ${ino} (path: ${removedPath})`);
+      console.warn(`[HANDLER] Received removed event for path not in Redis: ${removedPath}. Ignoring.`);
+      return;
     }
+
+    const ino = fileEntity.entityId;
 
     // 4. Optimized path check
     if (fileEntity.path.length <= 1) {
@@ -43,13 +46,12 @@ const handleRemoved = async (job) => {
         await fileRepository.save(fileEntity);
         console.log(`[HANDLER] Removed path ${removedPath} for ino ${ino}. ${fileEntity.path.length} paths remain.`);
       } else {
-        // This could happen if the event is stale and the path was already removed.
-        // Log a warning but don't fail the job.
-        console.warn(`[HANDLER] Path ${removedPath} not found in record for ino ${ino}. No action taken.`);
+        // This should not happen if the search was correct, but as a safeguard:
+        console.warn(`[HANDLER] Path ${removedPath} not found in record for ino ${ino}, despite being found by search. No action taken.`);
       }
     }
   } catch (error) {
-    console.error(`[HANDLER] Error processing file.removed job for ino ${ino}:`, error);
+    console.error(`[HANDLER] Error processing file.removed job for path ${removedPath}:`, error);
     // Re-throw the error to allow BullMQ to handle the job failure.
     throw error;
   }

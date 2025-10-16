@@ -15,7 +15,7 @@ let findWithNonUniqueHashesScriptSha;
 const fileMetadataSchema = new Schema(
 	"ino",
 	{
-		path: { type: "string[]" },
+		path: { type: "string[]", searchable: true },
 		shares: { type: "string[]", searchable: true },
 		size: { type: "number" },
 		nlink: { type: "number" },

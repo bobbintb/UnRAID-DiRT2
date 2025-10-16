@@ -38,15 +38,14 @@ This event is triggered when a new file is created, an existing file's contents 
 This event is triggered when a file path is deleted or a file is moved from a monitored share to an unmonitored location. It correctly handles hard links.
 
 *   **Event Name**: `file.removed`
-*   **Data Payload**: `{ "path": "/mnt/user/share/removed.txt", "ino": "12345" }`
-    *   **Note**: The `ino` must be captured by the file watcher *before* the file is deleted/moved.
+*   **Data Payload**: `{ "path": "/mnt/user/share/removed.txt" }`
 *   **Required Action**:
-    1.  **Publish Cancellation Signal:** Immediately publish a "cancel" message to the Redis Pub/Sub channel for this file's `ino` (e.g., `cancel-hashing:<ino>`). This is a crucial step to abort any in-progress hashing job for the same file.
-    2.  Fetch the file's record from Redis using the `ino` from the payload.
-    3.  If the record exists, remove the `path` from the `paths` array.
-    4.  Check the `paths` array:
-        *   If the array is now **empty**, it was the last hard link. Delete the entire record from Redis.
-        *   If the array is **not empty**, other hard links still exist. Save the updated record.
+    1.  **Publish Cancellation Signal:** Immediately publish a "cancel" message to the Redis Pub/Sub channel for the file's `path` (e.g., `cancel-hashing:/mnt/user/share/removed.txt`). This is a crucial step to abort any in-progress hashing job for the same file.
+    2.  Search Redis to find the file record where the `path` array contains the path from the payload.
+    3.  If no record is found, the job can be safely ignored (it may have been a stale event).
+    4.  If a record is found, check the `path` array in the record:
+        *   If the array's length is 1, it was the last hard link. Delete the entire record from Redis.
+        *   If the array's length is greater than 1, other hard links still exist. Remove the single path from the array and save the updated record.
 
 ### 1.3 `file.moved`
 
