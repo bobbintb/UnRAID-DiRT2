@@ -6,6 +6,7 @@ const path = require("path");
 const redisFunctions = require("./redisFunctions");
 
 let redisClient;
+let redisPublisherClient;
 let omClient;
 let fileMetadataRepository;
 let findWithMultiplePathsScriptSha;
@@ -14,7 +15,7 @@ let findWithNonUniqueHashesScriptSha;
 const fileMetadataSchema = new Schema(
 	"ino",
 	{
-		path: { type: "string[]" },
+		path: { type: "string[]", searchable: true },
 		shares: { type: "string[]", searchable: true },
 		size: { type: "number" },
 		nlink: { type: "number" },
@@ -40,7 +41,13 @@ async function connectToRedis() {
 	if (!redisClient) {
 		// Create and connect the node-redis client
 		redisClient = createClient({ url: "redis://localhost:6379" });
-		await redisClient.connect();
+		redisPublisherClient = createClient({ url: "redis://localhost:6379" });
+
+		await Promise.all([
+			redisClient.connect(),
+			redisPublisherClient.connect()
+		]);
+
 
 		// Use the connected client to initialize redis-om
 		omClient = new Client();
@@ -80,6 +87,13 @@ function getRedisClient() {
 	return redisClient;
 }
 
+function getRedisPublisherClient() {
+	if (!redisPublisherClient) {
+		throw new Error("Redis publisher client not initialized. Call connectToRedis() first.");
+	}
+	return redisPublisherClient;
+}
+
 async function closeRedis() {
 	if (redisClient) {
 		await redisClient.quit();
@@ -87,12 +101,17 @@ async function closeRedis() {
 		omClient = null;
 		fileMetadataRepository = null;
 	}
+	if (redisPublisherClient) {
+		await redisPublisherClient.quit();
+		redisPublisherClient = null;
+	}
 }
 
 module.exports = {
     connectToRedis,
     getFileMetadataRepository,
     getRedisClient,
+    getRedisPublisherClient,
     closeRedis,
     fileMetadataSchema,
     fileProcessingQueue,

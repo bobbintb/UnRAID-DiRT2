@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { getFileMetadataRepository } = require('./redis.js');
+const { getFileMetadataRepository, getRedisPublisherClient } = require('./redis.js');
 const { getShareFromPath } = require('./utils.js');
 
 const handleUpsert = async (job) => {
@@ -7,7 +7,54 @@ const handleUpsert = async (job) => {
 };
 
 const handleRemoved = async (job) => {
-  console.log(`[HANDLER] Processing file.removed job ${job.id} for path: ${job.data.path}`);
+  const { path: removedPath } = job.data;
+  console.log(`[HANDLER] Processing file.removed job ${job.id} for path: ${removedPath}`);
+
+  try {
+    // 1. Publish cancellation signal immediately, using the path.
+    const pubClient = getRedisPublisherClient();
+    const channel = `cancel-hashing:${removedPath}`;
+    await pubClient.publish(channel, 'cancel');
+    console.log(`[HANDLER] Published cancellation signal to ${channel}`);
+
+    // 2. Search for the file record by its path.
+    const fileRepository = getFileMetadataRepository();
+    const fileEntity = await fileRepository.search().where('path').eq(removedPath).return.first();
+
+    // 3. If no record is found, the file is not in our system. Log and exit gracefully.
+    if (!fileEntity) {
+      console.warn(`[HANDLER] Received removed event for path not in Redis: ${removedPath}. Ignoring.`);
+      return;
+    }
+
+    const ino = fileEntity.entityId;
+
+    // 4. Optimized path check
+    if (fileEntity.path.length <= 1) {
+      // This is the last (or only) path, remove the entire entity.
+      await fileRepository.remove(ino);
+      console.log(`[HANDLER] Removed last path for ino ${ino}. Deleted entity.`);
+    } else {
+      // This is a hard link with other paths remaining.
+      const pathIndex = fileEntity.path.indexOf(removedPath);
+      if (pathIndex > -1) {
+        fileEntity.path.splice(pathIndex, 1);
+
+        // Rebuild shares array for consistency.
+        fileEntity.shares = fileEntity.path.map(getShareFromPath).filter(share => share !== null);
+
+        await fileRepository.save(fileEntity);
+        console.log(`[HANDLER] Removed path ${removedPath} for ino ${ino}. ${fileEntity.path.length} paths remain.`);
+      } else {
+        // This should not happen if the search was correct, but as a safeguard:
+        console.warn(`[HANDLER] Path ${removedPath} not found in record for ino ${ino}, despite being found by search. No action taken.`);
+      }
+    }
+  } catch (error) {
+    console.error(`[HANDLER] Error processing file.removed job for path ${removedPath}:`, error);
+    // Re-throw the error to allow BullMQ to handle the job failure.
+    throw error;
+  }
 };
 
 const handleMoved = async (job) => {
