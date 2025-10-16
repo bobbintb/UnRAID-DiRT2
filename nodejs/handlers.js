@@ -182,11 +182,11 @@ function finalizeHashes(finalGroupsWithHashes) {
 }
 
 /**
- * The main handler for 'scan' jobs. Processes a group of files to find true duplicates.
+ * The main handler for 'file-group' jobs. Processes a group of files to find true duplicates.
  * @param {object} job The BullMQ job object.
  * @param {Worker[]} workerPool The pool of worker threads.
  */
-const handleScan = async (job, workerPool) => {
+const handleFileGroup = async (job, workerPool) => {
     const { files: initialGroup, size } = job.data;
     console.log(`[DIRT] Starting definitive incremental comparison for group of ${initialGroup.length} files with size ${size}.`);
     console.log();
@@ -345,7 +345,7 @@ async function terminateWorkerPool(workerPool) {
 }
 
 module.exports = {
-    handleScan,
+    handleFileGroup,
     handleUpsert,
     handleRemoved,
     handleMoved,

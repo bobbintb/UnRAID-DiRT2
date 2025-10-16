@@ -19,8 +19,8 @@ const worker = new Worker('file-processing', async (job) => {
   console.log(`[WORKER] Received job ${job.id} of type ${job.name}`);
 
   switch (job.name) {
-    case 'scan':
-      await handlers.handleScan(job, workerPool);
+    case 'file-group':
+      await handlers.handleFileGroup(job, workerPool);
       break;
     case 'file.upsert':
       await handlers.handleUpsert(job);
