@@ -4,7 +4,7 @@ const handlers = require('./handlers.js');
 // The worker pool logic will also be moved to the new handlers file.
 const { createWorkerPool, terminateWorkerPool } = require('./handlers.js');
 
-const { fileProcessingQueue } = require('./queue.js');
+const { fileProcessingQueue } = require('./redis.js');
 const { sharedEmitter } = require('./events.js');
 
 const connection = {
