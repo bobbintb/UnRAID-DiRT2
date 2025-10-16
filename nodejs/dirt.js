@@ -4,7 +4,7 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 const { scan } = require('./scan.js');
 const { connectToRedis, closeRedis } = require('./redis.js');
-const { fileProcessingQueue } = require('./queue.js');
+const { fileProcessingQueue } = require('./redis.js');
 const { saveDbSnapshot } = require('./snapshot.js');
 const {
   debugFindFilesBySize,

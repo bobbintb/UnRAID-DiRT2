@@ -1,6 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
-const { fileProcessingQueue } = require('./queue.js');
+const { fileProcessingQueue } = require('./redis.js');
 const { getFileMetadataRepository } = require('./redis.js');
 const { sharedEmitter } = require('./events.js');
 

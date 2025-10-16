@@ -1,14 +1,40 @@
-const { Client } = require("redis-om");
+const { Client, Schema } = require("redis-om");
 const { createClient } = require("redis");
+const { Queue } = require("bullmq");
 const fs = require("fs").promises;
 const path = require("path");
-const { fileMetadataSchema } = require("./schema");
+const redisFunctions = require("./redisFunctions");
 
 let redisClient;
 let omClient;
 let fileMetadataRepository;
 let findWithMultiplePathsScriptSha;
 let findWithNonUniqueHashesScriptSha;
+
+const fileMetadataSchema = new Schema(
+	"ino",
+	{
+		path: { type: "string[]" },
+		shares: { type: "string[]", searchable: true },
+		size: { type: "number" },
+		nlink: { type: "number" },
+		atime: { type: "date" },
+		mtime: { type: "date" },
+		ctime: { type: "date" },
+		hash: { type: "string" },
+		action: { type: "string" },
+	},
+	{
+		dataStructure: "HASH",
+	}
+);
+
+const connection = {
+  host: 'localhost',
+  port: 6379
+};
+
+const fileProcessingQueue = new Queue('file-processing', { connection });
 
 async function connectToRedis() {
 	if (!redisClient) {
@@ -29,6 +55,13 @@ async function connectToRedis() {
 
 		findWithMultiplePathsScriptSha = await redisClient.scriptLoad(findWithMultiplePathsLua);
 		findWithNonUniqueHashesScriptSha = await redisClient.scriptLoad(findWithNonUniqueHashesLua);
+
+		redisFunctions.init({
+			getRedisClient,
+			getFileMetadataRepository,
+			findWithMultiplePathsScriptSha,
+			findWithNonUniqueHashesScriptSha,
+		});
 	}
 	return { redisClient, fileMetadataRepository };
 }
@@ -56,64 +89,15 @@ async function closeRedis() {
 	}
 }
 
-function parseHGetAll(result) {
-	const parsed = {};
-	for (let i = 0; i < result.length; i += 2) {
-		parsed[result[i]] = result[i + 1];
-	}
-	return parsed;
-}
-
-async function findBySize(size) {
-	const repository = getFileMetadataRepository();
-	return await repository.search().where("size").equals(size).return.all();
-}
-
-async function findWithMultiplePaths() {
-	const repository = getFileMetadataRepository();
-	const prefix = 'ino';
-
-	const keys = await redisClient.evalSha(
-		findWithMultiplePathsScriptSha,
-		{
-			keys: [],
-			arguments: [`${prefix}:*`],
-		},
-	);
-
-	return Promise.all(keys.map(key => repository.fetch(key.split(':').pop())));
-}
-
-async function findWithNonUniqueHashes() {
-	const repository = getFileMetadataRepository();
-	const prefix = 'ino';
-	const separator = ':';
-
-
-	const groupedKeys = await redisClient.evalSha(
-		findWithNonUniqueHashesScriptSha,
-		{
-			keys: [],
-			arguments: [`${prefix}${separator}*`],
-		},
-	);
-
-	// The Lua script returns an array of arrays, where each inner array
-	// is a group of keys for a set of duplicate files.
-	return Promise.all(
-		groupedKeys.map(keyGroup =>
-			Promise.all(keyGroup.map(key => repository.fetch(key.split(':').pop())))
-		)
-	);
-}
-
 module.exports = {
     connectToRedis,
     getFileMetadataRepository,
     getRedisClient,
     closeRedis,
     fileMetadataSchema,
-    findBySize,
-    findWithMultiplePaths,
-    findWithNonUniqueHashes,
+    fileProcessingQueue,
+    parseHGetAll: redisFunctions.parseHGetAll,
+    findBySize: redisFunctions.findBySize,
+    findWithMultiplePaths: redisFunctions.findWithMultiplePaths,
+    findWithNonUniqueHashes: redisFunctions.findWithNonUniqueHashes,
 };
