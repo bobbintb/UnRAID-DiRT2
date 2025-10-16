@@ -35,8 +35,8 @@ async function startInboxListener() {
         const fs_event = JSON.parse(message);
 
         // Basic validation
-        if (!fs_event.event || !fs_event.ino) {
-          console.error('[DIRT] Invalid event received from inbox. Missing event or ino:', fs_event);
+        if (!fs_event.event || !fs_event.path) {
+          console.error('[DIRT] Invalid event received from inbox. Missing event or path:', fs_event);
           continue; // Continue to the next iteration
         }
 
@@ -46,13 +46,13 @@ async function startInboxListener() {
           continue; // Continue to the next iteration
         }
 
-        // Add the job to the queue, using the inode as the groupId
+        // Add the job to the queue, using the file path as the groupId
         // to ensure sequential processing for the same file.
         await fileProcessingQueue.add(fs_event.event, fs_event, {
-          groupId: fs_event.ino.toString(), // groupId must be a string
+          groupId: fs_event.path,
         });
 
-        console.log(`[DIRT] Queued job '${fs_event.event}' for ino '${fs_event.ino}' from inbox.`);
+        console.log(`[DIRT] Queued job '${fs_event.event}' for path '${fs_event.path}' from inbox.`);
       }
     } catch (error) {
       // If brPop times out or if there's a connection issue, it might throw.
