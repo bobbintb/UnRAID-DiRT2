@@ -20,8 +20,9 @@ async function saveWithRetries(filesToSave) {
       console.log(`[DIRT] Attempt ${attempt}: Saving ${filesToSave.length} processed file(s) to Redis...`);
       // Use Promise.all to save files concurrently, which is more performant.
       await Promise.all(filesToSave.map(file => {
-        const { ino, ...fileData } = file;
-        return fileRepository.save(ino, fileData);
+        // Save the full file object using its 'ino' as the primary key.
+        // The 'ino' is now also a field within the object itself, as required by the schema.
+        return fileRepository.save(file.ino, file);
       }));
       console.log('[DIRT] Successfully saved processed files to Redis.');
       return; // Success, exit the function
@@ -246,4 +247,5 @@ const handleFileGroup = async (job, workerPool) => {
 
 module.exports = {
     handleFileGroup,
+    saveWithRetries,
 };

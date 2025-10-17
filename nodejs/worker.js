@@ -53,7 +53,7 @@ const worker = new BullWorker('file-processing', async (job) => {
       await handleFileGroup(job, workerPool);
       break;
     case 'upsert':
-      await handlers.handleUpsert(job);
+      await handlers.handleUpsert(job, workerPool);
       break;
     case 'remove':
       await handlers.handleRemove(job);

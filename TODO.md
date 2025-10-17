@@ -25,14 +25,19 @@ This document tracks outstanding tasks, bugs, and potential improvements for the
 
 ## Medium Priority
 
-### 1. Use `Promise.allSettled` for Increased Resilience
+### 1. Defer Discussion on `upsert` Events for Hard Links
+*   **Issue:** The logic for handling an `upsert` event for a file that is a new hard link to an existing inode needs to be carefully considered.
+*   **Recommendation:** This implementation has been deferred. The current `upsert` logic will not handle this specific edge case. A future discussion is needed to determine the correct behavior.
+*   **Source:** User request during planning.
+
+### 2. Use `Promise.allSettled` for Increased Resilience
 *   **Issue:** In `process.js`, concurrent operations (like hashing chunks or closing file handles) use `Promise.all`. If a single promise in the batch rejects, the entire operation is aborted.
 *   **Recommendation:** Replace `Promise.all` with `Promise.allSettled` in two key places:
     1.  When hashing chunks in `processChunk` to allow the batch to continue even if one file's hash fails.
     2.  When closing file handles in the `finally` block to ensure all handles are attempted to be closed, even if one fails.
 *   **Source:** `jules_evaluation_report.md`, `process_js_evaluation-claude.md`
 
-### 2. Handle Potential File Truncation Race Condition
+### 3. Handle Potential File Truncation Race Condition
 *   **Issue:** The file size is checked at the beginning of the scan. If a file is truncated by an external process while it's being hashed, the logic will not detect this. It will generate a hash based on partial content, which could lead to incorrect matches or misses.
 *   **Recommendation:** After the hashing loop in `processDuplicates`, verify that the total `bytesRead` matches the `size` recorded at the start. If they do not match, log a warning and exclude the file from being saved with a hash to maintain data integrity.
 *   **Source:** `process_js_evaluation.md`

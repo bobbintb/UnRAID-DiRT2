@@ -1,9 +1,74 @@
 const fs = require('fs');
 const { getFileMetadataRepository, getRedisPublisherClient } = require('./redis.js');
 const { getShareFromPath } = require('./utils.js');
+const { getFileStats } = require('./scan.js');
+const { handleUpsertGroup } = require('./upsert-processor.js');
+const { saveWithRetries } = require('./file-group-processor.js');
 
-const handleUpsert = async (job) => {
-  console.log(`[HANDLER] Processing file.upsert job ${job.id} for path: ${job.data.path}`);
+const handleUpsert = async (job, workerPool) => {
+  const { path: upsertedPath } = job.data;
+  console.log(`[HANDLER] Processing file.upsert job ${job.id} for path: ${upsertedPath}`);
+
+  // 1. Get file stats.
+  const stats = await getFileStats(upsertedPath);
+  if (!stats) {
+    console.error(`[HANDLER] Could not stat file ${upsertedPath}. Aborting upsert.`);
+    return;
+  }
+  const { ino: upsertedIno, size: upsertedSize } = stats;
+
+  const fileRepository = getFileMetadataRepository();
+
+  // Handle zero-byte files as a special case, consistent with initial scan logic.
+  if (upsertedSize === 0) {
+    console.log(`[HANDLER] Zero-byte file detected: ${upsertedPath}. Assigning static hash.`);
+    const upsertedFile = {
+      ...stats,
+      path: [upsertedPath],
+      shares: [getShareFromPath(upsertedPath)],
+      size: upsertedSize,
+      hash: 'af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262', // Static hash for zero-byte files
+    };
+    await saveWithRetries([upsertedFile]);
+    console.log(`[HANDLER] Finished processing zero-byte upsert for ${upsertedPath}`);
+    return;
+  }
+
+  // 2. Query for files of the same size, excluding the current file's inode.
+  console.log(`[HANDLER] Searching for files with size ${upsertedSize} and different inode...`);
+  const candidateFiles = await fileRepository.search()
+    .where('size').equals(upsertedSize)
+    .and('ino').not.equals(upsertedIno)
+    .return.all();
+
+  const upsertedFile = {
+    ...stats,
+    path: [upsertedPath],
+    shares: [getShareFromPath(upsertedPath)],
+    size: upsertedSize,
+  };
+
+  let filesToSave = [];
+
+  // 3. Handle based on whether candidates were found.
+  if (candidateFiles.length === 0) {
+    // No other files of the same size exist. It's unique.
+    console.log(`[HANDLER] No files of same size found. Preparing to save as unique file: ${upsertedPath}`);
+    filesToSave.push(upsertedFile);
+  } else {
+    // 4. Candidates found. Proceed with definitive hash comparison.
+    console.log(`[HANDLER] Found ${candidateFiles.length} candidate(s) of the same size. Starting hash comparison.`);
+    filesToSave = await handleUpsertGroup(upsertedFile, candidateFiles, workerPool);
+  }
+
+  // 5. Save all necessary files (either the single unique file or the group of duplicates) to Redis.
+  if (filesToSave.length > 0) {
+    await saveWithRetries(filesToSave);
+  } else {
+    console.warn(`[HANDLER] No files were marked for saving for upserted path: ${upsertedPath}`);
+  }
+
+  console.log(`[HANDLER] Finished processing upsert for ${upsertedPath}`);
 };
 
 const handleRemove = async (job) => {
