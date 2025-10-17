@@ -6,7 +6,7 @@ const handleUpsert = async (job) => {
   console.log(`[HANDLER] Processing file.upsert job ${job.id} for path: ${job.data.path}`);
 };
 
-const handleRemoved = async (job) => {
+const handleRemove = async (job) => {
   const { path: removedPath } = job.data;
   console.log(`[HANDLER] Processing file.removed job ${job.id} for path: ${removedPath}`);
 
@@ -63,9 +63,9 @@ const handleRemoved = async (job) => {
   }
 };
 
-const handleMoved = async (job) => {
+const handleRename = async (job) => {
   const { oldPath, newPath } = job.data;
-  console.log(`[HANDLER] Processing file.moved job ${job.id} from ${oldPath} to ${newPath}`);
+  console.log(`[HANDLER] Processing file.rename job ${job.id} from ${oldPath} to ${newPath}`);
 
   try {
     // 1. Get the inode from the new path.
@@ -104,7 +104,7 @@ const handleMoved = async (job) => {
     console.log(`[HANDLER] Successfully updated path for ino ${ino}. New path: ${newPath}`);
 
   } catch (error) {
-    console.error(`[HANDLER] Error processing file.moved job for ${newPath}:`, error);
+    console.error(`[HANDLER] Error processing file.rename job for ${newPath}:`, error);
     // Re-throw the error to allow BullMQ to handle the job failure (e.g., retry).
     throw error;
   }
@@ -112,6 +112,6 @@ const handleMoved = async (job) => {
 
 module.exports = {
     handleUpsert,
-    handleRemoved,
-    handleMoved,
+    handleRemove,
+    handleRename,
 };

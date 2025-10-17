@@ -56,10 +56,10 @@ const worker = new BullWorker('file-processing', async (job) => {
       await handlers.handleUpsert(job);
       break;
     case 'remove':
-      await handlers.handleRemoved(job);
+      await handlers.handleRemove(job);
       break;
-    case 'move':
-      await handlers.handleMoved(job);
+    case 'rename':
+      await handlers.handleRename(job);
       break;
     default:
       console.error(`[WORKER] Unknown job name: ${job.name}`);
