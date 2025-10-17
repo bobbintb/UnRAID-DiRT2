@@ -108,19 +108,18 @@ async function traverse(directory, filesBySize, share) {
  */
 function handleZeroByteFiles(filesBySize) {
   const zeroByteFiles = filesBySize.get(0);
-  if (zeroByteFiles && zeroByteFiles.length > 1) {
-    console.log('[DIRT] Found a group of zero-byte files. Assigning static hash and logging.');
+  if (zeroByteFiles) {
+    console.log(`[DIRT] Found ${zeroByteFiles.length} zero-byte file(s). Assigning static hash.`);
     const staticHash = 'af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262';
     for (const file of zeroByteFiles) {
       file.hash = staticHash;
-      // Log each path associated with the file object
+      // We still log them for clarity, though they will be saved.
       for (const filePath of file.path) {
         console.log(`[DIRT] Zero-byte file identified: ${filePath}`);
       }
     }
-    // Remove the group so it's not sent to processDuplicates
-    filesBySize.delete(0);
-    console.log('[DIRT] Finished handling zero-byte files.');
+    // The group is no longer deleted. It will be handled in the main scan function.
+    console.log('[DIRT] Finished assigning static hash to zero-byte files.');
   }
 }
 
@@ -156,6 +155,8 @@ async function scan(sharesToScan) {
   for (const [size, files] of filesBySize.entries()) {
     if (files.length > 1) {
       // This is a group of potential duplicates, add it to the job queue.
+      // Zero-byte files will now fall into this category and be queued for hashing,
+      // but since they have a pre-assigned hash, the worker will save them directly.
       jobs.push({
         name: 'file-group',
         data: { files, size },
