@@ -11,53 +11,54 @@ const handleRemoved = async (job) => {
   console.log(`[HANDLER] Processing file.removed job ${job.id} for path: ${removedPath}`);
 
   try {
-    // 1. Publish cancellation signal immediately, using the path.
+    // 1. Publish cancellation signal immediately.
     const pubClient = getRedisPublisherClient();
     const channel = `cancel-hashing:${removedPath}`;
     await pubClient.publish(channel, 'cancel');
     console.log(`[HANDLER] Published cancellation signal to ${channel}`);
 
-    // 2. Search for the file record by its path.
+    // 2. Search for the file record by its path, getting all results.
     const fileRepository = getFileMetadataRepository();
-    const fileEntity = await fileRepository.search().where('path').contains(removedPath).return.first();
+    const fileEntities = await fileRepository.search().where('path').contains(removedPath).return.all();
 
-    // 3. If no record is found, the file is not in our system. Log and exit gracefully.
-    if (!fileEntity) {
+    // 3. If no record is found, log and exit gracefully.
+    if (!fileEntities || fileEntities.length === 0) {
       console.warn(`[HANDLER] Received 'remove' event for a path not in the database: ${removedPath}. No action taken.`);
       return;
     }
 
-    // In redis-om, the entityId from a search result is accessed via a Symbol.
-    const ino = fileEntity[Symbol.for('entityId')];
+    const fileEntity = fileEntities[0]; // Use the first result
+    // The entityId is stored in a symbol property. Find it by its description.
+    const entityIdSymbol = Object.getOwnPropertySymbols(fileEntity).find(s => s.description === 'entityId');
+    const ino = entityIdSymbol ? fileEntity[entityIdSymbol] : null;
 
     if (!ino) {
       console.error(`[HANDLER] Could not retrieve entity ID (ino) for path ${removedPath}. The record may be malformed. Aborting removal.`);
-      return; // Cannot proceed without the ID.
+      return;
     }
 
     // 4. Check if the file has multiple paths (is a hard link).
     if (fileEntity.path.length <= 1) {
-      // This is the last (or only) path, remove the entire entity.
+      // This is the last path, remove the entire entity.
       await fileRepository.remove(ino);
       console.log(`[HANDLER] File entity ${ino} had one path. Deleted entity.`);
     } else {
-      // This is a hard link with other paths remaining.
+      // This is a hard link; remove only this path.
       const pathIndex = fileEntity.path.indexOf(removedPath);
       if (pathIndex > -1) {
-        // Remove the specific path and its corresponding share.
         fileEntity.path.splice(pathIndex, 1);
-        fileEntity.shares.splice(pathIndex, 1); // Assumes shares and path arrays are parallel
-
+        // Also remove the corresponding share.
+        if (fileEntity.shares && fileEntity.shares.length > pathIndex) {
+          fileEntity.shares.splice(pathIndex, 1);
+        }
         await fileRepository.save(fileEntity);
         console.log(`[HANDLER] Removed path '${removedPath}' from entity ${ino}. ${fileEntity.path.length} paths remain.`);
       } else {
-        // This should not happen if the initial search was correct, but we log it as a safeguard.
         console.warn(`[HANDLER] Path '${removedPath}' not found in record ${ino}, despite being found by search. No action taken.`);
       }
     }
   } catch (error) {
     console.error(`[HANDLER] Error processing file.removed job for path ${removedPath}:`, error);
-    // Re-throw the error to allow BullMQ to handle the job failure.
     throw error;
   }
 };
