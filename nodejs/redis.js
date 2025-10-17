@@ -15,14 +15,15 @@ let findWithNonUniqueHashesScriptSha;
 const fileMetadataSchema = new Schema(
 	"ino",
 	{
+		ino: { type: "string", searchable: true },
 		path: { type: "string[]", searchable: true },
 		shares: { type: "string[]", searchable: true },
-		size: { type: "number" },
+		size: { type: "number", searchable: true },
 		nlink: { type: "number" },
 		atime: { type: "date" },
 		mtime: { type: "date" },
 		ctime: { type: "date" },
-		hash: { type: "string" },
+		hash: { type: "string", searchable: true },
 		action: { type: "string" },
 	},
 	{

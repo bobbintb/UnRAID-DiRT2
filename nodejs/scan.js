@@ -176,8 +176,9 @@ async function scan(sharesToScan) {
       console.log(`[DIRT] Saving ${uniqueFilesToSave.length} unique file(s) to Redis...`);
       // Use Promise.all to save files concurrently, which is more performant.
       await Promise.all(uniqueFilesToSave.map(file => {
-        const { ino, ...fileData } = file;
-        return fileRepository.save(ino, fileData);
+        // Save the full file object, which now includes the 'ino' field,
+        // using the 'ino' as the primary key.
+        return fileRepository.save(file.ino, file);
       }));
       console.log('[DIRT] Successfully saved unique files to Redis.');
     } catch (error) {
