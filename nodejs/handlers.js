@@ -19,6 +19,21 @@ const handleUpsert = async (job, workerPool) => {
 
   const fileRepository = getFileMetadataRepository();
 
+  // Handle zero-byte files as a special case, consistent with initial scan logic.
+  if (upsertedSize === 0) {
+    console.log(`[HANDLER] Zero-byte file detected: ${upsertedPath}. Assigning static hash.`);
+    const upsertedFile = {
+      ...stats,
+      path: [upsertedPath],
+      shares: [getShareFromPath(upsertedPath)],
+      size: upsertedSize,
+      hash: 'af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262', // Static hash for zero-byte files
+    };
+    await saveWithRetries([upsertedFile]);
+    console.log(`[HANDLER] Finished processing zero-byte upsert for ${upsertedPath}`);
+    return;
+  }
+
   // 2. Query for files of the same size, excluding the current file's inode.
   console.log(`[HANDLER] Searching for files with size ${upsertedSize} and different inode...`);
   const candidateFiles = await fileRepository.search()
