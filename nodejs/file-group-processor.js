@@ -246,4 +246,5 @@ const handleFileGroup = async (job, workerPool) => {
 
 module.exports = {
     handleFileGroup,
+    saveWithRetries,
 };

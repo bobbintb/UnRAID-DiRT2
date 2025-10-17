@@ -205,4 +205,4 @@ async function scan(sharesToScan) {
   }
 }
 
-module.exports = { scan };
+module.exports = { scan, getFileStats };
