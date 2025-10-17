@@ -19,7 +19,7 @@ const handleRemoved = async (job) => {
 
     // 2. Search for the file record by its path.
     const fileRepository = getFileMetadataRepository();
-    const fileEntity = await fileRepository.search().where('path').eq(removedPath).return.first();
+    const fileEntity = await fileRepository.search().where('path').contains(removedPath).return.first();
 
     // 3. If no record is found, the file is not in our system. Log and exit gracefully.
     if (!fileEntity) {
