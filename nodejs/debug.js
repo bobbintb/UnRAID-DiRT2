@@ -1,4 +1,4 @@
-const { findBySize, findByPath, findWithMultiplePaths, findWithNonUniqueHashes } = require('./redisFunctions');
+const { findBySize, findByPath, findWithMultiplePaths, findWithNonUniqueHashes } = require('./redis');
 
 async function debugFindFileByPath(path) {
     console.log(`Executing debug query: findByPath with path ${path}`);

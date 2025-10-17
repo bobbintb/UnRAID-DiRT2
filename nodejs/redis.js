@@ -55,6 +55,7 @@ async function connectToRedis() {
 
 		fileMetadataRepository = omClient.fetchRepository(fileMetadataSchema);
 		await fileMetadataRepository.createIndex();
+		console.log("[REDIS] Search index created successfully.");
 
 		const luaDir = path.join(__dirname, "lua");
 		const findWithMultiplePathsLua = await fs.readFile(path.join(luaDir, "findWithMultiplePaths.lua"), "utf8");
@@ -117,6 +118,7 @@ module.exports = {
     fileProcessingQueue,
     parseHGetAll: redisFunctions.parseHGetAll,
     findBySize: redisFunctions.findBySize,
+    findByPath: redisFunctions.findByPath,
     findWithMultiplePaths: redisFunctions.findWithMultiplePaths,
     findWithNonUniqueHashes: redisFunctions.findWithNonUniqueHashes,
 };
