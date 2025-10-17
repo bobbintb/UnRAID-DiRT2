@@ -54,8 +54,16 @@ async function connectToRedis() {
 		await omClient.use(redisClient);
 
 		fileMetadataRepository = omClient.fetchRepository(fileMetadataSchema);
-		await fileMetadataRepository.createIndex();
-		console.log("[REDIS] Search index created successfully.");
+		try {
+			await fileMetadataRepository.createIndex();
+			console.log("[REDIS] Search index created successfully.");
+		} catch (e) {
+			console.error("[REDIS] FATAL: Failed to create search index.");
+			console.error("[REDIS] This is often caused by the RediSearch module not being loaded on the Redis server.");
+			console.error("[REDIS] Please ensure your Redis instance has the RediSearch module enabled (e.g., by using the 'redis/redis-stack-server' Docker image).");
+			console.error("[REDIS] Original error:", e);
+			process.exit(1);
+		}
 
 		const luaDir = path.join(__dirname, "lua");
 		const findWithMultiplePathsLua = await fs.readFile(path.join(luaDir, "findWithMultiplePaths.lua"), "utf8");
