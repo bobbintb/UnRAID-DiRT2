@@ -23,6 +23,12 @@ async function findBySize(size) {
 	return await repository.search().where("size").equals(size).return.all();
 }
 
+async function findByPath(path) {
+    const repository = getFileMetadataRepository();
+    // For a TAG index on a string array, .contains() provides an exact match for one of the elements.
+    return await repository.search().where('path').contains(path).return.all();
+}
+
 async function findWithMultiplePaths() {
 	const repository = getFileMetadataRepository();
     const redisClient = getRedisClient();
@@ -67,6 +73,7 @@ module.exports = {
     init,
     parseHGetAll,
     findBySize,
+    findByPath,
     findWithMultiplePaths,
     findWithNonUniqueHashes,
 };

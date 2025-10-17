@@ -1,4 +1,12 @@
-const { findBySize, findWithMultiplePaths, findWithNonUniqueHashes } = require('./redis');
+const { findBySize, findByPath, findWithMultiplePaths, findWithNonUniqueHashes } = require('./redis');
+
+async function debugFindFileByPath(path) {
+    console.log(`Executing debug query: findByPath with path ${path}`);
+    const results = await findByPath(path);
+    console.log(`Found ${results.length} files with path ${path}:`);
+    console.dir(results, { depth: null });
+    return results;
+}
 
 async function debugFindFilesBySize(size) {
     console.log(`Executing debug query: findBySize with size ${size}`);
@@ -25,6 +33,7 @@ async function debugFindFilesWithNonUniqueHashes() {
 }
 
 module.exports = {
+    debugFindFileByPath,
     debugFindFilesBySize,
     debugFindFilesWithMultiplePaths,
     debugFindFilesWithNonUniqueHashes,

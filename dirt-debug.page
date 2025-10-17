@@ -8,6 +8,14 @@ Title="Debug"
     <hr>
 
     <div>
+        <h4>Find File by Exact Path</h4>
+        <input type="text" id="path-input" placeholder="Enter exact file path" style="width: 300px;">
+        <button id="by-path-btn">Run Query</button>
+    </div>
+
+    <hr>
+
+    <div>
         <h4>Find Files by Size</h4>
         <input type="number" id="size-input" placeholder="Enter file size in bytes">
         <button id="by-size-btn">Run Query</button>
@@ -105,6 +113,15 @@ $(function() {
             dirtySock('debugFindFilesBySize', parseInt(size, 10));
         } else {
             console.error("Invalid size input. Please enter a number.");
+        }
+    });
+
+    $('#by-path-btn').on('click', function() {
+        const path = $('#path-input').val();
+        if (path) {
+            dirtySock('debugFindFileByPath', path);
+        } else {
+            console.error("Invalid path input. Please enter a path.");
         }
     });
 
