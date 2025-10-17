@@ -15,6 +15,13 @@ const {
 
 let inboxListenerClient;
 
+const getPathFromEvent = (pathInfo) => {
+  if (!pathInfo || !pathInfo.share || !pathInfo.relative_path) {
+    return null;
+  }
+  return `/mnt/user/${pathInfo.share}/${pathInfo.relative_path}`;
+};
+
 async function startInboxListener() {
   // A dedicated client is needed for blocking commands like BRPOP
   inboxListenerClient = createClient({ url: 'redis://localhost:6379' });
@@ -34,25 +41,48 @@ async function startInboxListener() {
         console.log(`[DIRT] Received event from '${inboxKey}':`, message);
         const fs_event = JSON.parse(message);
 
-        // Basic validation
-        if (!fs_event.event || !fs_event.path) {
-          console.error('[DIRT] Invalid event received from inbox. Missing event or path:', fs_event);
-          continue; // Continue to the next iteration
+        // --- New Validation and Path Construction ---
+        if (!fs_event.event || !fs_event.src) {
+          console.error('[DIRT] Invalid event received. Missing "event" or "src" property:', fs_event);
+          continue;
         }
 
         const allowedEvents = ['upsert', 'remove', 'move'];
         if (!allowedEvents.includes(fs_event.event)) {
           console.error(`[DIRT] Unknown event received from inbox: ${fs_event.event}`);
-          continue; // Continue to the next iteration
+          continue;
         }
+
+        const srcPath = getPathFromEvent(fs_event.src);
+        if (!srcPath) {
+          console.error('[DIRT] Invalid "src" data in event:', fs_event);
+          continue;
+        }
+
+        let jobPayload;
+        let groupId = srcPath; // Use srcPath for sequential processing
+        let logPath = srcPath;
+
+        if (fs_event.event === 'move') {
+          const tgtPath = getPathFromEvent(fs_event.tgt);
+          if (!tgtPath) {
+            console.error('[DIRT] Invalid "tgt" data in move event:', fs_event);
+            continue;
+          }
+          jobPayload = { oldPath: srcPath, newPath: tgtPath };
+          logPath = `${srcPath} -> ${tgtPath}`;
+        } else { // 'upsert' or 'remove'
+          jobPayload = { path: srcPath };
+        }
+        // --- End of New Logic ---
 
         // Add the job to the queue, using the file path as the groupId
         // to ensure sequential processing for the same file.
-        await fileProcessingQueue.add(fs_event.event, fs_event, {
-          groupId: fs_event.path,
+        await fileProcessingQueue.add(fs_event.event, jobPayload, {
+          groupId: groupId,
         });
 
-        console.log(`[DIRT] Queued job '${fs_event.event}' for path '${fs_event.path}' from inbox.`);
+        console.log(`[DIRT] Queued job '${fs_event.event}' for path '${logPath}' from inbox.`);
       }
     } catch (error) {
       // If brPop times out or if there's a connection issue, it might throw.
