@@ -23,31 +23,36 @@ const handleRemoved = async (job) => {
 
     // 3. If no record is found, the file is not in our system. Log and exit gracefully.
     if (!fileEntity) {
-      console.warn(`[HANDLER] Received removed event for path not in Redis: ${removedPath}. Ignoring.`);
+      console.warn(`[HANDLER] Received 'remove' event for a path not in the database: ${removedPath}. No action taken.`);
       return;
     }
 
-    const ino = fileEntity.entityId;
+    // In redis-om, the entityId from a search result is accessed via a Symbol.
+    const ino = fileEntity[Symbol.for('entityId')];
 
-    // 4. Optimized path check
+    if (!ino) {
+      console.error(`[HANDLER] Could not retrieve entity ID (ino) for path ${removedPath}. The record may be malformed. Aborting removal.`);
+      return; // Cannot proceed without the ID.
+    }
+
+    // 4. Check if the file has multiple paths (is a hard link).
     if (fileEntity.path.length <= 1) {
       // This is the last (or only) path, remove the entire entity.
       await fileRepository.remove(ino);
-      console.log(`[HANDLER] Removed last path for ino ${ino}. Deleted entity.`);
+      console.log(`[HANDLER] File entity ${ino} had one path. Deleted entity.`);
     } else {
       // This is a hard link with other paths remaining.
       const pathIndex = fileEntity.path.indexOf(removedPath);
       if (pathIndex > -1) {
+        // Remove the specific path and its corresponding share.
         fileEntity.path.splice(pathIndex, 1);
-
-        // Rebuild shares array for consistency.
-        fileEntity.shares = fileEntity.path.map(getShareFromPath).filter(share => share !== null);
+        fileEntity.shares.splice(pathIndex, 1); // Assumes shares and path arrays are parallel
 
         await fileRepository.save(fileEntity);
-        console.log(`[HANDLER] Removed path ${removedPath} for ino ${ino}. ${fileEntity.path.length} paths remain.`);
+        console.log(`[HANDLER] Removed path '${removedPath}' from entity ${ino}. ${fileEntity.path.length} paths remain.`);
       } else {
-        // This should not happen if the search was correct, but as a safeguard:
-        console.warn(`[HANDLER] Path ${removedPath} not found in record for ino ${ino}, despite being found by search. No action taken.`);
+        // This should not happen if the initial search was correct, but we log it as a safeguard.
+        console.warn(`[HANDLER] Path '${removedPath}' not found in record ${ino}, despite being found by search. No action taken.`);
       }
     }
   } catch (error) {
