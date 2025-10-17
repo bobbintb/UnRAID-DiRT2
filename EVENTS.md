@@ -14,7 +14,7 @@ It is critical to understand that the events below are not a direct 1:1 mapping 
 
 *   A file moved from a monitored share to an **unmonitored** location is interpreted as a `file.removed` event.
 *   A file moved from an unmonitored location to a **monitored** share is interpreted as a `file.upsert` event.
-*   A file moved between two **monitored** locations is a true `file.moved` event.
+*   A file moved between two **monitored** locations is a true `file.rename` event.
 
 Furthermore, the hashing process itself is robust against concurrent filesystem changes. This is because opening a file provides the process with a file descriptor that points directly to the file's inode (the underlying data on disk), not its path. As a result, if a file is moved or even its last path is deleted while it is being hashed, the process can continue reading the file's contents without interruption. The file's data is only reclaimed by the operating system after the last open file descriptor is closed.
 
@@ -47,11 +47,11 @@ This event is triggered when a file path is deleted or a file is moved from a mo
         *   If the array's length is 1, it was the last hard link. Delete the entire record from Redis.
         *   If the array's length is greater than 1, other hard links still exist. Remove the single path from the array and save the updated record.
 
-### 1.3 `file.moved`
+### 1.3 `file.rename`
 
 This event is triggered when a file is renamed or moved, and both the source and destination paths are within monitored shares.
 
-*   **Event Name**: `file.moved`
+*   **Event Name**: `file.rename`
 *   **Data Payload**: `{ "oldPath": "/mnt/user/share/old.txt", "newPath": "/mnt/user/share/new.txt" }`
 *   **Required Action**:
     1.  Get the `ino` of the file at `newPath`.

@@ -48,7 +48,7 @@ async function startInboxListener() {
           continue;
         }
 
-        const allowedEvents = ['upsert', 'remove', 'move'];
+        const allowedEvents = ['upsert', 'remove', 'rename'];
         if (!allowedEvents.includes(fs_event.event)) {
           console.error(`[DIRT] Unknown event received from inbox: ${fs_event.event}`);
           continue;
@@ -64,10 +64,10 @@ async function startInboxListener() {
         let groupId = srcPath; // Use srcPath for sequential processing
         let logPath = srcPath;
 
-        if (fs_event.event === 'move') {
+        if (fs_event.event === 'rename') {
           const tgtPath = getPathFromEvent(fs_event.tgt);
           if (!tgtPath) {
-            console.error('[DIRT] Invalid "tgt" data in move event:', fs_event);
+            console.error('[DIRT] Invalid "tgt" data in rename event:', fs_event);
             continue;
           }
           jobPayload = { oldPath: srcPath, newPath: tgtPath };
