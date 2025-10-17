@@ -10,7 +10,8 @@ const { saveDbSnapshot } = require('./snapshot.js');
 const {
   debugFindFilesBySize,
   debugFindFilesWithMultiplePaths,
-  debugFindFilesWithNonUniqueHashes
+  debugFindFilesWithNonUniqueHashes,
+  debugFindFileByPath,
 } = require('./debug.js');
 
 let inboxListenerClient;
@@ -171,6 +172,9 @@ async function main() {
               }
               break;
             }
+            case 'debugFindFileByPath':
+              await debugFindFileByPath(data);
+              break;
             case 'debugFindFilesBySize':
               await debugFindFilesBySize(data);
               break;
