@@ -133,43 +133,45 @@ const handleRename = async (job) => {
   console.log(`[HANDLER] Processing file.rename job ${job.id} from ${oldPath} to ${newPath}`);
 
   try {
-    // 1. Get the inode from the new path.
-    const stats = await fs.promises.stat(newPath, { bigint: true });
-    const ino = stats.ino.toString();
-
-    // 2. Fetch the record from Redis using the inode.
+    // 1. Search for the file record by its old path. This is safer against race conditions.
     const fileRepository = getFileMetadataRepository();
-    const fileEntity = await fileRepository.fetch(ino);
+    const fileEntities = await fileRepository.search().where('path').contains(oldPath).return.all();
 
-    if (!fileEntity) {
-      console.error(`[HANDLER] Could not find file record in Redis for ino: ${ino} (path: ${newPath})`);
-      // No point in continuing if the record doesn't exist.
-      // This might happen if the event is processed before the initial scan creates the record.
+    // 2. If no record is found, it was likely already updated by a concurrent upsert job.
+    if (!fileEntities || fileEntities.length === 0) {
+      console.warn(`[HANDLER] 'rename' job: No record found for oldPath: ${oldPath}. The record may have been updated by another job. No action taken.`);
       return;
     }
+
+    // Although we expect only one, handle the case of multiple results.
+    if (fileEntities.length > 1) {
+      console.warn(`[HANDLER] 'rename' job: Found multiple records containing path: ${oldPath}. Proceeding with the first result.`);
+    }
+    const fileEntity = fileEntities[0];
 
     // 3. Update the path array.
     const pathIndex = fileEntity.path.indexOf(oldPath);
     if (pathIndex > -1) {
       fileEntity.path[pathIndex] = newPath;
     } else {
-      // This could happen if the file was moved again before this job was processed.
-      // We'll add the new path to ensure the record is up-to-date.
-      console.warn(`[HANDLER] oldPath ${oldPath} not found in path array for ino ${ino}. Adding new path.`);
-      fileEntity.path.push(newPath);
+      // If the record was found by searching for oldPath, but oldPath is not in its path array,
+      // something is critically wrong with the data consistency. Do not try to 'fix' it.
+      const entityIdSymbol = Object.getOwnPropertySymbols(fileEntity).find(s => s.description === 'entityId');
+      const ino = entityIdSymbol ? fileEntity[entityIdSymbol] : '[unknown]';
+      throw new Error(`[HANDLER] CRITICAL: Record ${ino} found by oldPath '${oldPath}', but path was not present in record's path array.`);
     }
 
     // 4. For robustness, always rebuild the shares array from the paths array.
-    // This ensures they remain perfectly synchronized.
     fileEntity.shares = fileEntity.path.map(getShareFromPath).filter(share => share !== null);
-
 
     // 5. Save the updated record back to Redis.
     await fileRepository.save(fileEntity);
+    const entityIdSymbol = Object.getOwnPropertySymbols(fileEntity).find(s => s.description === 'entityId');
+    const ino = entityIdSymbol ? fileEntity[entityIdSymbol] : '[unknown]';
     console.log(`[HANDLER] Successfully updated path for ino ${ino}. New path: ${newPath}`);
 
   } catch (error) {
-    console.error(`[HANDLER] Error processing file.rename job for ${newPath}:`, error);
+    console.error(`[HANDLER] Error processing file.rename job from ${oldPath} to ${newPath}:`, error);
     // Re-throw the error to allow BullMQ to handle the job failure (e.g., retry).
     throw error;
   }
