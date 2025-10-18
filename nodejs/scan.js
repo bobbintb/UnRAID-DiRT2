@@ -195,13 +195,23 @@ async function scan(sharesToScan) {
         console.log('[DIRT] All processing jobs completed.');
         resolve(filesBySize);
       });
-      await fileProcessingQueue.addBulk(jobs);
-      console.log(`[DIRT] Added ${jobs.length} groups of potential duplicates to the processing queue.`);
+
+      // --- PRIORITIZE and RESUME ---
+      // Add the scan's jobs to the front of the queue.
+      await fileProcessingQueue.addBulk(jobs, { lifo: true });
+      console.log(`[DIRT] Added ${jobs.length} groups of potential duplicates to the FRONT of the processing queue.`);
+
+      // Resume the queue to start processing.
+      await fileProcessingQueue.resume();
+      console.log('[DIRT] File processing queue RESUMED.');
+
       console.log('[DIRT] Waiting for all processing jobs to complete...');
     });
   } else {
-    // If there are no jobs, we can resolve immediately.
+    // If there are no jobs, we still need to resume the queue.
     console.log('[DIRT] No potential duplicates found to process.');
+    await fileProcessingQueue.resume();
+    console.log('[DIRT] File processing queue RESUMED.');
     return filesBySize;
   }
 }
