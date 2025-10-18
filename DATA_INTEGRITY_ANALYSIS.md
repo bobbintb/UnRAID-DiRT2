@@ -60,3 +60,40 @@ This race condition has been **Resolved** by implementing a robust lifecycle man
     4.  The queue is **resumed**.
 
 This ensures that the scan's jobs are always processed before any real-time events that occurred during the scan, establishing an authoritative baseline and preventing any data corruption.
+
+---
+
+## 3. Unresolved Vulnerabilities
+
+### 3.1. Critical Race Condition: Concurrent Hashing Jobs (Unresolved)
+
+**- Description:**
+A critical race condition exists because the system processes hashing jobs for different files concurrently, even when those files belong to the same potential duplicate group (i.e., they have the same size). This lack of serialization affects both the initial bulk scan and real-time `upsert` events, leading to an inconsistent database state where not all identical files are correctly identified and linked.
+
+**- Root Cause:**
+-   **Insufficient `groupId` Logic:**
+    -   For real-time `upsert` events, the `groupId` is the file's path. This allows two different files of the same size to be processed concurrently.
+    -   For `file-group` jobs during the initial scan, **no `groupId` is used at all**. This allows all potential duplicate groups to be processed concurrently.
+-   **Non-Atomic Updates:** The process of identifying and saving a set of duplicates is not atomic. Two concurrent jobs can read the same candidate file information from the database, perform their own independent hashing, and then race to write the results back. The "last write wins," causing other legitimate duplicates to be excluded from the final record.
+
+**- Scenario 1: Real-Time `upsert` Event**
+1.  Three files exist: `A`, `B`, and `C`. All are the same size. `B` and `C` are already in the database but have no hash.
+2.  File `A` is modified to be identical to `B`. An `upsert` job (`Job A`) is queued.
+3.  Simultaneously, file `C` is modified to be identical to `B`. An `upsert` job (`Job C`) is queued.
+4.  `Job A` and `Job C` start concurrently.
+5.  `Job A` queries for files of the same size and finds `B`. It begins a hashing comparison.
+6.  `Job C` queries for files of the same size and also finds `B`. It begins its own hashing comparison.
+7.  `Job A` confirms `A` and `B` are duplicates. It saves both records with a new shared hash `H1`.
+8.  `Job C` confirms `C` and `B` are duplicates. It saves both records with the same shared hash `H1`.
+9.  **Result:** The final database state correctly links `C` and `B`, but `A` is left as an independent record without a hash, even though it is identical to the other two. The duplicate group is incomplete.
+
+**- Scenario 2: Initial Bulk Scan**
+1.  Four files exist: `file1`, `file2`, `file3`, `file4`. All are identical.
+2.  The `scan` process identifies two potential duplicate groups based on size: `Group A = [file1, file2]` and `Group B = [file3, file4]`.
+3.  Two `file-group` jobs are queued without a `groupId`: `Job A` for `Group A` and `Job B` for `Group B`.
+4.  The jobs run concurrently.
+5.  `Job A` confirms `file1` and `file2` are duplicates and saves them with a shared hash `H1`.
+6.  `Job B` confirms `file3` and `file4` are duplicates and saves them with a shared hash `H2` (which will be identical to `H1`, but the system doesn't know that).
+7.  **Result:** The database incorrectly shows two separate duplicate pairs instead of one group of four.
+
+**- Status:** This vulnerability is **Unresolved**.
