@@ -44,19 +44,19 @@ The `handleRename` function was fundamentally flawed because it initiated its lo
 **- Resolution (Implemented):**
 This logical flaw has been **Resolved**. The `handleRename` function no longer relies on `fs.stat` or the state of the `newPath`. It now correctly uses the `oldPath` to perform a search query in Redis, reliably finding the correct record that needs to be updated. This resolves the failure modes associated with the previous inode-based logic.
 
-### 2.3. Major Race Condition: Bulk Scan vs. Real-Time Events
+### 2.3. Major Race Condition: Bulk Scan vs. Real-Time Events (Resolved)
 
 **- Description:**
-There is no synchronization mechanism between the initial bulk `scan` process and the real-time event listener. They can run concurrently, creating a race condition where the database can be updated with stale information from the scan *after* more recent real-time events have already been processed.
+A race condition previously existed between the initial bulk `scan` process and the real-time event listener. Because they could run concurrently, it was possible for the database to be updated with stale information from the scan *after* a more recent real-time event had already been processed, leading to a "ghost" record for a file that no longer existed.
 
-**- Scenario:**
-1.  An administrator initiates a full `scan` on a large share.
-2.  While the scan is in progress, traversing directories, a user deletes a file: `rm /path/to/somefile`.
-3.  The real-time listener immediately picks up this event, and a `remove` job is processed, correctly deleting the file's record from Redis.
-4.  A few moments later, the `scan` process, which had read the directory contents *before* the file was deleted, reaches the point in its execution where it saves data. It saves the record for `/path/to/somefile` back into the database.
-5.  **Result:** The database now contains a "ghost" record for a file that no longer exists on the filesystem.
+**- Resolution (Implemented):**
+This race condition has been **Resolved** by implementing a robust lifecycle management system for the initial scan. The system now correctly differentiates between the first-ever run and subsequent restarts.
 
-**- Root Cause:**
--   **`nodejs/scan.js` & `nodejs/dirt.js`:** These two modules operate independently. The `scan` function reads the filesystem over a period of time and is not aware of changes being processed in real-time by the `startInboxListener` function.
+-   **Conditional Startup:** On application start, the system checks for the existence of any file records in Redis (`ino:*`). If none are found, it waits for the user to trigger the first scan. If records exist, it starts the real-time event listener immediately, ensuring normal operation on restart.
+-   **Scan Lifecycle:** When the initial scan is triggered, a precise sequence ensures data integrity:
+    1.  The BullMQ job queue is **paused**.
+    2.  The real-time listener and the scan process are started **concurrently**. The listener adds incoming real-time events to the paused queue.
+    3.  The scan adds its own jobs for hashing to the **front** of the queue (LIFO).
+    4.  The queue is **resumed**.
 
-**- Impact:** High. This undermines the integrity of the entire repository, as it can re-introduce records for deleted files or overwrite newer data with stale data. The database cannot be trusted to be an accurate mirror of the filesystem.
+This ensures that the scan's jobs are always processed before any real-time events that occurred during the scan, establishing an authoritative baseline and preventing any data corruption.

@@ -4,7 +4,7 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 const { scan } = require('./scan.js');
 const { createClient } = require('redis');
-const { connectToRedis, closeRedis } = require('./redis.js');
+const { connectToRedis, closeRedis, getRedisClient } = require('./redis.js');
 const { fileProcessingQueue } = require('./redis.js');
 const { saveDbSnapshot } = require('./snapshot.js');
 const {
@@ -101,8 +101,20 @@ async function main() {
     await connectToRedis();
     console.log('[DIRT] Successfully connected to Redis.');
 
-    // Start the inbox listener as a background process
-    startInboxListener();
+    // --- CONDITIONAL STARTUP ---
+    // Check if the initial scan has been completed before.
+    // We do this by checking for the existence of any file data.
+    const redisClient = getRedisClient();
+    const { keys } = await redisClient.scan(0, { MATCH: 'ino:*', COUNT: 1 });
+
+    if (keys.length > 0) {
+      // Data exists, so start the listener immediately.
+      console.log('[DIRT] Existing data found. Starting real-time event listener.');
+      startInboxListener();
+    } else {
+      // No data, this is a fresh install.
+      console.log('[DIRT] No existing data found. Waiting for initial scan to be triggered.');
+    }
 
     // Now that Redis is connected, start the worker and the WebSocket server.
     require('./worker.js'); // This will start the worker process
@@ -125,6 +137,21 @@ async function main() {
           switch (action) {
             case 'scan': {
               console.log(`[DIRT] Scan initiated for shares: ${data.join(', ')}`);
+              const redisClient = getRedisClient();
+              const { keys } = await redisClient.scan(0, { MATCH: 'ino:*', COUNT: 1 });
+
+              if (keys.length === 0) {
+                // --- INITIAL SCAN LOGIC ---
+                console.log('[DIRT] This is the initial scan. Applying special lifecycle management.');
+                await fileProcessingQueue.pause();
+                console.log('[DIRT] File processing queue PAUSED.');
+
+                console.log('[DIRT] Starting real-time event listener for the first time.');
+                startInboxListener(); // Runs in the background
+              } else {
+                console.log('[DIRT] This is a subsequent scan. Running without special lifecycle management.');
+              }
+
               const sharesToScan = data.map(share => ({ share, path: `/mnt/user/${share}` }));
               const startTime = performance.now();
               await scan(sharesToScan); // Await the scan to complete
