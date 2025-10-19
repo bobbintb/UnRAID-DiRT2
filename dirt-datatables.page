@@ -1,7 +1,7 @@
 Menu="dirtSettings:3"
 Title="DataTables"
 ---
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/2.0.3/css/dataTables.dataTables.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.css">
 
 <table id="filesTable" class="display" style="width:100%">
     <thead>
@@ -21,7 +21,7 @@ Title="DataTables"
     </tbody>
 </table>
 
-<script src="https://cdn.datatables.net/2.0.3/js/dataTables.js"></script>
+<script src="https://cdn.datatables.net/2.3.4/js/dataTables.js"></script>
 
 <script>
 $(function() {
@@ -56,7 +56,7 @@ $(function() {
             table.destroy();
           }
           // Initialize DataTables
-          table = new DataTable('#filesTable', {
+          table = $('#filesTable').DataTable({
               data: data,
               columns: [
                   { data: null, render: (data, type, row) => getEntityId(row) },
