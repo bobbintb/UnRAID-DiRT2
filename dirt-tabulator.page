@@ -1,0 +1,94 @@
+Menu="dirtSettings:4"
+Title="Tabulator"
+---
+<link href="https://unpkg.com/tabulator-tables@6.2.1/dist/css/tabulator.min.css" rel="stylesheet">
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.2.1/dist/js/tabulator.min.js"></script>
+
+<div id="filesTable"></div>
+
+<script>
+// Tabulator does not need jQuery, so we wrap in a standard DOMContentLoaded listener
+document.addEventListener("DOMContentLoaded", function() {
+    let socket;
+    let table;
+
+    // Helper to get the entityId which is a symbol property
+    const getEntityId = (entity) => {
+        if (!entity) return null;
+        const symbol = Object.getOwnPropertySymbols(entity).find(s => s.description === 'entityId');
+        return symbol ? entity[symbol] : null;
+    };
+
+    // Custom formatter for array fields
+    const arrayFormatter = function(cell, formatterParams, onRendered){
+        const value = cell.getValue();
+        return Array.isArray(value) ? value.join('<br>') : value;
+    };
+
+    // Custom formatter for date fields
+    const dateFormatter = function(cell, formatterParams, onRendered){
+        const value = cell.getValue();
+        return value ? new Date(value).toLocaleString() : '';
+    };
+
+    function connect() {
+      socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
+
+      socket.onopen = function() {
+        console.log("Tabulator Tab: WebSocket connection established.");
+        dirtySock('getAllFiles', null);
+      };
+
+      socket.onmessage = function(event) {
+        const parsedMessage = JSON.parse(event.data);
+        const { action, data } = parsedMessage;
+
+        if (action === 'allFiles') {
+          console.log("Tabulator Tab: Received allFiles data.");
+
+          // Initialize Tabulator
+          table = new Tabulator("#filesTable", {
+              data: data,
+              layout: "fitColumns",
+              columns: [
+                  { title: "Inode", field: null, formatter: (cell) => getEntityId(cell.getRow().getData()) },
+                  { title: "Path", field: "path", formatter: arrayFormatter },
+                  { title: "Shares", field: "shares", formatter: arrayFormatter },
+                  { title: "Size", field: "size" },
+                  { title: "Links", field: "nlink" },
+                  { title: "Accessed", field: "atime", formatter: dateFormatter },
+                  { title: "Modified", field: "mtime", formatter: dateFormatter },
+                  { title: "Changed", field: "ctime", formatter: dateFormatter },
+                  { title: "Hash", field: "hash", formatter: (cell) => cell.getValue() || '<i>N/A</i>' }
+              ],
+          });
+        }
+      };
+
+      socket.onclose = function(event) {
+        console.log("Tabulator Tab: WebSocket connection closed. Reconnecting in 1 second...");
+        setTimeout(connect, 1000);
+      };
+
+      socket.onerror = function(error) {
+        console.error("Tabulator Tab: WebSocket error: ", error);
+        socket.close();
+      };
+    }
+
+    function dirtySock(action, data) {
+        const message = {
+          clientId: "dirt-tabulator.page",
+          action: action,
+          data: data
+        };
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify(message));
+        } else {
+          console.error("Tabulator Tab: WebSocket is not connected.");
+        }
+    }
+
+    connect();
+});
+</script>
