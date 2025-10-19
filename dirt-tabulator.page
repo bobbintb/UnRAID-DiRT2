@@ -38,44 +38,42 @@ document.addEventListener("DOMContentLoaded", function() {
               dataTreeStartExpanded: false,
               placeholder: "No duplicate files found",
               columns: [
-                  { title: "Hash", field: "hash", width: 300 },
                   {
-                      title: "File Count",
-                      field: "files",
-                      formatter: (cell, formatterParams, onRendered) => {
-                          // This formatter only shows the count on the parent row
+                      title: "Hash / Path",
+                      field: "hash", // This field is mainly for the parent row
+                      widthGrow: 3,
+                      formatter: (cell) => {
                           const rowData = cell.getRow().getData();
-                          if (rowData._children && rowData._children.length > 0) {
-                              return rowData._children.length;
+                          // If it's a parent row (has a hash), show the hash bolded.
+                          if (rowData.hash) {
+                              return `<strong>${rowData.hash}</strong>`;
                           }
-                          return ""; // Hide for child rows
+                          // If it's a child row, show the path. Tabulator will auto-indent this.
+                          return rowData.path;
+                      },
+                      htmlOutput: true,
+                  },
+                  {
+                      title: "Count / Modified",
+                      widthGrow: 1.5,
+                      formatter: (cell) => {
+                          const rowData = cell.getRow().getData();
+                          // If it's a parent row, show the file count.
+                          if (rowData.hash) {
+                              return rowData._children ? rowData._children.length : 0;
+                          }
+                          // If it's a child row, show the modified date.
+                          return rowData.mtime ? new Date(rowData.mtime).toLocaleString() : '';
                       }
                   },
                   {
                       title: "Size",
                       field: "size",
-                       formatter: (cell, formatterParams, onRendered) => {
+                      widthGrow: 1,
+                      formatter: (cell) => {
                           const rowData = cell.getRow().getData();
-                          // Show size for parent rows, hide for children
+                          // Only show size on the parent row.
                           return rowData.hash ? rowData.size : "";
-                       }
-                  },
-                  {
-                      title: "Path",
-                      field: "path",
-                      formatter: (cell, formatterParams, onRendered) => {
-                          const rowData = cell.getRow().getData();
-                          // Only show the path for child rows
-                          return rowData.path || "";
-                      }
-                  },
-                  {
-                      title: "Modified",
-                      field: "mtime",
-                      formatter: (cell, formatterParams, onRendered) => {
-                          const value = cell.getValue();
-                          // Only format and show the date for child rows
-                          return value ? new Date(value).toLocaleString() : '';
                       }
                   }
               ],

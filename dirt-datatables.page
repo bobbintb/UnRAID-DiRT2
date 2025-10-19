@@ -10,16 +10,29 @@ Title="DataTables"
     tr.dt-hasChild td.dt-control {
         background: url('https://datatables.net/examples/resources/details_close.png') no-repeat center center;
     }
+    /* Style for the container of the child table */
+    tr.dt-child td.child {
+        padding: 0.5em 1em;
+        background-color: #f5f5f5;
+    }
+    /* More distinct styling for the child table itself */
     .details-table {
         width: 100%;
         border-collapse: collapse;
+        border: 1px solid #ccc;
     }
     .details-table th, .details-table td {
         border: 1px solid #ddd;
         padding: 8px;
+        text-align: left;
     }
     .details-table th {
-        background-color: #f2f2f2;
+        background-color: #e8e8e8;
+        font-weight: bold;
+        color: #333;
+    }
+    .details-table tr:nth-child(even) {
+        background-color: #f9f9f9;
     }
 </style>
 
