@@ -97,3 +97,52 @@ A critical race condition exists because the system processes hashing jobs for d
 7.  **Result:** The database incorrectly shows two separate duplicate pairs instead of one group of four.
 
 **- Status:** This vulnerability is **Unresolved**.
+
+---
+
+## 4. Proposal: Custom Multi-Lock Mechanism
+
+**- Status:** Proposed Solution for Future Implementation
+
+**- Context:**
+The central challenge, as identified in vulnerability 3.1, is that a single `file-group` job from the initial scan needs to prevent concurrent real-time operations on *multiple* files. BullMQ's `groupId` feature is insufficient because it only allows a single string key per job, which cannot protect the entire group of files.
+
+**- Proposal:**
+To resolve this, an application-level, multi-lock mechanism can be implemented using Redis. This system would allow a `file-group` job to atomically acquire locks on all files within its group before processing begins. Real-time event handlers (`upsert`, `remove`, `rename`) would be modified to respect these locks.
+
+**- Technical Implementation Outline:**
+
+**1. Lock Acquisition (`file-group` handler):**
+
+The `handleFileGroup` function in `file-group-processor.js` would be modified. Before any hashing occurs, it must acquire a lock for every file path contained in its `job.data.files` array.
+
+-   **Redis Command:** The primary locking primitive would be `SET key value NX PX milliseconds`.
+    -   `key`: A namespaced key representing the file path (e.g., `lock:file:/mnt/user/data/file_A.txt`).
+    -   `value`: A unique identifier for the job holding the lock (e.g., the BullMQ `job.id`). This proves ownership.
+    -   `NX`: This atomic "set if not exists" is the core of the lock. It ensures only one job can acquire the lock.
+    -   `PX milliseconds`: A lock expiry/TTL (e.g., 300,000 ms) is critical. It acts as a safety net to prevent a crashed or stalled job from holding a lock indefinitely.
+-   **Multi-Lock Transaction:**
+    -   To prevent deadlock, the `file-group` handler must acquire locks for all its files in a single, all-or-nothing transaction.
+    -   This should be implemented as a **Lua script** passed to Redis via `EVALSHA`. The script would take the list of file paths as `KEYS` and the `job.id` as an `ARGV`.
+    -   The script would iterate through the keys, checking for their existence. If any key already exists, the script would immediately return a failure status without setting any locks. If all keys are available, it would execute the `SET ... NX PX ...` command for all of them and return success.
+-   **Retry Logic:** If the handler fails to acquire the multi-lock (because another job holds a conflicting lock), it should not fail the job. Instead, it should release itself back to the queue and retry after a delay.
+
+**2. Lock Respect (Real-Time Handlers):**
+
+The handlers for `upsert`, `remove`, and `rename` in `handlers.js` must be modified to check for the custom lock before executing.
+
+-   The BullMQ `groupId` would still be used to serialize operations on the *same* path.
+-   At the beginning of the handler, it would check for the existence of the custom lock key (e.g., `EXISTS lock:file:/mnt/user/data/file_A.txt`).
+-   If a lock exists, the handler should immediately release the job for a delayed retry, preventing it from interfering with the `file-group` job.
+
+**3. Lock Release:**
+
+-   The lock must be released reliably when the `file-group` job is complete (either success or failure).
+-   This should be implemented in a `finally` block within the `handleFileGroup` function.
+-   **Safe Release:** To prevent a job from accidentally releasing a lock acquired by another job (e.g., if the first job's lock expired and a new one was created), the release operation must also be a Lua script. The script would check if the value of the lock key matches the `job.id` before executing a `DEL` command.
+
+**- Summary of Changes:**
+1.  Create two new Lua scripts in `nodejs/lua/`: `acquire-multi-lock.lua` and `release-multi-lock.lua`.
+2.  Load these scripts on application startup in `redis.js`.
+3.  Modify `handleFileGroup` in `file-group-processor.js` to call the "acquire" script at the start and the "release" script in a `finally` block. Add retry logic.
+4.  Modify `handleUpsert`, `handleRemove`, and `handleRename` in `handlers.js` to check for the lock's existence before proceeding.
