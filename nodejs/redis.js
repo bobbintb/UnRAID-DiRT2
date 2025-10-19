@@ -130,4 +130,5 @@ module.exports = {
     findByPath: redisFunctions.findByPath,
     findWithMultiplePaths: redisFunctions.findWithMultiplePaths,
     findWithNonUniqueHashes: redisFunctions.findWithNonUniqueHashes,
+    getAllFiles: redisFunctions.getAllFiles,
 };

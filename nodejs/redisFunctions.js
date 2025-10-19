@@ -69,6 +69,12 @@ async function findWithNonUniqueHashes() {
 	);
 }
 
+async function getAllFiles() {
+    const repository = getFileMetadataRepository();
+    // An empty search returns all entities.
+    return await repository.search().return.all();
+}
+
 module.exports = {
     init,
     parseHGetAll,
@@ -76,4 +82,5 @@ module.exports = {
     findByPath,
     findWithMultiplePaths,
     findWithNonUniqueHashes,
+    getAllFiles,
 };
