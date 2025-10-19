@@ -28,20 +28,17 @@ $(function() {
     let socket;
     let table;
 
-    // Helper to get the entityId which is a symbol property
     const getEntityId = (entity) => {
         if (!entity) return null;
         const symbol = Object.getOwnPropertySymbols(entity).find(s => s.description === 'entityId');
         return symbol ? entity[symbol] : null;
     };
 
-
     function connect() {
       socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-datatables.page`);
 
       socket.onopen = function() {
         console.log("DataTables Tab: WebSocket connection established.");
-        // Once connected, request the file data
         dirtySock('getAllFiles', null);
       };
 
@@ -51,22 +48,20 @@ $(function() {
 
         if (action === 'allFiles') {
           console.log("DataTables Tab: Received allFiles data.");
-          // Destroy the old table if it exists
           if (table) {
             table.destroy();
           }
-          // Initialize DataTables
           table = $('#filesTable').DataTable({
               data: data,
               columns: [
                   { data: null, render: (data, type, row) => getEntityId(row) },
-                  { data: 'path', render: (data) => data.join('<br>') },
-                  { data: 'shares', render: (data) => data.join('<br>') },
+                  { data: 'path', render: (data) => Array.isArray(data) ? data.join('<br>') : data },
+                  { data: 'shares', render: (data) => Array.isArray(data) ? data.join('<br>') : data },
                   { data: 'size' },
                   { data: 'nlink' },
-                  { data: 'atime', render: (data) => new Date(data).toLocaleString() },
-                  { data: 'mtime', render: (data) => new Date(data).toLocaleString() },
-                  { data: 'ctime', render: (data) => new Date(data).toLocaleString() },
+                  { data: 'atime', render: (data) => data ? new Date(data).toLocaleString() : '' },
+                  { data: 'mtime', render: (data) => data ? new Date(data).toLocaleString() : '' },
+                  { data: 'ctime', render: (data) => data ? new Date(data).toLocaleString() : '' },
                   { data: 'hash', defaultContent: '<i>N/A</i>' }
               ]
           });
@@ -74,7 +69,7 @@ $(function() {
       };
 
       socket.onclose = function(event) {
-        console.log("DataTables Tab: WebSocket connection closed. Reconnecting in 1 second...");
+        console.log("DataTables Tab: WebSocket connection closed. Reconnecting...");
         setTimeout(connect, 1000);
       };
 
@@ -93,12 +88,10 @@ $(function() {
         if (socket && socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify(message));
         } else {
-          console.error("DataTables Tab: WebSocket is not connected. Message not sent:", message);
-          // Optionally, queue the message or wait for connection
+          console.error("DataTables Tab: WebSocket is not connected.");
         }
     }
 
-    // Initial connection
     connect();
 });
 </script>
