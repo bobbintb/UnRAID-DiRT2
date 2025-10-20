@@ -116,14 +116,20 @@ async function findDuplicates() {
                     return {
                         path: fileEntity.path.join('<br>'), // Join for display on new lines
                         size: fileEntity.size,
+                        atime: fileEntity.atime,
                         mtime: fileEntity.mtime,
+                        ctime: fileEntity.ctime,
                     };
                 })
             );
 
+            // Calculate the total size of all files in the group
+            const totalSize = files.reduce((acc, file) => acc + file.size, 0);
+
             return {
                 hash: group.hash,
-                size: files[0]?.size, // All files in a group have the same size
+                count: files.length,
+                totalSize: totalSize,
                 files: files,
             };
         })

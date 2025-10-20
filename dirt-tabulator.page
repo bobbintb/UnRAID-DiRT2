@@ -1,108 +1,86 @@
-Menu="dirtSettings:4"
+Menu="dirtSettings:2"
 Title="Tabulator"
 ---
-<link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
-<script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+<link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
 
-<div id="duplicatesTable-tabulator"></div>
+<div id="duplicatesTable"></div>
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener('DOMContentLoaded', function() {
     let socket;
     let table;
 
+    // Helper function to format dates
+    function formatDate(cell) {
+        const value = cell.getValue();
+        return value ? new Date(value).toLocaleString() : '';
+    }
+
+    // The Tabulator table definition
+    table = new Tabulator("#duplicatesTable", {
+        data: [], // Set initial data to empty
+        layout: "fitColumns",
+        placeholder: "No duplicate files found",
+        dataTree: true,
+        dataTreeStartExpanded: true, // Expand all nodes by default
+        columns: [
+            { title: "Path", field: "path", htmlOutput: true }, // Render HTML for <br> tags
+            { title: "Hash", field: "hash" },
+            { title: "Files", field: "count" },
+            { title: "Total Size", field: "totalSize" },
+            { title: "Size", field: "size" },
+            { title: "Accessed", field: "atime", formatter: formatDate },
+            { title: "Modified", field: "mtime", formatter: formatDate },
+            { title: "Changed", field: "ctime", formatter: formatDate },
+        ],
+    });
+
     function connect() {
-      socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
+        socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
 
-      socket.onopen = function() {
-        console.log("Tabulator Tab: WebSocket connection established.");
-        dirtySock('findDuplicates', null);
-      };
+        socket.onopen = function() {
+            console.log("Tabulator Tab: WebSocket connection established.");
+            dirtySock('findDuplicates', null);
+        };
 
-      socket.onmessage = function(event) {
-        const parsedMessage = JSON.parse(event.data);
-        const { action, data } = parsedMessage;
+        socket.onmessage = function(event) {
+            const parsedMessage = JSON.parse(event.data);
+            const { action, data } = parsedMessage;
 
-        if (action === 'duplicateFiles') {
-          console.log("Tabulator Tab: Received duplicateFiles data.");
+            if (action === 'duplicateFiles') {
+                console.log("Tabulator Tab: Received duplicateFiles data.");
+                // Tabulator's dataTree requires a specific structure with a _children property.
+                const tableData = data.map(group => ({
+                    ...group,
+                    path: `<strong>Group: ${group.hash}</strong>`, // Display hash info in the 'path' column for the parent
+                    _children: group.files
+                }));
+                table.setData(tableData);
+            }
+        };
 
-          // Tabulator's data tree requires the children array to be named '_children'
-          const tableData = data.map(group => {
-              return { ...group, _children: group.files };
-          });
+        socket.onclose = function(event) {
+            console.log("Tabulator Tab: WebSocket connection closed. Reconnecting...");
+            setTimeout(connect, 1000);
+        };
 
-          table = new Tabulator("#duplicatesTable-tabulator", {
-              data: tableData,
-              layout: "fitColumns",
-              dataTree: true,
-              dataTreeStartExpanded: false,
-              dataTreeChildIndent: 0, // Remove indentation for child rows
-              placeholder: "No duplicate files found",
-              columns: [
-                  {
-                      title: "Hash / Path",
-                      field: "hash", // This field is mainly for the parent row
-                      widthGrow: 3,
-                      formatter: (cell) => {
-                          const rowData = cell.getRow().getData();
-                          // If it's a parent row (has a hash), show the hash bolded.
-                          if (rowData.hash) {
-                              return `<strong>${rowData.hash}</strong>`;
-                          }
-                          // If it's a child row, show the path. Tabulator will auto-indent this.
-                          return rowData.path;
-                      },
-                      htmlOutput: true,
-                  },
-                  {
-                      title: "Count / Modified",
-                      widthGrow: 1.5,
-                      formatter: (cell) => {
-                          const rowData = cell.getRow().getData();
-                          // If it's a parent row, show the file count.
-                          if (rowData.hash) {
-                              return rowData._children ? rowData._children.length : 0;
-                          }
-                          // If it's a child row, show the modified date.
-                          return rowData.mtime ? new Date(rowData.mtime).toLocaleString() : '';
-                      }
-                  },
-                  {
-                      title: "Size",
-                      field: "size",
-                      widthGrow: 1,
-                      formatter: (cell) => {
-                          const rowData = cell.getRow().getData();
-                          // Only show size on the parent row.
-                          return rowData.hash ? rowData.size : "";
-                      }
-                  }
-              ],
-          });
-        }
-      };
-
-      socket.onclose = function(event) {
-        console.log("Tabulator Tab: WebSocket connection closed. Reconnecting...");
-        setTimeout(connect, 1000);
-      };
-
-      socket.onerror = function(error) {
-        console.error("Tabulator Tab: WebSocket error: ", error);
-        socket.close();
-      };
+        socket.onerror = function(error) {
+            console.error("Tabulator Tab: WebSocket error: ", error);
+            socket.close();
+        };
     }
 
     function dirtySock(action, data) {
         const message = {
-          clientId: "dirt-tabulator.page",
-          action: action,
-          data: data
+            clientId: "dirt-tabulator.page",
+            action: action,
+            data: data
         };
         if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify(message));
+            socket.send(JSON.stringify(message));
         } else {
-          console.error("Tabulator Tab: WebSocket is not connected.");
+            console.error("Tabulator Tab: WebSocket is not connected.");
         }
     }
 

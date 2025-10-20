@@ -16,10 +16,10 @@ Title="DataTables"
 <table id="duplicatesTable" class="display" style="width:100%">
     <thead>
         <tr>
-            <th></th>
+            <th></th> <!-- Expansion control -->
             <th>Hash</th>
             <th>File Count</th>
-            <th>Size</th>
+            <th>Total Size</th>
         </tr>
     </thead>
     <tbody>
@@ -33,92 +33,104 @@ $(function() {
     let socket;
     let table;
 
+    // This function formats the child row, which contains a nested table of the files.
     function formatChildTable(files) {
-        // Use default DataTables styling by not adding a custom class.
-        // DataTables' CSS will handle the basic table layout.
-        let tableHtml = '<table><thead><tr><th>Path</th><th>Modified</th></tr></thead><tbody>';
+        let tableHtml = '<table><thead><tr><th>Path</th><th>Size</th><th>Accessed</th><th>Modified</th><th>Changed</th></tr></thead><tbody>';
         files.forEach(file => {
-            tableHtml += `<tr><td>${file.path}</td><td>${new Date(file.mtime).toLocaleString()}</td></tr>`;
+            tableHtml += `
+                <tr>
+                    <td>${file.path}</td>
+                    <td>${file.size}</td>
+                    <td>${new Date(file.atime).toLocaleString()}</td>
+                    <td>${new Date(file.mtime).toLocaleString()}</td>
+                    <td>${new Date(file.ctime).toLocaleString()}</td>
+                </tr>`;
         });
         tableHtml += '</tbody></table>';
         return tableHtml;
     }
 
     function connect() {
-      socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-datatables.page`);
+        socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-datatables.page`);
 
-      socket.onopen = function() {
-        console.log("DataTables Tab: WebSocket connection established.");
-        dirtySock('findDuplicates', null);
-      };
+        socket.onopen = function() {
+            console.log("DataTables Tab: WebSocket connection established.");
+            dirtySock('findDuplicates', null);
+        };
 
-      socket.onmessage = function(event) {
-        const parsedMessage = JSON.parse(event.data);
-        const { action, data } = parsedMessage;
+        socket.onmessage = function(event) {
+            const parsedMessage = JSON.parse(event.data);
+            const { action, data } = parsedMessage;
 
-        if (action === 'duplicateFiles') {
-          console.log("DataTables Tab: Received duplicateFiles data.");
-          if (table) {
-            table.destroy();
-          }
-          table = $('#duplicatesTable').DataTable({
-              data: data,
-              columns: [
-                  {
-                      className: 'dt-control',
-                      orderable: false,
-                      data: null,
-                      defaultContent: ''
-                  },
-                  { data: 'hash' },
-                  { data: 'files', render: (data, type, row) => data.length },
-                  { data: 'size' }
-              ],
-              order: [[1, 'asc']],
-              language: {
-                emptyTable: "No duplicate files found"
-              }
-          });
+            if (action === 'duplicateFiles') {
+                console.log("DataTables Tab: Received duplicateFiles data.");
+                if (table) {
+                    table.destroy();
+                }
+                table = $('#duplicatesTable').DataTable({
+                    data: data,
+                    columns: [
+                        {
+                            className: 'dt-control',
+                            orderable: false,
+                            data: null,
+                            defaultContent: ''
+                        },
+                        { data: 'hash' },
+                        { data: 'count' },
+                        { data: 'totalSize' }
+                    ],
+                    order: [[1, 'asc']],
+                    language: {
+                        emptyTable: "No duplicate files found"
+                    }
+                });
 
-          // Add event listener for opening and closing details
-          $('#duplicatesTable tbody').on('click', 'td.dt-control', function () {
-              var tr = $(this).closest('tr');
-              var row = table.row(tr);
+                // Expand all rows by default
+                $('#duplicatesTable tbody tr').each(function () {
+                    var tr = $(this);
+                    var row = table.row(tr);
+                    row.child(formatChildTable(row.data().files)).show();
+                    tr.addClass('dt-hasChild');
+                });
 
-              if (row.child.isShown()) {
-                  // This row is already open - close it
-                  row.child.hide();
-                  tr.removeClass('dt-hasChild');
-              } else {
-                  // Open this row
-                  row.child(formatChildTable(row.data().files)).show();
-                  tr.addClass('dt-hasChild');
-              }
-          });
-        }
-      };
+                // Add event listener for opening and closing details
+                $('#duplicatesTable tbody').on('click', 'td.dt-control', function () {
+                    var tr = $(this).closest('tr');
+                    var row = table.row(tr);
 
-      socket.onclose = function(event) {
-        console.log("DataTables Tab: WebSocket connection closed. Reconnecting...");
-        setTimeout(connect, 1000);
-      };
+                    if (row.child.isShown()) {
+                        row.child.hide();
+                        tr.removeClass('dt-hasChild');
+                    } else {
+                        row.child(formatChildTable(row.data().files)).show();
+                        tr.addClass('dt-hasChild');
+                    }
+                });
+            }
+        };
 
-      socket.onerror = function(error) {
-        console.error("DataTables Tab: WebSocket error: ", error);
-        socket.close();
-      };
+        socket.onclose = function(event) {
+            console.log("DataTables Tab: WebSocket connection closed. Reconnecting...");
+            setTimeout(connect, 1000);
+        };
+
+        socket.onerror = function(error) {
+            console.error("DataTables Tab: WebSocket error: ", error);
+            socket.close();
+        };
     }
 
     function dirtySock(action, data) {
         const message = {
-          clientId: "dirt-datatables.page",
-          action: action,
-          data: data
+            clientId: "dirt-datatables.page",
+            action: action,
+            data: data
         };
         if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify(message));
+            socket.send(JSON.stringify(message));
         } else {
-          console.error("DataTables Tab: WebSocket is not connected.");
+            console.error("DataTables Tab: WebSocket is not connected.");
         }
     }
 
