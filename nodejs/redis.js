@@ -11,6 +11,7 @@ let omClient;
 let fileMetadataRepository;
 let findWithMultiplePathsScriptSha;
 let findWithNonUniqueHashesScriptSha;
+let findDuplicatesScriptSha;
 
 const fileMetadataSchema = new Schema(
 	"ino",
@@ -69,15 +70,18 @@ async function connectToRedis() {
 		const luaDir = path.join(__dirname, "lua");
 		const findWithMultiplePathsLua = await fs.readFile(path.join(luaDir, "findWithMultiplePaths.lua"), "utf8");
 		const findWithNonUniqueHashesLua = await fs.readFile(path.join(luaDir, "findWithNonUniqueHashes.lua"), "utf8");
+		const findDuplicatesLua = await fs.readFile(path.join(luaDir, "find-duplicates.lua"), "utf8");
 
 		findWithMultiplePathsScriptSha = await redisClient.scriptLoad(findWithMultiplePathsLua);
 		findWithNonUniqueHashesScriptSha = await redisClient.scriptLoad(findWithNonUniqueHashesLua);
+		findDuplicatesScriptSha = await redisClient.scriptLoad(findDuplicatesLua);
 
 		redisFunctions.init({
 			getRedisClient,
 			getFileMetadataRepository,
 			findWithMultiplePathsScriptSha,
 			findWithNonUniqueHashesScriptSha,
+			findDuplicatesScriptSha,
 		});
 	}
 	return { redisClient, fileMetadataRepository };
@@ -131,4 +135,5 @@ module.exports = {
     findWithMultiplePaths: redisFunctions.findWithMultiplePaths,
     findWithNonUniqueHashes: redisFunctions.findWithNonUniqueHashes,
     getAllFiles: redisFunctions.getAllFiles,
+    findDuplicates: redisFunctions.findDuplicates,
 };

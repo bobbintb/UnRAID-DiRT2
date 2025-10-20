@@ -2,12 +2,14 @@ let getRedisClient;
 let getFileMetadataRepository;
 let findWithMultiplePathsScriptSha;
 let findWithNonUniqueHashesScriptSha;
+let findDuplicatesScriptSha;
 
 function init(dependencies) {
     getRedisClient = dependencies.getRedisClient;
     getFileMetadataRepository = dependencies.getFileMetadataRepository;
     findWithMultiplePathsScriptSha = dependencies.findWithMultiplePathsScriptSha;
     findWithNonUniqueHashesScriptSha = dependencies.findWithNonUniqueHashesScriptSha;
+    findDuplicatesScriptSha = dependencies.findDuplicatesScriptSha;
 }
 
 function parseHGetAll(result) {
@@ -75,6 +77,67 @@ async function getAllFiles() {
     return await repository.search().return.all();
 }
 
+async function findDuplicates() {
+    const repository = getFileMetadataRepository();
+    const redisClient = getRedisClient();
+
+    const flatResult = await redisClient.evalSha(findDuplicatesScriptSha, {
+        keys: [],
+        arguments: [],
+    });
+
+    // Parse the flat array: [hash, key1, key2, '---', hash2, keyA, keyB]
+    const groupedKeys = [];
+    let currentGroup = null;
+    for (const item of flatResult) {
+        if (item === '---') {
+            if (currentGroup) {
+                groupedKeys.push(currentGroup);
+            }
+            currentGroup = null;
+        } else if (currentGroup === null) {
+            currentGroup = { hash: item, keys: [] };
+        } else {
+            currentGroup.keys.push(item);
+        }
+    }
+    if (currentGroup) {
+        groupedKeys.push(currentGroup);
+    }
+
+    // Fetch the full entity for each key and structure the final result
+    const result = await Promise.all(
+        groupedKeys.map(async (group) => {
+            const files = await Promise.all(
+                group.keys.map(async (key) => {
+                    // Extract the entity ID from the full Redis key (e.g., 'ino:12345')
+                    const entityId = key.split(':').pop();
+                    const fileEntity = await repository.fetch(entityId);
+                    return {
+                        path: fileEntity.path.join('<br><div class="fa fa-link" style="margin-left: 9px;"></div> '), // Join for display on new lines
+                        size: fileEntity.size,
+                        atime: fileEntity.atime,
+                        mtime: fileEntity.mtime,
+                        ctime: fileEntity.ctime,
+                    };
+                })
+            );
+
+            // Calculate the total size of all files in the group
+            const totalSize = files.reduce((acc, file) => acc + file.size, 0);
+
+            return {
+                hash: group.hash,
+                count: files.length,
+                totalSize: totalSize,
+                files: files,
+            };
+        })
+    );
+
+    return result;
+}
+
 module.exports = {
     init,
     parseHGetAll,
@@ -83,4 +146,5 @@ module.exports = {
     findWithMultiplePaths,
     findWithNonUniqueHashes,
     getAllFiles,
+    findDuplicates,
 };

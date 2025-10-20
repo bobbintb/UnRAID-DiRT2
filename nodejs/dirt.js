@@ -13,7 +13,7 @@ const {
   debugFindFilesWithNonUniqueHashes,
   debugFindFileByPath,
 } = require('./debug.js');
-const { getAllFiles } = require('./redis.js');
+const { getAllFiles, findDuplicates } = require('./redis.js');
 
 let inboxListenerClient;
 
@@ -228,6 +228,16 @@ async function main() {
                 ws.send(JSON.stringify({
                   action: 'allFiles',
                   data: files,
+                }));
+              }
+              break;
+            }
+            case 'findDuplicates': {
+              const duplicates = await findDuplicates();
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                  action: 'duplicateFiles',
+                  data: duplicates,
                 }));
               }
               break;
