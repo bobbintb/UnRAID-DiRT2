@@ -29,7 +29,15 @@ Title="DataTables"
 <script>
 $(function() {
     let socket;
-    let table;
+
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
 
     // This function formats the child row, which contains a nested table of the files.
     function formatChildTable(files) {
@@ -38,7 +46,7 @@ $(function() {
             tableHtml += `
                 <tr>
                     <td>${file.path}</td>
-                    <td>${file.size}</td>
+                    <td>${formatBytes(file.size)}</td>
                     <td>${new Date(file.atime).toLocaleString()}</td>
                     <td>${new Date(file.mtime).toLocaleString()}</td>
                     <td>${new Date(file.ctime).toLocaleString()}</td>
@@ -48,11 +56,50 @@ $(function() {
         return tableHtml;
     }
 
+    // Initialize the DataTable once on page load with its configuration.
+    const table = $('#duplicatesTable').DataTable({
+        columns: [
+            {
+                className: 'dt-control',
+                orderable: false,
+                data: null,
+                defaultContent: ''
+            },
+            {
+                data: null,
+                orderable: false,
+                render: function(data, type, row) {
+                    return `<strong>Group: ${row.hash}</strong> (${row.count} files, ${formatBytes(row.totalSize)})`;
+                }
+            }
+        ],
+        order: [], // No initial ordering
+        language: {
+            emptyTable: "Connecting to server..."
+        }
+    });
+
+    // Add event listener for opening and closing details
+    $('#duplicatesTable tbody').on('click', 'td.dt-control', function () {
+        var tr = $(this).closest('tr');
+        var row = table.row(tr);
+
+        if (row.child.isShown()) {
+            row.child.hide();
+            tr.removeClass('dt-hasChild');
+        } else {
+            row.child(formatChildTable(row.data().files)).show();
+            tr.addClass('dt-hasChild');
+        }
+    });
+
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-datatables.page`);
 
         socket.onopen = function() {
             console.log("DataTables Tab: WebSocket connection established.");
+            table.clear().draw();
+            table.settings()[0].oLanguage.sEmptyTable = "No duplicate files found";
             dirtySock('findDuplicates', null);
         };
 
@@ -62,63 +109,30 @@ $(function() {
 
             if (action === 'duplicateFiles') {
                 console.log("DataTables Tab: Received duplicateFiles data.");
-                if (table) {
-                    table.destroy();
-                }
-                table = $('#duplicatesTable').DataTable({
-                    data: data,
-                    columns: [
-                        {
-                            className: 'dt-control',
-                            orderable: false,
-                            data: null,
-                            defaultContent: ''
-                        },
-                        {
-                            data: null,
-                            orderable: false,
-                            render: function(data, type, row) {
-                                return `<strong>Group: ${row.hash}</strong> (${row.count} files, ${row.totalSize} bytes)`;
-                            }
-                        }
-                    ],
-                    order: [], // No initial ordering
-                    language: {
-                        emptyTable: "No duplicate files found"
-                    }
-                });
+                // Use the correct API to clear, add, and draw the new data.
+                table.clear().rows.add(data).draw();
 
-                // Expand all rows by default
+                // Expand all rows by default after data is loaded
                 $('#duplicatesTable tbody tr').each(function () {
                     var tr = $(this);
                     var row = table.row(tr);
                     row.child(formatChildTable(row.data().files)).show();
                     tr.addClass('dt-hasChild');
                 });
-
-                // Add event listener for opening and closing details
-                $('#duplicatesTable tbody').on('click', 'td.dt-control', function () {
-                    var tr = $(this).closest('tr');
-                    var row = table.row(tr);
-
-                    if (row.child.isShown()) {
-                        row.child.hide();
-                        tr.removeClass('dt-hasChild');
-                    } else {
-                        row.child(formatChildTable(row.data().files)).show();
-                        tr.addClass('dt-hasChild');
-                    }
-                });
             }
         };
 
         socket.onclose = function(event) {
             console.log("DataTables Tab: WebSocket connection closed. Reconnecting...");
+            table.clear().draw();
+            table.settings()[0].oLanguage.sEmptyTable = "Connection closed. Retrying...";
             setTimeout(connect, 1000);
         };
 
         socket.onerror = function(error) {
             console.error("DataTables Tab: WebSocket error: ", error);
+            table.clear().draw();
+            table.settings()[0].oLanguage.sEmptyTable = "Error connecting to server.";
             socket.close();
         };
     }
