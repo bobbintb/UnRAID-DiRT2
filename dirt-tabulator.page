@@ -26,72 +26,45 @@ document.addEventListener("DOMContentLoaded", function() {
         if (action === 'duplicateFiles') {
           console.log("Tabulator Tab: Received duplicateFiles data.");
 
-          // Add a unique ID and expanded state for each parent row
-          const tableData = data.map((group, index) => {
-              return { ...group, id: index, _expanded: false };
+          // Tabulator's data tree requires the children array to be named '_children'
+          const tableData = data.map(group => {
+              return { ...group, _children: group.files };
           });
 
-          // Initialize table without columns, as they will be set dynamically
           table = new Tabulator("#duplicatesTable-tabulator", {
               data: tableData,
               layout: "fitColumns",
+              dataTree: true,
+              dataTreeStartExpanded: false,
+              dataTreeChildIndent: 0, // Remove indentation for child rows
               placeholder: "No duplicate files found",
-              rowFormatter: function(row){
-                // Apply styling to child rows
-                if(row.getData()._isChild){
-                    row.getElement().style.backgroundColor = "#f5f5f5";
-                }
-              }
-          });
-
-          // Define the final, correct column structure and logic
-          table.setColumns([
-               {
-                      title: "",
-                      width: 40,
-                      hozAlign: "center",
-                      formatter: (cell) => {
-                          const rowData = cell.getRow().getData();
-                          if (rowData.hash) {
-                              return rowData._expanded ? "-" : "+";
-                          }
-                          return "";
-                      },
-                      cellClick: (e, cell) => {
-                          const row = cell.getRow();
-                          const rowData = row.getData();
-                          if (!rowData.hash) return;
-                          rowData._expanded = !rowData._expanded;
-                          row.update({ _expanded: rowData._expanded });
-                          if (rowData._expanded) {
-                              const childRows = rowData.files.map(file => ({ ...file, _isChild: true, _parentId: rowData.id }));
-                              // The correct method is addRow, which must be called for each row.
-                              childRows.forEach(child => table.addRow(child, false, row));
-                          } else {
-                              const children = table.getRows().filter(r => r.getData()._parentId === rowData.id);
-                              children.forEach(child => child.delete());
-                          }
-                      }
-                  },
+              columns: [
                   {
                       title: "Hash / Path",
-                      field: "hash",
+                      field: "hash", // This field is mainly for the parent row
                       widthGrow: 3,
                       formatter: (cell) => {
-                          const data = cell.getRow().getData();
-                          return data._isChild ? data.path : `<strong>${data.hash}</strong>`;
+                          const rowData = cell.getRow().getData();
+                          // If it's a parent row (has a hash), show the hash bolded.
+                          if (rowData.hash) {
+                              return `<strong>${rowData.hash}</strong>`;
+                          }
+                          // If it's a child row, show the path. Tabulator will auto-indent this.
+                          return rowData.path;
                       },
-                      htmlOutput: true
+                      htmlOutput: true,
                   },
                   {
                       title: "Count / Modified",
                       widthGrow: 1.5,
                       formatter: (cell) => {
-                          const data = cell.getRow().getData();
-                          if (data._isChild) {
-                              return data.mtime ? new Date(data.mtime).toLocaleString() : '';
+                          const rowData = cell.getRow().getData();
+                          // If it's a parent row, show the file count.
+                          if (rowData.hash) {
+                              return rowData._children ? rowData._children.length : 0;
                           }
-                          return data.files ? data.files.length : '';
+                          // If it's a child row, show the modified date.
+                          return rowData.mtime ? new Date(rowData.mtime).toLocaleString() : '';
                       }
                   },
                   {
@@ -99,11 +72,13 @@ document.addEventListener("DOMContentLoaded", function() {
                       field: "size",
                       widthGrow: 1,
                       formatter: (cell) => {
-                          const data = cell.getRow().getData();
-                          return data._isChild ? '' : data.size;
+                          const rowData = cell.getRow().getData();
+                          // Only show size on the parent row.
+                          return rowData.hash ? rowData.size : "";
                       }
                   }
-          ]);
+              ],
+          });
         }
       };
 
