@@ -112,7 +112,8 @@ document.addEventListener("DOMContentLoaded", function() {
                           row.update({ _expanded: rowData._expanded });
                           if (rowData._expanded) {
                               const childRows = rowData.files.map(file => ({ ...file, _isChild: true, _parentId: rowData.id }));
-                              table.addRows(childRows, false, row);
+                              // The correct method is addRow, which must be called for each row.
+                              childRows.forEach(child => table.addRow(child, false, row));
                           } else {
                               const children = table.getRows().filter(r => r.getData()._parentId === rowData.id);
                               children.forEach(child => child.delete());
