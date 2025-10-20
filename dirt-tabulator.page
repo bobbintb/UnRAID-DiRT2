@@ -31,6 +31,7 @@ document.addEventListener("DOMContentLoaded", function() {
               return { ...group, id: index, _expanded: false };
           });
 
+          // Initialize table without columns, as they will be set dynamically
           table = new Tabulator("#duplicatesTable-tabulator", {
               data: tableData,
               layout: "fitColumns",
@@ -40,58 +41,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 if(row.getData()._isChild){
                     row.getElement().style.backgroundColor = "#f5f5f5";
                 }
-              },
-              columns: [
-                  {
-                      title: "",
-                      width: 40,
-                      hozAlign: "center",
-                      formatter: (cell) => {
-                          const rowData = cell.getRow().getData();
-                          // Only show the icon on parent rows
-                          if (rowData.hash) {
-                              return rowData._expanded ? "-" : "+";
-                          }
-                          return "";
-                      },
-                      cellClick: (e, cell) => {
-                          const row = cell.getRow();
-                          const rowData = row.getData();
-
-                          if (!rowData.hash) return; // Not a parent row
-
-                          rowData._expanded = !rowData._expanded;
-                          row.update({ _expanded: rowData._expanded }); // Update the row data
-
-                          if (rowData._expanded) {
-                              // Expand: Add child rows
-                              const childRows = rowData.files.map(file => {
-                                  return { ...file, _isChild: true, _parentId: rowData.id };
-                              });
-                              table.addRows(childRows, false, row);
-                          } else {
-                              // Collapse: Remove child rows
-                              const children = table.getRows().filter(r => r.getData()._parentId === rowData.id);
-                              children.forEach(child => child.delete());
-                          }
-                      }
-                  },
-                  { title: "Hash", field: "hash" },
-                  { title: "File Count", field: "files", formatter: (cell) => cell.getValue() ? cell.getValue().length : '' },
-                  { title: "Size", field: "size" },
-                  { title: "Path", field: "path", visible: false }, // Hide, but keep for data access
-                  { title: "Modified", field: "mtime", visible: false } // Hide, but keep for data access
-              ],
+              }
           });
 
-          // After the table is built, we redefine the columns for the child rows
-          // This is a bit of a workaround to get the desired layout.
-          // We can't have different column defs for parent/child directly.
-          // Instead, we will format the parent row cells to show the child data.
-          // No, the manual addRows/deleteRows is the cleaner way. The above logic is correct.
-          // The child rows will just display their data in the same columns.
-          // Let's adjust the columns to show child data if it exists.
-
+          // Define the final, correct column structure and logic
           table.setColumns([
                {
                       title: "",
