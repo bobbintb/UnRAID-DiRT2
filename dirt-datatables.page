@@ -71,10 +71,9 @@ $(function() {
             if (action === 'duplicateFiles') {
                 console.log("DataTables Tab: Received duplicateFiles data.");
 
-                // Initialize or re-initialize the table here, inside the message handler.
-                // This is the original, working pattern.
+                // The simple, correct pattern: initialize the table when data arrives.
                 table = $('#duplicatesTable').DataTable({
-                    destroy: true, // This is key for re-initialization
+                    destroy: true, // Standard option for re-initialization
                     data: data,
                     columns: [
                         {
@@ -97,7 +96,7 @@ $(function() {
                     }
                 });
 
-                // This logic must run *after* the table is created.
+                // Attach the click handler *after* the table is created.
                 $('#duplicatesTable tbody').off('click', 'td.dt-control').on('click', 'td.dt-control', function () {
                     var tr = $(this).closest('tr');
                     var row = table.row(tr);
@@ -111,6 +110,7 @@ $(function() {
                     }
                 });
 
+                // Expand all rows by default after the table is drawn.
                 $('#duplicatesTable tbody tr').each(function () {
                     var tr = $(this);
                     var row = table.row(tr);
