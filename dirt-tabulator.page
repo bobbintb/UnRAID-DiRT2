@@ -17,6 +17,28 @@ document.addEventListener('DOMContentLoaded', function() {
         return value ? new Date(value).toLocaleString() : '';
     }
 
+    // Custom formatter for the tree's first column
+    const treeFormatter = (cell, formatterParams, onRendered) => {
+        const data = cell.getRow().getData();
+        const isParent = !!data._children; // Check if it's a parent group
+
+        if (isParent) {
+            const strong = document.createElement('strong');
+            strong.textContent = `Group: ${data.hash}`;
+
+            const span = document.createElement('span');
+            span.textContent = ` (${data.count} files, ${data.totalSize} bytes)`;
+
+            const container = document.createElement('div');
+            container.appendChild(strong);
+            container.appendChild(span);
+            return container;
+        } else {
+            // It's a child row, just show the path
+            return data.path;
+        }
+    };
+
     // The Tabulator table definition
     table = new Tabulator("#duplicatesTable", {
         data: [], // Set initial data to empty
@@ -25,10 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
         dataTree: true,
         dataTreeStartExpanded: true, // Expand all nodes by default
         columns: [
-            { title: "Path", field: "path", htmlOutput: true }, // Render HTML for <br> tags
-            { title: "Hash", field: "hash" },
-            { title: "Files", field: "count" },
-            { title: "Total Size", field: "totalSize" },
+            { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false },
             { title: "Size", field: "size" },
             { title: "Accessed", field: "atime", formatter: formatDate },
             { title: "Modified", field: "mtime", formatter: formatDate },
@@ -53,7 +72,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Tabulator's dataTree requires a specific structure with a _children property.
                 const tableData = data.map(group => ({
                     ...group,
-                    path: `<strong>Group: ${group.hash}</strong>`, // Display hash info in the 'path' column for the parent
                     _children: group.files
                 }));
                 table.setData(tableData);

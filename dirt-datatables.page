@@ -17,9 +17,7 @@ Title="DataTables"
     <thead>
         <tr>
             <th></th> <!-- Expansion control -->
-            <th>Hash</th>
-            <th>File Count</th>
-            <th>Total Size</th>
+            <th>Group Summary</th>
         </tr>
     </thead>
     <tbody>
@@ -76,11 +74,15 @@ $(function() {
                             data: null,
                             defaultContent: ''
                         },
-                        { data: 'hash' },
-                        { data: 'count' },
-                        { data: 'totalSize' }
+                        {
+                            data: null,
+                            orderable: false,
+                            render: function(data, type, row) {
+                                return `<strong>Group: ${row.hash}</strong> (${row.count} files, ${row.totalSize} bytes)`;
+                            }
+                        }
                     ],
-                    order: [[1, 'asc']],
+                    order: [], // No initial ordering
                     language: {
                         emptyTable: "No duplicate files found"
                     }
