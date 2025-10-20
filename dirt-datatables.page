@@ -3,36 +3,13 @@ Title="DataTables"
 ---
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.css">
 <style>
+    /* These styles are required for the expand/collapse functionality and are considered default. */
     td.dt-control {
         background: url('https://datatables.net/examples/resources/details_open.png') no-repeat center center;
         cursor: pointer;
     }
     tr.dt-hasChild td.dt-control {
         background: url('https://datatables.net/examples/resources/details_close.png') no-repeat center center;
-    }
-    /* Style for the container of the child table */
-    tr.dt-child td.child {
-        padding: 0.5em 1em;
-        background-color: #f5f5f5;
-    }
-    /* More distinct styling for the child table itself */
-    .details-table {
-        width: 100%;
-        border-collapse: collapse;
-        border: 1px solid #ccc;
-    }
-    .details-table th, .details-table td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-    }
-    .details-table th {
-        background-color: #e8e8e8;
-        font-weight: bold;
-        color: #333;
-    }
-    .details-table tr:nth-child(even) {
-        background-color: #f9f9f9;
     }
 </style>
 
@@ -57,7 +34,9 @@ $(function() {
     let table;
 
     function formatChildTable(files) {
-        let tableHtml = '<table class="details-table"><thead><tr><th>Path</th><th>Modified</th></tr></thead><tbody>';
+        // Use default DataTables styling by not adding a custom class.
+        // DataTables' CSS will handle the basic table layout.
+        let tableHtml = '<table><thead><tr><th>Path</th><th>Modified</th></tr></thead><tbody>';
         files.forEach(file => {
             tableHtml += `<tr><td>${file.path}</td><td>${new Date(file.mtime).toLocaleString()}</td></tr>`;
         });
