@@ -38,6 +38,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper function to format size
     function formatSize(cell) {
+        const row = cell.getRow();
+        const data = row.getData();
+        const isParent = !!data._children;
+
+        if (isParent) {
+            return ""; // Return a blank string for parent rows
+        }
+
         const value = cell.getValue();
         return formatBytes(value);
     }
@@ -67,10 +75,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // The Tabulator table definition
     table = new Tabulator("#duplicatesTable", {
         data: [], // Set initial data to empty
+        layout: "fitColumns",
         placeholder: "No duplicate files found",
         dataTree: true,
         dataTreeStartExpanded: true, // Expand all nodes by default
-        dataTreeSelectPropagate: true, // when a parent is selected, all children are selected
         selectable: function(row) {
             return !row.getData().isFirstChild; // Disable selection for the first child
         },
@@ -85,9 +93,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 titleFormatter: "rowSelection",
                 hozAlign: "center",
                 headerSort: false,
-                width: 40,
+                widthFitData: true,
+                resizable: false,
                 cellClick: function(e, cell) {
-                    cell.getRow().toggleSelect();
+                    const row = cell.getRow();
+                    const isParent = !!row.getData()._children;
+
+                    // Manually toggle selection to allow our custom logic to run
+                    row.toggleSelect();
+
+                    if (isParent) {
+                        const children = row.getTreeChildren();
+                        const isSelected = row.isSelected();
+
+                        children.forEach(child => {
+                            if (!child.getData().isFirstChild) { // Only affect selectable children
+                                if (isSelected) {
+                                    child.select();
+                                } else {
+                                    child.deselect();
+                                }
+                            }
+                        });
+                    }
                 },
             },
             { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true },
