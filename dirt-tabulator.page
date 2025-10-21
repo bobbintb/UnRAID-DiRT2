@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
         placeholder: "No duplicate files found",
         dataTree: true,
         dataTreeStartExpanded: true, // Expand all nodes by default
+        dataTreeChildIndent: 0, // Remove tree branch indentation
         dataTreeSelectPropagate: false, // Disable default parent/child selection propagation
         rowFormatter: function(row) {
             if (row.getData().isFirstChild) {

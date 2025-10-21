@@ -114,7 +114,7 @@ async function findDuplicates() {
                     const entityId = key.split(':').pop();
                     const fileEntity = await repository.fetch(entityId);
                     return {
-                        path: fileEntity.path.join('<br><div class="fa fa-link" style="margin-left: 9px;"></div> '), // Join for display on new lines
+                        path: fileEntity.path.join('<br>'), // Join for display on new lines
                         size: fileEntity.size,
                         atime: fileEntity.atime,
                         mtime: fileEntity.mtime,
