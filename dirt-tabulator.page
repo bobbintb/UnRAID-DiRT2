@@ -5,6 +5,11 @@ Title="Tabulator"
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
 
 <style>
+    /* Hide the tree branch element in the radio button column */
+    .tabulator-cell[tabulator-field="isPrimary"] .tabulator-data-tree-branch {
+        display: none;
+    }
+
     .disabled-row {
         background-color: #f2f2f2 !important;
         color: #999 !important;
