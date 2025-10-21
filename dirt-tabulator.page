@@ -4,6 +4,16 @@ Title="Tabulator"
 <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
 
+<style>
+    .disabled-row {
+        background-color: #f2f2f2 !important;
+        color: #999 !important;
+        pointer-events: none;
+    }
+    .disabled-row .tabulator-cell {
+        pointer-events: none;
+    }
+</style>
 <div id="duplicatesTable"></div>
 
 <script>
@@ -61,13 +71,52 @@ document.addEventListener('DOMContentLoaded', function() {
         placeholder: "No duplicate files found",
         dataTree: true,
         dataTreeStartExpanded: true, // Expand all nodes by default
+        dataTreeSelectPropagate: true, // when a parent is selected, all children are selected
+        selectable: function(row) {
+            return !row.getData().isFirstChild; // Disable selection for the first child
+        },
+        rowFormatter: function(row) {
+            if (row.getData().isFirstChild) {
+                row.getElement().classList.add('disabled-row');
+            }
+        },
         columns: [
+            {
+                formatter: "rowSelection",
+                titleFormatter: "rowSelection",
+                hozAlign: "center",
+                headerSort: false,
+                width: 40,
+                cellClick: function(e, cell) {
+                    cell.getRow().toggleSelect();
+                },
+            },
             { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true },
-            { title: "Size", field: "size", formatter: formatSize },
-            { title: "Accessed", field: "atime", formatter: formatDate },
-            { title: "Modified", field: "mtime", formatter: formatDate },
-            { title: "Changed", field: "ctime", formatter: formatDate },
+            { title: "Size", field: "size", formatter: formatSize, width: 'fitData', resizable: false },
+            { title: "Accessed", field: "atime", formatter: formatDate, width: 'fitData', resizable: false },
+            { title: "Modified", field: "mtime", formatter: formatDate, width: 'fitData', resizable: false },
+            { title: "Changed", field: "ctime", formatter: formatDate, width: 'fitData', resizable: false },
         ],
+    });
+
+    table.on("rowSelectionChanged", function(data, rows){
+        const changedChildRows = rows.filter(row => row.getTreeParent());
+        if (changedChildRows.length === 0) return;
+
+        const parentsToUpdate = new Set();
+        changedChildRows.forEach(child => parentsToUpdate.add(child.getTreeParent()));
+
+        parentsToUpdate.forEach(parent => {
+            const children = parent.getTreeChildren();
+            const selectableChildren = children.filter(child => !child.getData().isFirstChild);
+            const allSelectableChildrenSelected = selectableChildren.length > 0 && selectableChildren.every(child => child.isSelected());
+
+            if (allSelectableChildrenSelected && !parent.isSelected()) {
+                parent.select();
+            } else if (!allSelectableChildrenSelected && parent.isSelected()) {
+                parent.deselect();
+            }
+        });
     });
 
     function connect() {
@@ -84,11 +133,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (action === 'duplicateFiles') {
                 console.log("Tabulator Tab: Received duplicateFiles data.");
-                // Tabulator's dataTree requires a specific structure with a _children property.
-                const tableData = data.map(group => ({
-                    ...group,
-                    _children: group.files
-                }));
+                const tableData = data.map(group => {
+                    const children = group.files.map((file, index) => ({
+                        ...file,
+                        isFirstChild: index === 0, // Flag the first child
+                    }));
+                    return { ...group, _children: children };
+                });
                 table.setData(tableData);
             }
         };
