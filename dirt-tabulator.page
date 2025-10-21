@@ -67,7 +67,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // The Tabulator table definition
     table = new Tabulator("#duplicatesTable", {
         data: [], // Set initial data to empty
-        layout: "fitColumns",
         placeholder: "No duplicate files found",
         dataTree: true,
         dataTreeStartExpanded: true, // Expand all nodes by default
@@ -92,10 +91,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
             },
             { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true },
-            { title: "Size", field: "size", formatter: formatSize, width: 'fitData', resizable: false },
-            { title: "Accessed", field: "atime", formatter: formatDate, width: 'fitData', resizable: false },
-            { title: "Modified", field: "mtime", formatter: formatDate, width: 'fitData', resizable: false },
-            { title: "Changed", field: "ctime", formatter: formatDate, width: 'fitData', resizable: false },
+            { title: "Size", field: "size", formatter: formatSize, widthFitData: true, resizable: false },
+            { title: "Accessed", field: "atime", formatter: formatDate, widthFitData: true, resizable: false },
+            { title: "Modified", field: "mtime", formatter: formatDate, widthFitData: true, resizable: false },
+            { title: "Changed", field: "ctime", formatter: formatDate, widthFitData: true, resizable: false },
         ],
     });
 
