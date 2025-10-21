@@ -1,8 +1,8 @@
 Menu="dirtSettings:3"
 Title="DataTables"
 ---
-<link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/jquery.dataTables.min.css">
-<script src="https://cdn.datatables.net/2.3.4/js/jquery.dataTables.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css">
+<script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
 
 <style>
     .group-row {
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Initialize DataTables
-    table = $('#duplicatesTableElement').DataTable({
+    table = new DataTable('#duplicatesTableElement', {
         data: [],
         columns: [
             {
@@ -147,28 +147,32 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         createdRow: function(row, data, dataIndex) {
             if (data.isGroup) {
-                $(row).addClass('group-row');
-                $(row).attr('data-group-hash', data.groupHash);
+                row.classList.add('group-row');
+                row.setAttribute('data-group-hash', data.groupHash);
             } else {
-                $(row).addClass('child-row');
-                $(row).attr('data-parent-hash', data.groupHash);
+                row.classList.add('child-row');
+                row.setAttribute('data-parent-hash', data.groupHash);
             }
         }
     });
 
     // Handle group row clicks to toggle child visibility
-    $('#duplicatesTableElement tbody').on('click', 'tr.group-row', function() {
-        const groupHash = $(this).attr('data-group-hash');
-        const childRows = $(`tr.child-row[data-parent-hash="${groupHash}"]`);
-        const toggleIcon = $(this).find('.toggle-icon');
+    document.querySelector('#duplicatesTableElement tbody').addEventListener('click', function(e) {
+        const groupRow = e.target.closest('tr.group-row');
+        if (!groupRow) return;
 
-        childRows.toggle();
+        const groupHash = groupRow.getAttribute('data-group-hash');
+        const childRows = document.querySelectorAll(`tr.child-row[data-parent-hash="${groupHash}"]`);
+        const toggleIcon = groupRow.querySelector('.toggle-icon');
+
+        childRows.forEach(row => {
+            row.style.display = row.style.display === 'none' ? '' : 'none';
+        });
 
         // Toggle icon
-        if (childRows.is(':visible')) {
-            toggleIcon.text('▼');
-        } else {
-            toggleIcon.text('▶');
+        const isVisible = childRows[0] && childRows[0].style.display !== 'none';
+        if (toggleIcon) {
+            toggleIcon.textContent = isVisible ? '▼' : '▶';
         }
     });
 
