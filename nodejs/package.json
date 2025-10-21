@@ -5,6 +5,7 @@
   "main": "dirt.js",
   "scripts": {
     "start": "node dirt.js",
+    "seed": "node seed-redis.js",
     "postinstall": "playwright install"
   },
   "author": "",
