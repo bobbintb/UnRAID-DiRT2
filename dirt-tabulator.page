@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
         placeholder: "No duplicate files found",
         dataTree: true,
         dataTreeStartExpanded: true, // Expand all nodes by default
+        dataTreeSelectPropagate: false, // Disable default parent/child selection propagation
         selectable: function(row) {
             return !row.getData().isFirstChild; // Disable selection for the first child
         },
@@ -94,28 +95,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerSort: false,
                 widthFitData: true,
                 resizable: false,
-                cellClick: function(e, cell) {
-                    const row = cell.getRow();
-                    const isParent = !!row.getData()._children;
-
-                    // Manually toggle selection to allow our custom logic to run
-                    row.toggleSelect();
-
-                    if (isParent) {
-                        const children = row.getTreeChildren();
-                        const isSelected = row.isSelected();
-
-                        children.forEach(child => {
-                            if (!child.getData().isFirstChild) { // Only affect selectable children
-                                if (isSelected) {
-                                    child.select();
-                                } else {
-                                    child.deselect();
-                                }
-                            }
-                        });
-                    }
-                },
             },
             { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true, widthGrow: 1 },
             { title: "Size", field: "size", formatter: formatSize, widthFitData: true, resizable: false },
@@ -125,24 +104,49 @@ document.addEventListener('DOMContentLoaded', function() {
         ],
     });
 
-    table.on("rowSelectionChanged", function(data, rows){
-        const changedChildRows = rows.filter(row => row.getTreeParent());
-        if (changedChildRows.length === 0) return;
+    table.on("rowSelectionChanged", function(data, rows) {
+        if (table.selectionLogicRunning) {
+            return;
+        }
+        table.selectionLogicRunning = true;
 
-        const parentsToUpdate = new Set();
-        changedChildRows.forEach(child => parentsToUpdate.add(child.getTreeParent()));
+        rows.forEach(row => {
+            const isParent = !!row.getData()._children;
 
-        parentsToUpdate.forEach(parent => {
-            const children = parent.getTreeChildren();
-            const selectableChildren = children.filter(child => !child.getData().isFirstChild);
-            const allSelectableChildrenSelected = selectableChildren.length > 0 && selectableChildren.every(child => child.isSelected());
+            if (isParent) {
+                const children = row.getTreeChildren();
+                const isSelected = row.isSelected();
+                children.forEach(child => {
+                    if (!child.getData().isFirstChild) {
+                        if (isSelected) {
+                            child.select();
+                        } else {
+                            child.deselect();
+                        }
+                    }
+                });
+            } else {
+                const parent = row.getTreeParent();
+                if (parent) {
+                    const children = parent.getTreeChildren();
+                    const selectableChildren = children.filter(child => !child.getData().isFirstChild);
 
-            if (allSelectableChildrenSelected && !parent.isSelected()) {
-                parent.select();
-            } else if (!allSelectableChildrenSelected && parent.isSelected()) {
-                parent.deselect();
+                    if (selectableChildren.length > 0) {
+                        const allChildrenSelected = selectableChildren.every(child => child.isSelected());
+                        if (allChildrenSelected) {
+                            if (!parent.isSelected()) {
+                                parent.select();
+                            }
+                        } else {
+                            if (parent.isSelected()) {
+                                parent.deselect();
+                            }
+                        }
+                    }
+                }
             }
         });
+        table.selectionLogicRunning = false;
     });
 
     function connect() {
