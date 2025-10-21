@@ -4,6 +4,16 @@ Title="Tabulator"
 <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
 
+<style>
+    .disabled-row {
+        background-color: #f2f2f2 !important;
+        color: #999 !important;
+        pointer-events: none;
+    }
+    .disabled-row .tabulator-cell {
+        pointer-events: none;
+    }
+</style>
 <div id="duplicatesTable"></div>
 
 <script>
@@ -28,6 +38,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper function to format size
     function formatSize(cell) {
+        const row = cell.getRow();
+        const data = row.getData();
+        const isParent = !!data._children;
+
+        if (isParent) {
+            return ""; // Return a blank string for parent rows
+        }
+
         const value = cell.getValue();
         return formatBytes(value);
     }
@@ -57,17 +75,74 @@ document.addEventListener('DOMContentLoaded', function() {
     // The Tabulator table definition
     table = new Tabulator("#duplicatesTable", {
         data: [], // Set initial data to empty
-        layout: "fitColumns",
         placeholder: "No duplicate files found",
         dataTree: true,
         dataTreeStartExpanded: true, // Expand all nodes by default
+        selectable: function(row) {
+            return !row.getData().isFirstChild; // Disable selection for the first child
+        },
+        rowFormatter: function(row) {
+            if (row.getData().isFirstChild) {
+                row.getElement().classList.add('disabled-row');
+            }
+        },
         columns: [
-            { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true },
-            { title: "Size", field: "size", formatter: formatSize },
-            { title: "Accessed", field: "atime", formatter: formatDate },
-            { title: "Modified", field: "mtime", formatter: formatDate },
-            { title: "Changed", field: "ctime", formatter: formatDate },
+            {
+                formatter: "rowSelection",
+                titleFormatter: "rowSelection",
+                hozAlign: "center",
+                headerSort: false,
+                widthFitData: true,
+                resizable: false,
+                cellClick: function(e, cell) {
+                    const row = cell.getRow();
+                    const isParent = !!row.getData()._children;
+
+                    // Manually toggle selection to allow our custom logic to run
+                    row.toggleSelect();
+
+                    if (isParent) {
+                        const children = row.getTreeChildren();
+                        const isSelected = row.isSelected();
+
+                        children.forEach(child => {
+                            if (!child.getData().isFirstChild) { // Only affect selectable children
+                                if (isSelected) {
+                                    child.select();
+                                } else {
+                                    child.deselect();
+                                }
+                            }
+                        });
+                    }
+                },
+            },
+            { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true, widthGrow: 1 },
+            { title: "Size", field: "size", formatter: formatSize, widthFitData: true, resizable: false },
+            { title: "Accessed", field: "atime", formatter: formatDate, widthFitData: true, resizable: false },
+            { title: "Modified", field: "mtime", formatter: formatDate, widthFitData: true, resizable: false },
+            { title: "Changed", field: "ctime", formatter: formatDate, widthFitData: true, resizable: false },
         ],
+    });
+
+    table.on("rowSelectionChanged", function(data, rows){
+        const changedChildRows = rows.filter(row => row.getTreeParent());
+        if (changedChildRows.length === 0) return;
+
+        const parentsToUpdate = new Set();
+        changedChildRows.forEach(child => parentsToUpdate.add(child.getTreeParent()));
+
+        parentsToUpdate.forEach(parent => {
+            const children = parent.getTreeChildren();
+            const selectableChildren = children.filter(child => !child.getData().isFirstChild);
+            const allSelectableChildrenSelected = selectableChildren.length > 0 && selectableChildren.every(child => child.isSelected());
+
+            if (allSelectableChildrenSelected && !parent.isSelected()) {
+                parent.select();
+            } else if (!allSelectableChildrenSelected && parent.isSelected()) {
+                parent.deselect();
+            }
+        });
     });
 
     function connect() {
@@ -84,11 +159,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (action === 'duplicateFiles') {
                 console.log("Tabulator Tab: Received duplicateFiles data.");
-                // Tabulator's dataTree requires a specific structure with a _children property.
-                const tableData = data.map(group => ({
-                    ...group,
-                    _children: group.files
-                }));
+                const tableData = data.map(group => {
+                    const children = group.files.map((file, index) => ({
+                        ...file,
+                        isFirstChild: index === 0, // Flag the first child
+                    }));
+                    return { ...group, _children: children };
+                });
                 table.setData(tableData);
             }
         };
