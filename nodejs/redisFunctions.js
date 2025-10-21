@@ -109,7 +109,7 @@ async function findDuplicates() {
     const result = await Promise.all(
         groupedKeys.map(async (group) => {
             const files = await Promise.all(
-                group.keys.map(async (key) => {
+                group.keys.map(async (key, index) => {
                     // Extract the entity ID from the full Redis key (e.g., 'ino:12345')
                     const entityId = key.split(':').pop();
                     const fileEntity = await repository.fetch(entityId);
@@ -119,6 +119,7 @@ async function findDuplicates() {
                         atime: fileEntity.atime,
                         mtime: fileEntity.mtime,
                         ctime: fileEntity.ctime,
+                        isFirstChild: index === 0, // Flag the first child for default radio selection
                     };
                 })
             );

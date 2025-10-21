@@ -79,9 +79,6 @@ document.addEventListener('DOMContentLoaded', function() {
         dataTree: true,
         dataTreeStartExpanded: true, // Expand all nodes by default
         dataTreeSelectPropagate: false, // Disable default parent/child selection propagation
-        selectable: function(row) {
-            return !row.getData().isFirstChild; // Disable selection for the first child
-        },
         rowFormatter: function(row) {
             if (row.getData().isFirstChild) {
                 row.getElement().classList.add('disabled-row');
@@ -89,12 +86,49 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         columns: [
             {
+                title: "",
+                field: "isPrimary",
+                hozAlign: "center",
+                headerSort: false,
+                width: 40,
+                formatter: function(cell, formatterParams, onRendered) {
+                    const data = cell.getRow().getData();
+                    const isParent = !!data._children;
+                    if (isParent) {
+                        return "";
+                    }
+                    const radio = document.createElement("input");
+                    radio.type = "radio";
+                    radio.name = "primary_group_" + cell.getRow().getTreeParent().getData().hash;
+                    radio.checked = data.isFirstChild;
+                    return radio;
+                },
+                cellClick: function(e, cell) {
+                    const clickedRow = cell.getRow();
+                    const groupRows = clickedRow.getTreeParent().getTreeChildren();
+
+                    groupRows.forEach(row => {
+                        const rowEl = row.getElement();
+                        if (row === clickedRow) {
+                            rowEl.classList.add('disabled-row');
+                            row.deselect(); // Clear the checkbox
+                        } else {
+                            rowEl.classList.remove('disabled-row');
+                        }
+                    });
+                }
+            },
+            {
                 formatter: "rowSelection",
                 titleFormatter: "rowSelection",
                 hozAlign: "center",
                 headerSort: false,
                 widthFitData: true,
                 resizable: false,
+                selectableCheck: function(row) {
+                    // Disable checkbox if the row is marked as primary
+                    return !row.getElement().classList.contains('disabled-row');
+                },
             },
             { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true, widthGrow: 1 },
             { title: "Size", field: "size", formatter: formatSize, widthFitData: true, resizable: false },
@@ -118,7 +152,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (row.getTreeChildren().length > 0) { // It's a parent
                 const isSelected = row.isSelected();
                 row.getTreeChildren().forEach(function(child) {
-                    if (!child.getData().isFirstChild) { // Is selectable
+                    // Only propagate to selectable (not disabled) children
+                    if (!child.getElement().classList.contains('disabled-row')) {
                         if (isSelected) {
                             child.select();
                         } else {
@@ -139,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         parents.forEach(function(parent) {
-            const selectableChildren = parent.getTreeChildren().filter(child => !child.getData().isFirstChild);
+            const selectableChildren = parent.getTreeChildren().filter(child => !child.getElement().classList.contains('disabled-row'));
             const allSelected = selectableChildren.length > 0 && selectableChildren.every(child => child.isSelected());
 
             if (allSelected) {
