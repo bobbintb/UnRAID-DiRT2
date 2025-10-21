@@ -104,20 +104,21 @@ document.addEventListener('DOMContentLoaded', function() {
         ],
     });
 
+    let programmaticChange = false;
+
     table.on("rowSelectionChanged", function(data, rows) {
-        if (table.selectionLogicRunning) {
+        if (programmaticChange) {
             return;
         }
-        table.selectionLogicRunning = true;
 
-        rows.forEach(row => {
-            const isParent = !!row.getData()._children;
+        programmaticChange = true;
 
-            if (isParent) {
-                const children = row.getTreeChildren();
+        // Handle parent-to-child propagation for changed rows
+        rows.forEach(function(row) {
+            if (row.getTreeChildren().length > 0) { // It's a parent
                 const isSelected = row.isSelected();
-                children.forEach(child => {
-                    if (!child.getData().isFirstChild) {
+                row.getTreeChildren().forEach(function(child) {
+                    if (!child.getData().isFirstChild) { // Is selectable
                         if (isSelected) {
                             child.select();
                         } else {
@@ -125,28 +126,34 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 });
-            } else {
-                const parent = row.getTreeParent();
-                if (parent) {
-                    const children = parent.getTreeChildren();
-                    const selectableChildren = children.filter(child => !child.getData().isFirstChild);
+            }
+        });
 
-                    if (selectableChildren.length > 0) {
-                        const allChildrenSelected = selectableChildren.every(child => child.isSelected());
-                        if (allChildrenSelected) {
-                            if (!parent.isSelected()) {
-                                parent.select();
-                            }
-                        } else {
-                            if (parent.isSelected()) {
-                                parent.deselect();
-                            }
-                        }
-                    }
+        // Handle child-to-parent propagation for parents of changed rows
+        const parents = new Set();
+        rows.forEach(function(row) {
+            const parent = row.getTreeParent();
+            if (parent) {
+                parents.add(parent);
+            }
+        });
+
+        parents.forEach(function(parent) {
+            const selectableChildren = parent.getTreeChildren().filter(child => !child.getData().isFirstChild);
+            const allSelected = selectableChildren.length > 0 && selectableChildren.every(child => child.isSelected());
+
+            if (allSelected) {
+                if (!parent.isSelected()) {
+                    parent.select();
+                }
+            } else {
+                if (parent.isSelected()) {
+                    parent.deselect();
                 }
             }
         });
-        table.selectionLogicRunning = false;
+
+        programmaticChange = false;
     });
 
     function connect() {
