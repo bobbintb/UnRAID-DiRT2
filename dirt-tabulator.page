@@ -132,6 +132,9 @@ document.addEventListener('DOMContentLoaded', function() {
                             const rowEl = row.getElement();
                             if (row === clickedRow) {
                                 rowEl.classList.add('disabled-row');
+                                // Uncheck any action radios in this row
+                                const actionRadios = rowEl.querySelectorAll('.tabulator-cell[tabulator-field="action"] input[type="radio"]');
+                                actionRadios.forEach(r => r.checked = false);
                             } else {
                                 rowEl.classList.remove('disabled-row');
                             }
@@ -189,7 +192,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             },
-            { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true, widthGrow: 1, bottomCalc: "count" },
+            {
+                title: "File/Group",
+                field: "path",
+                formatter: treeFormatter,
+                headerSort: false,
+                htmlOutput:true,
+                widthGrow: 1,
+                bottomCalc: function(values, data, calcParams) {
+                    // Count only the actual file rows (not group headers or footers)
+                    let count = 0;
+                    data.forEach(group => {
+                        if (group._children) {
+                            group._children.forEach(child => {
+                                if (!child.isGroupFooter) {
+                                    count++;
+                                }
+                            });
+                        }
+                    });
+                    return `Total Files: ${count}`;
+                }
+            },
             { title: "Size", field: "size", formatter: formatSize, width: "auto", resizable: false },
             { title: "Accessed", field: "atime", formatter: formatDate, width: "auto", resizable: false },
             { title: "Modified", field: "mtime", formatter: formatDate, width: "auto", resizable: false },
