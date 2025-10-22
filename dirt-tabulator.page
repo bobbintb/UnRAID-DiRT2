@@ -5,6 +5,14 @@ Title="Tabulator"
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
 
 <style>
+    html, body {
+        height: 100%;
+        margin: 0;
+        overflow: hidden; /* Prevent body scrolling */
+    }
+    #duplicatesTable {
+        height: 100%;
+    }
     /* Hide the tree branch element in the radio button column */
     .tabulator-cell[tabulator-field="isPrimary"] .tabulator-data-tree-branch {
         display: none;
@@ -17,6 +25,10 @@ Title="Tabulator"
     }
     .disabled-row .tabulator-cell {
         pointer-events: none;
+    }
+    .group-footer {
+        background-color: #e0e0e0 !important;
+        font-weight: bold;
     }
 </style>
 <div id="duplicatesTable"></div>
@@ -37,20 +49,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper function to format dates
     function formatDate(cell) {
+        const data = cell.getRow().getData();
+        if (data.isGroupFooter) {
+            return "";
+        }
         const value = cell.getValue();
         return value ? new Date(value).toLocaleString() : '';
     }
 
     // Helper function to format size
     function formatSize(cell) {
-        const row = cell.getRow();
-        const data = row.getData();
-        const isParent = !!data._children;
-
-        if (isParent) {
-            return ""; // Return a blank string for parent rows
+        const data = cell.getRow().getData();
+        if (data.isGroupFooter || !!data._children) {
+            return "";
         }
-
         const value = cell.getValue();
         return formatBytes(value);
     }
@@ -71,6 +83,8 @@ document.addEventListener('DOMContentLoaded', function() {
             container.appendChild(strong);
             container.appendChild(span);
             return container;
+        } else if (data.isGroupFooter) {
+            return `Group Total: ${data.count} files`;
         } else {
             // It's a child row, just show the path
             return data.path;
@@ -79,14 +93,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // The Tabulator table definition
     table = new Tabulator("#duplicatesTable", {
+        height: "100%", // Use full page height
         data: [], // Set initial data to empty
         placeholder: "No duplicate files found",
         dataTree: true,
+        dataTreeChildColumnCalcs: true, // include child rows in column calculations
         dataTreeStartExpanded: true, // Expand all nodes by default
         dataTreeChildIndent: 0, // Remove tree branch indentation
         dataTreeSelectPropagate: false, // Disable default parent/child selection propagation
         rowFormatter: function(row) {
-            if (row.getData().isFirstChild) {
+            const data = row.getData();
+            if (data.isGroupFooter) {
+                row.getElement().classList.add('group-footer');
+            } else if (data.isFirstChild) {
                 row.getElement().classList.add('disabled-row');
             }
         },
@@ -99,8 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 40,
                 formatter: function(cell, formatterParams, onRendered) {
                     const data = cell.getRow().getData();
-                    const isParent = !!data._children;
-                    if (isParent) {
+                    if (data.isGroupFooter || !!data._children) {
                         return "";
                     }
                     const radio = document.createElement("input");
@@ -124,77 +142,60 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
             },
-            {
-                formatter: "rowSelection",
-                titleFormatter: "rowSelection",
-                hozAlign: "center",
-                headerSort: false,
-                width: "auto",
-                resizable: false,
-                selectableCheck: function(row) {
-                    // Disable checkbox if the row is marked as primary
-                    return !row.getElement().classList.contains('disabled-row');
-                },
-            },
-            { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true, widthGrow: 1 },
+            { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true, widthGrow: 1, bottomCalc: "count" },
             { title: "Size", field: "size", formatter: formatSize, width: "auto", resizable: false },
             { title: "Accessed", field: "atime", formatter: formatDate, width: "auto", resizable: false },
             { title: "Modified", field: "mtime", formatter: formatDate, width: "auto", resizable: false },
             { title: "Changed", field: "ctime", formatter: formatDate, width: "auto", resizable: false },
-        ],
-    });
+            {
+                title: "Del/Link",
+                field: "action",
+                hozAlign: "center",
+                headerSort: false,
+                width: 80,
+                formatter: function(cell, formatterParams, onRendered) {
+                    const data = cell.getRow().getData();
+                    if (data.isGroupFooter || !!data._children || data.isFirstChild) {
+                        return "";
+                    }
 
-    let programmaticChange = false;
+                    const container = document.createElement("div");
+                    const delRadio = document.createElement("input");
+                    delRadio.type = "radio";
+                    delRadio.name = "action_" + data.path;
+                    delRadio.value = "delete";
+                    delRadio.title = "Delete";
+                    delRadio.dataset.nullable = true;
 
-    table.on("rowSelectionChanged", function(data, rows) {
-        if (programmaticChange) {
-            return;
-        }
+                    const linkRadio = document.createElement("input");
+                    linkRadio.type = "radio";
+                    linkRadio.name = "action_" + data.path;
+                    linkRadio.value = "link";
+                    linkRadio.title = "Hardlink";
+                    linkRadio.dataset.nullable = true;
 
-        programmaticChange = true;
+                    container.appendChild(delRadio);
+                    container.appendChild(linkRadio);
 
-        // Handle parent-to-child propagation for changed rows
-        rows.forEach(function(row) {
-            if (row.getTreeChildren().length > 0) { // It's a parent
-                const isSelected = row.isSelected();
-                row.getTreeChildren().forEach(function(child) {
-                    // Only propagate to selectable (not disabled) children
-                    if (!child.getElement().classList.contains('disabled-row')) {
-                        if (isSelected) {
-                            child.select();
+                    return container;
+                },
+                cellClick: function(e, cell) {
+                    const target = e.target;
+                    if (target.type === 'radio' && target.dataset.nullable) {
+                        if (target.checked && target.getAttribute('data-waschecked') === 'true') {
+                            target.checked = false;
+                            target.setAttribute('data-waschecked', 'false');
                         } else {
-                            child.deselect();
+                            // Unset waschecked on other radio in group
+                            const radios = cell.getElement().querySelectorAll('input[type="radio"]');
+                            radios.forEach(r => r.setAttribute('data-waschecked', 'false'));
+
+                            target.setAttribute('data-waschecked', 'true');
                         }
                     }
-                });
-            }
-        });
-
-        // Handle child-to-parent propagation for parents of changed rows
-        const parents = new Set();
-        rows.forEach(function(row) {
-            const parent = row.getTreeParent();
-            if (parent) {
-                parents.add(parent);
-            }
-        });
-
-        parents.forEach(function(parent) {
-            const selectableChildren = parent.getTreeChildren().filter(child => !child.getElement().classList.contains('disabled-row'));
-            const allSelected = selectableChildren.length > 0 && selectableChildren.every(child => child.isSelected());
-
-            if (allSelected) {
-                if (!parent.isSelected()) {
-                    parent.select();
-                }
-            } else {
-                if (parent.isSelected()) {
-                    parent.deselect();
                 }
             }
-        });
-
-        programmaticChange = false;
+        ],
     });
 
     function connect() {
@@ -216,6 +217,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         ...file,
                         isFirstChild: index === 0, // Flag the first child
                     }));
+                    // Add the group footer row
+                    children.push({
+                        isGroupFooter: true,
+                        hash: group.hash,
+                        count: group.count,
+                        totalSize: group.totalSize
+                    });
                     return { ...group, _children: children };
                 });
                 table.setData(tableData);
