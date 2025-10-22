@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node dirt.js",
     "seed": "node seed-redis.js",
-    "postinstall": "playwright install"
+    "postinstall": "playwright install",
+    "test:ui:prepare": "mkdir -p ../jules-scratch/verification && tail -n +4 ../dirt-tabulator.page | sed 's/window.location.hostname/\"localhost\"/' > ../jules-scratch/verification/temp_tabulator.html && tail -n +4 ../dirt-datatables.page | sed 's/window.location.hostname/\"localhost\"/' > ../jules-scratch/verification/temp_datatables.html"
   },
   "author": "",
   "license": "ISC",
@@ -16,9 +17,6 @@
     "redis": "^4.6.13",
     "redis-om": "^0.4.7",
     "ws": "^8.13.0"
-  },
-  "devDependencies": {
-    "playwright": "^1.56.1"
   },
   "overrides": {
     "blake3-wasm": "3.0.0",
