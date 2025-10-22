@@ -22,9 +22,6 @@ Title="Tabulator"
     .disabled-row .tabulator-cell {
         pointer-events: none;
     }
-    .disabled-row .tabulator-cell[tabulator-field="action"] {
-        pointer-events: auto;
-    }
     .group-footer {
         background-color: #e0e0e0 !important;
         font-weight: bold;
