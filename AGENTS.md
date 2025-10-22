@@ -99,6 +99,34 @@ This project uses two different table libraries on separate pages for evaluation
     -   **Documentation**: [https://datatables.net/](https://datatables.net/)
 
 
+## Playwright Scripts
+
+This section outlines the standards and best practices for creating, managing, and maintaining Playwright verification scripts in this repository.
+
+### Storage Location
+
+All Playwright scripts must be stored in the following directory:
+`tests/verification-scripts/`
+
+### Scripting Standards and Best Practices
+
+1.  **Documentation**: All scripts must be thoroughly documented in accordance with industry standards. Each script file should include:
+    *   A file-level docstring explaining the script's overall purpose and what feature it verifies.
+    *   Clear comments for each logical step within the script (e.g., Arrange, Act, Assert).
+    *   Explanations for any complex locators or workarounds.
+
+2.  **Reusability and Core Library**: To avoid code duplication and improve maintainability, a core library of reusable functions should be established.
+    *   Common tasks, such as logging in, navigating to a specific page, or performing a common setup action, should be abstracted into functions.
+    *   These reusable functions should be stored in one or more core files, such as `tests/verification-scripts/core.py`.
+
+3.  **Script Structure**:
+    *   **Verification Scripts**: Simple, single-purpose scripts (like `verify_pages.py`) should be self-contained but are encouraged to use functions from the core library where applicable.
+    *   **Complex Tests**: More complex end-to-end or integration tests must also be self-contained. They should be structured as a series of logical steps that call functions from the core library to perform actions and assertions.
+
+4.  **Maintenance**:
+    *   Scripts must be kept up-to-date. If a UI change breaks a test, the script must be updated alongside the feature change.
+    *   Outdated or irrelevant scripts should be removed.
+
 ## Pre-commit Checklist
 
 Before using the `submit` tool, you **must** clean the workspace.
