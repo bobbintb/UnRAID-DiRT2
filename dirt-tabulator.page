@@ -22,6 +22,9 @@ Title="Tabulator"
     .disabled-row .tabulator-cell {
         pointer-events: none;
     }
+    .disabled-row .tabulator-cell[tabulator-field="action"] {
+        pointer-events: auto;
+    }
     .group-footer {
         background-color: #e0e0e0 !important;
         font-weight: bold;
@@ -123,28 +126,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     radio.type = "radio";
                     radio.name = "primary_group_" + cell.getRow().getTreeParent().getData().hash;
                     radio.checked = data.isFirstChild;
-                    return radio;
-                },
-                cellClick: function(e, cell) {
-                    const clickedRow = cell.getRow();
-                    const groupRows = clickedRow.getTreeParent().getTreeChildren();
 
-                    groupRows.forEach(row => {
-                        const rowEl = row.getElement();
-                        if (row === clickedRow) {
-                            rowEl.classList.add('disabled-row');
-                            row.deselect(); // Clear the checkbox
-                        } else {
-                            rowEl.classList.remove('disabled-row');
-                        }
+                    radio.addEventListener('click', function() {
+                        const clickedRow = cell.getRow();
+                        const groupRows = clickedRow.getTreeParent().getTreeChildren();
+
+                        groupRows.forEach(row => {
+                            const rowEl = row.getElement();
+                            if (row === clickedRow) {
+                                rowEl.classList.add('disabled-row');
+                            } else {
+                                rowEl.classList.remove('disabled-row');
+                            }
+                        });
                     });
+
+                    return radio;
                 }
             },
-            { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true, widthGrow: 1, bottomCalc: "count" },
-            { title: "Size", field: "size", formatter: formatSize, width: "auto", resizable: false },
-            { title: "Accessed", field: "atime", formatter: formatDate, width: "auto", resizable: false },
-            { title: "Modified", field: "mtime", formatter: formatDate, width: "auto", resizable: false },
-            { title: "Changed", field: "ctime", formatter: formatDate, width: "auto", resizable: false },
             {
                 title: "Del/Link",
                 field: "action",
@@ -153,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 80,
                 formatter: function(cell, formatterParams, onRendered) {
                     const data = cell.getRow().getData();
-                    if (data.isGroupFooter || !!data._children || data.isFirstChild) {
+                    if (data.isGroupFooter || !!data._children) {
                         return "";
                     }
 
@@ -192,7 +191,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 }
-            }
+            },
+            { title: "File/Group", field: "path", formatter: treeFormatter, headerSort: false, htmlOutput:true, widthGrow: 1, bottomCalc: "count" },
+            { title: "Size", field: "size", formatter: formatSize, width: "auto", resizable: false },
+            { title: "Accessed", field: "atime", formatter: formatDate, width: "auto", resizable: false },
+            { title: "Modified", field: "mtime", formatter: formatDate, width: "auto", resizable: false },
+            { title: "Changed", field: "ctime", formatter: formatDate, width: "auto", resizable: false }
         ],
     });
 
