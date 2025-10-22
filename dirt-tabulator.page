@@ -5,13 +5,9 @@ Title="Tabulator"
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
 
 <style>
-    html, body {
-        height: 100%;
-        margin: 0;
-        overflow: hidden; /* Prevent body scrolling */
-    }
-    #duplicatesTable {
-        height: 100%;
+    #tabulator-wrapper {
+        height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
+        width: 100%;
     }
     /* Hide the tree branch element in the radio button column */
     .tabulator-cell[tabulator-field="isPrimary"] .tabulator-data-tree-branch {
@@ -31,7 +27,9 @@ Title="Tabulator"
         font-weight: bold;
     }
 </style>
-<div id="duplicatesTable"></div>
+<div id="tabulator-wrapper">
+    <div id="duplicatesTable"></div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
