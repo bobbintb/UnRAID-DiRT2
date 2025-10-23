@@ -1,4 +1,4 @@
-const { connectToRedis, getFileMetadataRepository, getRedisClient, closeRedis } = require('./redis');
+const { connectToRedis, getFileMetadataRepository, getRedisClient, closeRedis } = require('../nodejs/redis');
 
 async function seedDatabase() {
   console.log('Starting to seed the database...');
@@ -122,11 +122,11 @@ async function seedDatabase() {
 
     console.log(`Preparing to seed ${sampleFiles.length} file records...`);
 
-    // Step 3: Save data to Redis
-    for (const fileData of sampleFiles) {
-        // The primary key is the inode number, which we'll use as the first argument.
-        await fileMetadataRepository.save(fileData.ino.toString(), fileData);
-    }
+    // Step 3: Save data to Redis in parallel for performance
+    const savePromises = sampleFiles.map(fileData =>
+        fileMetadataRepository.save(fileData.ino.toString(), fileData)
+    );
+    await Promise.all(savePromises);
 
     console.log('Successfully seeded the database.');
 

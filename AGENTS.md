@@ -45,7 +45,7 @@ The Node.js server is the backend for the Unraid plugin.
 
 ### Seeding the Database
 
-To populate the Redis database with test data for development, use the seed script located at `nodejs/seed-redis.js`.
+To populate the Redis database with test data for development, use the seed script located at `tests/seed-redis.js`.
 
 ```bash
 cd nodejs && npm run seed
