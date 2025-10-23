@@ -5,7 +5,7 @@
   "main": "dirt.js",
   "scripts": {
     "start": "node dirt.js",
-    "seed": "node seed-redis.js",
+    "seed": "node ../tests/seed-redis.js",
     "postinstall": "playwright install",
     "test:ui:prepare": "mkdir -p ../jules-scratch/verification && tail -n +4 ../dirt-tabulator.page | sed 's/window.location.hostname/\"localhost\"/' > ../jules-scratch/verification/temp_tabulator.php && tail -n +4 ../dirt-datatables.page | sed 's/window.location.hostname/\"localhost\"/' > ../jules-scratch/verification/temp_datatables.php",
     "clean": "rm -rf ../dirt_server.log ../jules-scratch",

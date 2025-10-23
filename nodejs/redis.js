@@ -119,6 +119,10 @@ async function closeRedis() {
 		await redisPublisherClient.quit();
 		redisPublisherClient = null;
 	}
+	// Also close the BullMQ queue connection
+	if (fileProcessingQueue) {
+		await fileProcessingQueue.close();
+	}
 }
 
 module.exports = {
