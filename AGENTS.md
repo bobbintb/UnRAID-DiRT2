@@ -73,19 +73,22 @@ Title="DataTables"
 
 ### Verification Process
 
-To prepare the `.page` files for local testing with Playwright, run the following script from the `nodejs` directory:
+The entire frontend verification process has been automated into a single command. For any given UI task, you must first create a new Playwright test file for your change and save it to `tests/verification-scripts/`.
+
+Then, run the orchestrator script from the `nodejs/` directory, passing the path to your new test file as an argument:
 
 ```bash
-npm run test:ui:prepare
+# Example:
+npm run test:ui -- tests/verification-scripts/my-new-test.spec.js
 ```
 
-This script will:
-1.  Create a `jules-scratch/verification` directory to hold temporary test artifacts.
-2.  Strip the Unraid frontmatter from `dirt-tabulator.page` and `dirt-datatables.page`.
-3.  Replace `window.location.hostname` with a hardcoded `localhost` to allow the WebSocket to connect when loaded via a `file://` URL.
-4.  Save the processed files as `temp_tabulator.html` and `temp_datatables.html` in the verification directory.
-
-After preparing the files, use a Playwright script from the `tests/verification-scripts/` directory to open the temporary files and verify functionality.
+This single command will automatically:
+1.  Kill any running server instances.
+2.  Start the application server.
+3.  Wait for the server to initialize.
+4.  Seed the database with test data.
+5.  Prepare the `.page` files by stripping frontmatter and saving them as temporary `.php` files.
+6.  Run the specified Playwright test against the prepared files.
 
 ### Frontend Libraries
 
@@ -127,14 +130,35 @@ All Playwright scripts must be stored in the following directory:
     *   Scripts must be kept up-to-date. If a UI change breaks a test, the script must be updated alongside the feature change.
     *   Outdated or irrelevant scripts should be removed.
 
+## Mandatory Verification Workflow
+
+**Submitting code that has not been tested or that fails its own verification tests is a critical failure.**
+
+The testing process is cyclical and non-negotiable. It must be followed for any change that could impact the user interface.
+
+1.  **Implement the Change**: Write the code for the new feature or bug fix.
+2.  **Create a Test**: Write a new Playwright script dedicated to verifying your change. Save it in `tests/verification-scripts/`.
+3.  **Execute Verification**: Run the automated test orchestrator with your new script.
+    ```bash
+    cd nodejs
+    npm run test:ui -- ../tests/verification-scripts/your-new-test.spec.js
+    ```
+4.  **Analyze and Fix**:
+    *   **If the test passes**, your verification is complete. Proceed to the pre-commit checklist.
+    *   **If the test fails**, analyze the error logs and screenshots. Do not submit the code. Return to step 1 to fix the underlying issue in the application code or the test script itself.
+5.  **Repeat**: Continue this cycle of implementation, testing, and fixing until the verification test for your change passes successfully.
+
 ## Pre-commit Checklist
 
 Before using the `submit` tool, you **must** clean the workspace.
 
 1.  **Save Verification Scripts**:
-    -   Ensure any new or modified Playwright verification scripts are saved in the `tests/verification-scripts/` directory.
-2.  **Remove Temporary Artifacts**:
-    -   Delete any temporary files generated during verification, such as `dirt_server.log`, screenshots, and the entire `jules-scratch/` directory.
+    -   Ensure any new or modified Playwright verification scripts are permanently saved in the `tests/verification-scripts/` directory.
+2.  **Clean the Workspace**:
+    -   Run the automated cleanup script from the `nodejs/` directory to remove all temporary artifacts.
+    ```bash
+    npm run clean
+    ```
 3.  **Revert Unintentional Changes**:
     -   Ensure `nodejs/package-lock.json` has not been unintentionally modified. If it has, restore it.
 

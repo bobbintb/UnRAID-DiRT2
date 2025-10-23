@@ -7,7 +7,9 @@
     "start": "node dirt.js",
     "seed": "node seed-redis.js",
     "postinstall": "playwright install",
-    "test:ui:prepare": "mkdir -p ../jules-scratch/verification && tail -n +4 ../dirt-tabulator.page | sed 's/window.location.hostname/\"localhost\"/' > ../jules-scratch/verification/temp_tabulator.html && tail -n +4 ../dirt-datatables.page | sed 's/window.location.hostname/\"localhost\"/' > ../jules-scratch/verification/temp_datatables.html"
+    "test:ui:prepare": "mkdir -p ../jules-scratch/verification && tail -n +4 ../dirt-tabulator.page | sed 's/window.location.hostname/\"localhost\"/' > ../jules-scratch/verification/temp_tabulator.php && tail -n +4 ../dirt-datatables.page | sed 's/window.location.hostname/\"localhost\"/' > ../jules-scratch/verification/temp_datatables.php",
+    "clean": "rm -rf ../dirt_server.log ../jules-scratch",
+    "test:ui": "ps aux | grep 'node dirt.js' | grep -v grep | awk '{print $2}' | xargs kill -9 || true; npm run start > ../dirt_server.log 2>&1 & while ! nc -z localhost 41820; do sleep 1; done; npm run seed && npm run test:ui:prepare && npx playwright test"
   },
   "author": "",
   "license": "ISC",
