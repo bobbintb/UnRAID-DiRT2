@@ -140,8 +140,14 @@ async function findDuplicates() {
     return result;
 }
 
+async function getActionQueue() {
+    const redisClient = getRedisClient();
+    return await redisClient.hGetAll('queue');
+}
+
 module.exports = {
     init,
+    getActionQueue,
     parseHGetAll,
     findBySize,
     findByPath,
