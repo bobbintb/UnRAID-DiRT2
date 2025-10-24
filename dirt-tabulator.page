@@ -26,6 +26,28 @@ Title="Tabulator"
         background-color: #e0e0e0 !important;
         font-weight: bold;
     }
+
+    /* Style for the Del/Link icons */
+    .tabulator-cell[tabulator-field="action"] input[type="radio"] {
+        display: none; /* Hide the actual radio button */
+    }
+
+    .tabulator-cell[tabulator-field="action"] label {
+        cursor: pointer;
+        padding: 0 5px; /* Add some space around the icons */
+        font-size: 1.2em;
+        background-color: transparent;
+        border: none;
+    }
+
+    .tabulator-cell[tabulator-field="action"] input[type="radio"]:checked + label {
+        color: #007bff; /* Highlight the selected icon */
+    }
+
+    /* Remove unwanted background on action column */
+    .tabulator-cell[tabulator-field="action"] {
+        background-color: transparent !important;
+    }
 </style>
 <div id="tabulator-wrapper">
     <div id="duplicatesTable"></div>
@@ -113,7 +135,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "isPrimary",
                 hozAlign: "center",
                 headerSort: false,
-                width: 40,
+                width: 30,
+                minWidth: 30,
+                resizable: false,
                 formatter: function(cell, formatterParams, onRendered) {
                     const data = cell.getRow().getData();
                     if (data.isGroupFooter || !!data._children) {
@@ -150,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             {
-                title: "Del/Link",
+                title: "Action",
                 field: "action",
                 hozAlign: "center",
                 headerSort: false,
@@ -161,40 +185,57 @@ document.addEventListener('DOMContentLoaded', function() {
                         return "";
                     }
 
+                    const uniqueName = "action_" + data.ino;
                     const container = document.createElement("div");
+
+                    // --- Delete Radio ---
                     const delRadio = document.createElement("input");
                     delRadio.type = "radio";
-                    delRadio.name = "action_" + data.path;
+                    delRadio.name = uniqueName;
                     delRadio.value = "delete";
-                    delRadio.title = "Delete";
+                    delRadio.id = `del_${uniqueName}`;
                     delRadio.dataset.nullable = true;
 
+                    const delLabel = document.createElement("label");
+                    delLabel.htmlFor = `del_${uniqueName}`;
+                    delLabel.title = "Delete";
+                    delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
+
+                    // --- Link Radio ---
                     const linkRadio = document.createElement("input");
                     linkRadio.type = "radio";
-                    linkRadio.name = "action_" + data.path;
+                    linkRadio.name = uniqueName;
                     linkRadio.value = "link";
-                    linkRadio.title = "Hardlink";
+                    linkRadio.id = `link_${uniqueName}`;
                     linkRadio.dataset.nullable = true;
 
-                    container.appendChild(delRadio);
-                    container.appendChild(linkRadio);
+                    const linkLabel = document.createElement("label");
+                    linkLabel.htmlFor = `link_${uniqueName}`;
+                    linkLabel.title = "Hardlink";
+                    linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
 
-                    return container;
-                },
-                cellClick: function(e, cell) {
-                    const target = e.target;
-                    if (target.type === 'radio' && target.dataset.nullable) {
+                    // --- Event Handling for Nullable ---
+                    const nullableClickHandler = function(e) {
+                        const target = e.target;
                         if (target.checked && target.getAttribute('data-waschecked') === 'true') {
                             target.checked = false;
                             target.setAttribute('data-waschecked', 'false');
                         } else {
-                            // Unset waschecked on other radio in group
-                            const radios = cell.getElement().querySelectorAll('input[type="radio"]');
-                            radios.forEach(r => r.setAttribute('data-waschecked', 'false'));
-
+                            delRadio.setAttribute('data-waschecked', 'false');
+                            linkRadio.setAttribute('data-waschecked', 'false');
                             target.setAttribute('data-waschecked', 'true');
                         }
-                    }
+                    };
+
+                    delRadio.addEventListener('click', nullableClickHandler);
+                    linkRadio.addEventListener('click', nullableClickHandler);
+
+                    container.appendChild(delRadio);
+                    container.appendChild(delLabel);
+                    container.appendChild(linkRadio);
+                    container.appendChild(linkLabel);
+
+                    return container;
                 }
             },
             {
