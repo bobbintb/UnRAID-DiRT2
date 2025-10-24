@@ -142,8 +142,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                         // Send the selection to the backend
                         const groupHash = clickedRow.getTreeParent().getData().hash;
-                        const fileInode = clickedRow.getData().inode;
-                        dirtySock('setOriginalFile', { hash: groupHash, inode: fileInode });
+                        const fileIno = clickedRow.getData().ino;
+                        dirtySock('setOriginalFile', { hash: groupHash, ino: fileIno });
                     });
 
                     return radio;
@@ -248,13 +248,13 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Tabulator Tab: Both data sets received. Rendering table.");
 
             const tableData = duplicateFilesData.map(group => {
-                const originalInode = originalFileState[group.hash];
+                const originalIno = originalFileState[group.hash];
 
                 const children = group.files.map((file, index) => {
                     // Determine if this is the original file.
-                    // If state is present, it's the original.
-                    // If not, default to the first file in the group.
-                    const isOriginal = originalInode ? (file.inode === originalInode) : (index === 0);
+                    // If state is present for this group, use it.
+                    // Otherwise, default to the first file in the group.
+                    const isOriginal = originalIno ? (file.ino === originalIno) : (index === 0);
                     return { ...file, isOriginal };
                 });
 
