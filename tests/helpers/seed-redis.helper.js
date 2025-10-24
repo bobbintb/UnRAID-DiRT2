@@ -1,4 +1,4 @@
-const { connectToRedis, getFileMetadataRepository, getRedisClient, closeRedis } = require('../nodejs/redis');
+const { connectToRedis, getFileMetadataRepository, getRedisClient, closeRedis } = require('../../nodejs/redis');
 
 async function seedDatabase() {
   console.log('Starting to seed the database...');
@@ -122,7 +122,12 @@ async function seedDatabase() {
 
     console.log(`Preparing to seed ${sampleFiles.length} file records...`);
 
-    // Step 3: Save data to Redis in parallel for performance
+    // Step 3: Save data to Redis in a single, parallelized batch operation.
+    // By mapping saves to an array of promises and using Promise.all, we leverage
+    // the underlying node-redis client's automatic pipelining. This sends all
+    // HSET commands to the Redis server in a single network round-trip, providing
+    // the best performance for bulk inserts while retaining the safety and
+    // maintainability of the redis-om repository pattern.
     const savePromises = sampleFiles.map(fileData =>
         fileMetadataRepository.save(fileData.ino.toString(), fileData)
     );

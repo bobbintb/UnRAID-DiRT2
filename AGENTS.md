@@ -111,6 +111,14 @@ This section outlines the standards and best practices for creating, managing, a
 All Playwright scripts must be stored in the following directory:
 `tests/verification-scripts/`
 
+All helper scripts, reusable code, and modules for testing should be stored in the following directory:
+`tests/helpers/`
+
+### Naming Conventions
+
+-   **Tests**: Test files must match Playwright's default test patterns (e.g., `*.test.js`, `*.spec.ts`).
+-   **Helpers**: To prevent the test runner from accidentally executing helper files, all helper scripts must use the `.helper` suffix (e.g., `my-helper.helper.js`).
+
 ### Scripting Standards and Best Practices
 
 1.  **Documentation**: All scripts must be thoroughly documented in accordance with industry standards. Each script file should include:
@@ -120,7 +128,7 @@ All Playwright scripts must be stored in the following directory:
 
 2.  **Reusability and Core Library**: To avoid code duplication and improve maintainability, a core library of reusable functions should be established.
     *   Common tasks, such as logging in, navigating to a specific page, or performing a common setup action, should be abstracted into functions.
-    *   These reusable functions should be stored in one or more core files, such as `tests/verification-scripts/core.py`.
+    *   These reusable functions should be stored in one or more core files in the `tests/helpers` directory (e.g., `tests/helpers/core.helper.js`).
 
 3.  **Script Structure**:
     *   **Verification Scripts**: Simple, single-purpose scripts (like `verify_pages.py`) should be self-contained but are encouraged to use functions from the core library where applicable.
