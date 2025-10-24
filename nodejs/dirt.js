@@ -186,6 +186,17 @@ async function main() {
               }
               break;
             }
+            case 'getOriginalFileState': {
+              const redisClient = getRedisClient();
+              const state = await redisClient.hGetAll('state');
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                  action: 'originalFileState',
+                  data: state,
+                }));
+              }
+              break;
+            }
             case 'debugUpsertExistingFile': {
               const { path } = data;
               if (!path) {
