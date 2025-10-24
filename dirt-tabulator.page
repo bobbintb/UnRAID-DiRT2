@@ -41,6 +41,11 @@ Title="Tabulator"
     .tabulator-cell[tabulator-field="action"] input[type="radio"]:checked + label {
         color: #007bff; /* Highlight the selected icon */
     }
+
+    /* Remove unwanted background on action column */
+    .tabulator-cell[tabulator-field="action"] {
+        background-color: transparent !important;
+    }
 </style>
 <div id="tabulator-wrapper">
     <div id="duplicatesTable"></div>
@@ -129,6 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 hozAlign: "center",
                 headerSort: false,
                 width: 30,
+                minWidth: 30,
                 resizable: false,
                 formatter: function(cell, formatterParams, onRendered) {
                     const data = cell.getRow().getData();
