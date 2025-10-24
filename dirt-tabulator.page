@@ -36,6 +36,8 @@ Title="Tabulator"
         cursor: pointer;
         padding: 0 5px; /* Add some space around the icons */
         font-size: 1.2em;
+        background-color: transparent;
+        border: none;
     }
 
     .tabulator-cell[tabulator-field="action"] input[type="radio"]:checked + label {
