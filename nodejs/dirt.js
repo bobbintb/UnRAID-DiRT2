@@ -186,6 +186,17 @@ async function main() {
               }
               break;
             }
+            case 'setOriginalFile': {
+              const { hash, inode } = data;
+              if (!hash || !inode) {
+                console.error(`[DIRT] Invalid data for setOriginalFile:`, data);
+                break;
+              }
+              const redisClient = getRedisClient();
+              await redisClient.hSet('state', hash, inode);
+              console.log(`[DIRT] State updated for hash ${hash} to inode ${inode}`);
+              break;
+            }
             case 'getOriginalFileState': {
               const redisClient = getRedisClient();
               const state = await redisClient.hGetAll('state');

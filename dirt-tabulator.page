@@ -139,6 +139,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 rowEl.classList.remove('disabled-row');
                             }
                         });
+
+                        // Send the selection to the backend
+                        const groupHash = clickedRow.getTreeParent().getData().hash;
+                        const fileInode = clickedRow.getData().inode;
+                        dirtySock('setOriginalFile', { hash: groupHash, inode: fileInode });
                     });
 
                     return radio;
