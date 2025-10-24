@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = row.getData();
             if (data.isGroupFooter) {
                 row.getElement().classList.add('group-footer');
-            } else if (data.isFirstChild) {
+            } else if (data.isOriginal) {
                 row.getElement().classList.add('disabled-row');
             }
         },
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const radio = document.createElement("input");
                     radio.type = "radio";
                     radio.name = "primary_group_" + cell.getRow().getTreeParent().getData().hash;
-                    radio.checked = data.isFirstChild;
+                    radio.checked = data.isOriginal;
 
                     radio.addEventListener('click', function() {
                         const clickedRow = cell.getRow();
@@ -139,6 +139,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 rowEl.classList.remove('disabled-row');
                             }
                         });
+
+                        // Send the selection to the backend
+                        const groupHash = clickedRow.getTreeParent().getData().hash;
+                        const fileIno = clickedRow.getData().ino;
+                        dirtySock('setOriginalFile', { hash: groupHash, ino: fileIno });
                     });
 
                     return radio;
@@ -226,8 +231,46 @@ document.addEventListener('DOMContentLoaded', function() {
 
         socket.onopen = function() {
             console.log("Tabulator Tab: WebSocket connection established.");
+            // Request both sets of data concurrently
             dirtySock('findDuplicates', null);
+            dirtySock('getOriginalFileState', null);
         };
+
+        let duplicateFilesData = null;
+        let originalFileState = null;
+
+        function processAndRenderTable() {
+            // Ensure both data sets are available
+            if (duplicateFilesData === null || originalFileState === null) {
+                return;
+            }
+
+            console.log("Tabulator Tab: Both data sets received. Rendering table.");
+
+            const tableData = duplicateFilesData.map(group => {
+                const originalIno = originalFileState[group.hash];
+
+                const children = group.files.map((file, index) => {
+                    // Determine if this is the original file.
+                    // If state is present for this group, use it.
+                    // Otherwise, default to the first file in the group.
+                    const isOriginal = originalIno ? (file.ino === originalIno) : (index === 0);
+                    return { ...file, isOriginal };
+                });
+
+                // Add the group footer row
+                children.push({
+                    isGroupFooter: true,
+                    hash: group.hash,
+                    count: group.count,
+                    totalSize: group.totalSize
+                });
+
+                return { ...group, _children: children };
+            });
+
+            table.setData(tableData);
+        }
 
         socket.onmessage = function(event) {
             const parsedMessage = JSON.parse(event.data);
@@ -235,21 +278,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (action === 'duplicateFiles') {
                 console.log("Tabulator Tab: Received duplicateFiles data.");
-                const tableData = data.map(group => {
-                    const children = group.files.map((file, index) => ({
-                        ...file,
-                        isFirstChild: index === 0, // Flag the first child
-                    }));
-                    // Add the group footer row
-                    children.push({
-                        isGroupFooter: true,
-                        hash: group.hash,
-                        count: group.count,
-                        totalSize: group.totalSize
-                    });
-                    return { ...group, _children: children };
-                });
-                table.setData(tableData);
+                duplicateFilesData = data;
+                processAndRenderTable();
+            } else if (action === 'originalFileState') {
+                console.log("Tabulator Tab: Received originalFileState data.");
+                originalFileState = data;
+                processAndRenderTable();
             }
         };
 

@@ -232,6 +232,28 @@ async function main() {
               }
               break;
             }
+            case 'setOriginalFile': {
+              const { hash, ino } = data;
+              if (!hash || !ino) {
+                console.error(`[DIRT] Invalid data for setOriginalFile:`, data);
+                break;
+              }
+              const redisClient = getRedisClient();
+              await redisClient.hSet('state', hash, ino);
+              console.log(`[DIRT] State updated for hash ${hash} to ino ${ino}`);
+              break;
+            }
+            case 'getOriginalFileState': {
+              const redisClient = getRedisClient();
+              const state = await redisClient.hGetAll('state');
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                  action: 'originalFileState',
+                  data: state,
+                }));
+              }
+              break;
+            }
             case 'findDuplicates': {
               const duplicates = await findDuplicates();
               if (ws.readyState === WebSocket.OPEN) {
