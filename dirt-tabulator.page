@@ -13,9 +13,11 @@ Title="Tabulator"
     }
     #duplicatesTable-container {
         flex: 7;
+        min-width: 0; /* Prevents flex item from overflowing its container */
     }
     #action-queue-container {
         flex: 3;
+        min-width: 0; /* Prevents flex item from overflowing its container */
     }
     #duplicatesTable, #action-queue-table {
         height: 100%;
