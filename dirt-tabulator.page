@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             {
-                title: "Del/Link",
+                title: "Action",
                 field: "action",
                 hozAlign: "center",
                 headerSort: false,
