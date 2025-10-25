@@ -125,6 +125,7 @@ document.addEventListener('DOMContentLoaded', function() {
         height: "100%", // Use full page height
         data: [], // Set initial data to empty
         placeholder: "No duplicate files found",
+        layout: "fitColumns",
         dataTree: true,
         dataTreeChildColumnCalcs: true, // include child rows in column calculations
         dataTreeStartExpanded: true, // Expand all nodes by default
@@ -297,10 +298,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     return `Total Files: ${count}`;
                 }
             },
-            { title: "Size", field: "size", formatter: formatSize, width: "auto", resizable: false },
-            { title: "Accessed", field: "atime", formatter: formatDate, width: "auto", resizable: false },
-            { title: "Modified", field: "mtime", formatter: formatDate, width: "auto", resizable: false },
-            { title: "Changed", field: "ctime", formatter: formatDate, width: "auto", resizable: false }
+            { title: "Size", field: "size", formatter: formatSize, width: 90, resizable: false },
+            { title: "Accessed", field: "atime", formatter: formatDate, width: 170, resizable: false },
+            { title: "Modified", field: "mtime", formatter: formatDate, width: 170, resizable: false },
+            { title: "Changed", field: "ctime", formatter: formatDate, width: 170, resizable: false }
         ],
     });
 
