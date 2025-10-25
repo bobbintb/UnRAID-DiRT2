@@ -2,61 +2,70 @@ Menu="dirtSettings:2"
 Title="Tabulator"
 ---
 <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+<link href="/plugins/bobbintb.system.dirt/nodejs/css/dirt-tabulator.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-
-<style>
-    #tabulator-wrapper {
-        height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
-        width: 100%;
-    }
-    /* Hide the tree branch element in the radio button column */
-    .tabulator-cell[tabulator-field="isPrimary"] .tabulator-data-tree-branch {
-        display: none;
-    }
-
-    .disabled-row {
-        background-color: #f2f2f2 !important;
-        color: #999 !important;
-        pointer-events: none;
-    }
-    .disabled-row .tabulator-cell {
-        pointer-events: none;
-    }
-    .group-footer {
-        background-color: #e0e0e0 !important;
-        font-weight: bold;
-    }
-
-    /* Style for the Del/Link icons */
-    .tabulator-cell[tabulator-field="action"] input[type="radio"] {
-        display: none; /* Hide the actual radio button */
-    }
-
-    .tabulator-cell[tabulator-field="action"] label {
-        cursor: pointer;
-        padding: 0 5px; /* Add some space around the icons */
-        font-size: 1.2em;
-        background-color: transparent;
-        border: none;
-    }
-
-    .tabulator-cell[tabulator-field="action"] input[type="radio"]:checked + label {
-        color: #007bff; /* Highlight the selected icon */
-    }
-
-    /* Remove unwanted background on action column */
-    .tabulator-cell[tabulator-field="action"] {
-        background-color: transparent !important;
-    }
-</style>
 <div id="tabulator-wrapper">
-    <div id="duplicatesTable"></div>
+    <div id="duplicatesTable-container">
+        <div id="duplicatesTable"></div>
+    </div>
+    <div id="action-queue-container">
+        <div id="action-queue-table"></div>
+    </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let socket;
     let table;
+    let actionQueueTable;
+    let actionQueueData = {}; // To hold the initial queue state
+
+    // The Tabulator table definition for the Action Queue
+    actionQueueTable = new Tabulator("#action-queue-table", {
+        height: "100%",
+        data: [],
+        placeholder: "No actions queued",
+        layout: "fitColumns",
+        columns: [
+            {
+                title: "",
+                field: "remove",
+                hozAlign: "center",
+                width: 40,
+                resizable: false,
+                headerSort: false,
+                formatter: function(cell, formatterParams, onRendered) {
+                    return `<i class="fa fa-trash" style="cursor: pointer;" title="Remove"></i>`;
+                },
+                cellClick: function(e, cell) {
+                    const rowData = cell.getRow().getData();
+                    const filePath = rowData.file;
+
+                    // 1. Send message to backend to remove from Redis
+                    dirtySock('removeFileAction', { path: filePath });
+
+                    // 2. Remove the row from the action queue table
+                    cell.getRow().delete();
+
+                    // 3. Find the corresponding row in the main table and uncheck its radio
+                    const matchingRows = table.searchRows("path", "=", filePath);
+                    if (matchingRows.length > 0) {
+                        const actionCell = matchingRows[0].getCell('action');
+                        const radioInputs = actionCell.getElement().querySelectorAll('input[type="radio"]');
+                        radioInputs.forEach(radio => {
+                            radio.checked = false;
+                            radio.setAttribute('data-waschecked', 'false');
+                        });
+                    }
+                }
+            },
+            { title: "Action", field: "action", width: 80, hozAlign: "center", formatter: function(cell) {
+                const action = cell.getValue();
+                return action.charAt(0).toUpperCase() + action.slice(1); // Capitalize
+            }},
+            { title: "File", field: "file", hozAlign: "left", tooltip: true },
+        ],
+    });
 
     function formatBytes(bytes, decimals = 2) {
         if (bytes === 0) return '0 Bytes';
@@ -195,6 +204,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     delRadio.value = "delete";
                     delRadio.id = `del_${uniqueName}`;
                     delRadio.dataset.nullable = true;
+                    if (actionQueueData[data.path] === 'delete') {
+                        delRadio.checked = true;
+                        delRadio.setAttribute('data-waschecked', 'true');
+                    }
 
                     const delLabel = document.createElement("label");
                     delLabel.htmlFor = `del_${uniqueName}`;
@@ -208,6 +221,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     linkRadio.value = "link";
                     linkRadio.id = `link_${uniqueName}`;
                     linkRadio.dataset.nullable = true;
+                    if (actionQueueData[data.path] === 'link') {
+                        linkRadio.checked = true;
+                        linkRadio.setAttribute('data-waschecked', 'true');
+                    }
 
                     const linkLabel = document.createElement("label");
                     linkLabel.htmlFor = `link_${uniqueName}`;
@@ -215,20 +232,40 @@ document.addEventListener('DOMContentLoaded', function() {
                     linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
 
                     // --- Event Handling for Nullable ---
-                    const nullableClickHandler = function(e) {
+                        const actionChangeHandler = function(e) {
                         const target = e.target;
+                            const filePath = cell.getRow().getData().path;
+
+                            // Handle nullable logic
                         if (target.checked && target.getAttribute('data-waschecked') === 'true') {
                             target.checked = false;
                             target.setAttribute('data-waschecked', 'false');
+                                // Remove from queue and table
+                                dirtySock('removeFileAction', { path: filePath });
+                                actionQueueTable.getRows().forEach(row => {
+                                    if (row.getData().file === filePath) {
+                                        row.delete();
+                                    }
+                                });
                         } else {
+                                // Set waschecked for all radios in this cell
                             delRadio.setAttribute('data-waschecked', 'false');
                             linkRadio.setAttribute('data-waschecked', 'false');
                             target.setAttribute('data-waschecked', 'true');
+                                // Add/update in queue and table
+                                dirtySock('setFileAction', { path: filePath, action: target.value });
+                                // Remove existing entry if it exists, then add the new one
+                                actionQueueTable.getRows().forEach(row => {
+                                    if (row.getData().file === filePath) {
+                                        row.delete();
+                                    }
+                                });
+                                actionQueueTable.addRow({ action: target.value, file: filePath });
                         }
                     };
 
-                    delRadio.addEventListener('click', nullableClickHandler);
-                    linkRadio.addEventListener('click', nullableClickHandler);
+                        delRadio.addEventListener('click', actionChangeHandler);
+                        linkRadio.addEventListener('click', actionChangeHandler);
 
                     container.appendChild(delRadio);
                     container.appendChild(delLabel);
@@ -272,34 +309,44 @@ document.addEventListener('DOMContentLoaded', function() {
 
         socket.onopen = function() {
             console.log("Tabulator Tab: WebSocket connection established.");
-            // Request both sets of data concurrently
+            // Request the consolidated data payload
             dirtySock('findDuplicates', null);
-            dirtySock('getOriginalFileState', null);
         };
 
-        let duplicateFilesData = null;
-        let originalFileState = null;
+        socket.onmessage = function(event) {
+            const parsedMessage = JSON.parse(event.data);
+            const { action, data } = parsedMessage;
 
-        function processAndRenderTable() {
-            // Ensure both data sets are available
-            if (duplicateFilesData === null || originalFileState === null) {
-                return;
+            if (action === 'duplicateFiles') {
+                console.log("Tabulator Tab: Received duplicateFiles data package.");
+                const { duplicates, state, queue } = data;
+                processAndRenderTable(duplicates, state, queue);
             }
+        };
 
-            console.log("Tabulator Tab: Both data sets received. Rendering table.");
+        function processAndRenderTable(duplicateFilesData, originalFileState, receivedActionQueueData) {
+            console.log("Tabulator Tab: Processing and rendering tables.");
 
+            // Store the queue data for use in formatters
+            actionQueueData = receivedActionQueueData;
+
+            // 1. Populate the Action Queue table
+            const queueTableData = Object.entries(actionQueueData).map(([path, action]) => ({
+                action: action,
+                file: path,
+            }));
+            actionQueueTable.setData(queueTableData);
+
+
+            // 2. Populate the main duplicates table
             const tableData = duplicateFilesData.map(group => {
                 const originalIno = originalFileState[group.hash];
 
                 const children = group.files.map((file, index) => {
-                    // Determine if this is the original file.
-                    // If state is present for this group, use it.
-                    // Otherwise, default to the first file in the group.
                     const isOriginal = originalIno ? (file.ino === originalIno) : (index === 0);
                     return { ...file, isOriginal };
                 });
 
-                // Add the group footer row
                 children.push({
                     isGroupFooter: true,
                     hash: group.hash,
@@ -312,21 +359,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             table.setData(tableData);
         }
-
-        socket.onmessage = function(event) {
-            const parsedMessage = JSON.parse(event.data);
-            const { action, data } = parsedMessage;
-
-            if (action === 'duplicateFiles') {
-                console.log("Tabulator Tab: Received duplicateFiles data.");
-                duplicateFilesData = data;
-                processAndRenderTable();
-            } else if (action === 'originalFileState') {
-                console.log("Tabulator Tab: Received originalFileState data.");
-                originalFileState = data;
-                processAndRenderTable();
-            }
-        };
 
         socket.onclose = function(event) {
             console.log("Tabulator Tab: WebSocket connection closed. Reconnecting...");

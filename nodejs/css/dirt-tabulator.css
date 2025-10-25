@@ -1,0 +1,56 @@
+#tabulator-wrapper {
+    display: flex;
+    height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
+    width: 100%;
+    gap: 10px;
+}
+#duplicatesTable-container {
+    flex: 7;
+    min-width: 0; /* Prevents flex item from overflowing its container */
+}
+#action-queue-container {
+    flex: 3;
+    min-width: 0; /* Prevents flex item from overflowing its container */
+}
+#duplicatesTable, #action-queue-table {
+    height: 100%;
+}
+/* Hide the tree branch element in the radio button column */
+.tabulator-cell[tabulator-field="isPrimary"] .tabulator-data-tree-branch {
+    display: none;
+}
+
+.disabled-row {
+    background-color: #f2f2f2 !important;
+    color: #999 !important;
+    pointer-events: none;
+}
+.disabled-row .tabulator-cell {
+    pointer-events: none;
+}
+.group-footer {
+    background-color: #e0e0e0 !important;
+    font-weight: bold;
+}
+
+/* Style for the Del/Link icons */
+.tabulator-cell[tabulator-field="action"] input[type="radio"] {
+    display: none; /* Hide the actual radio button */
+}
+
+.tabulator-cell[tabulator-field="action"] label {
+    cursor: pointer;
+    padding: 0 5px; /* Add some space around the icons */
+    font-size: 1.2em;
+    background-color: transparent;
+    border: none;
+}
+
+.tabulator-cell[tabulator-field="action"] input[type="radio"]:checked + label {
+    color: #007bff; /* Highlight the selected icon */
+}
+
+/* Remove unwanted background on action column */
+.tabulator-cell[tabulator-field="action"] {
+    background-color: transparent !important;
+}

@@ -13,7 +13,7 @@ const {
   debugFindFilesWithNonUniqueHashes,
   debugFindFileByPath,
 } = require('./debug.js');
-const { getAllFiles, findDuplicates } = require('./redis.js');
+const { getAllFiles, findDuplicates, getActionQueue } = require('./redis.js');
 
 let inboxListenerClient;
 
@@ -243,23 +243,44 @@ async function main() {
               console.log(`[DIRT] State updated for hash ${hash} to ino ${ino}`);
               break;
             }
-            case 'getOriginalFileState': {
-              const redisClient = getRedisClient();
-              const state = await redisClient.hGetAll('state');
-              if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                  action: 'originalFileState',
-                  data: state,
-                }));
+            case 'setFileAction': {
+              const { path, action } = data;
+              if (!path || !action) {
+                console.error(`[DIRT] Invalid data for setFileAction:`, data);
+                break;
               }
+              const redisClient = getRedisClient();
+              await redisClient.hSet('queue', path, action);
+              console.log(`[DIRT] Action queue updated for path ${path} to action ${action}`);
+              break;
+            }
+            case 'removeFileAction': {
+              const { path } = data;
+              if (!path) {
+                console.error(`[DIRT] Invalid data for removeFileAction:`, data);
+                break;
+              }
+              const redisClient = getRedisClient();
+              await redisClient.hDel('queue', path);
+              console.log(`[DIRT] Action queue updated for path ${path}, action removed`);
               break;
             }
             case 'findDuplicates': {
-              const duplicates = await findDuplicates();
+              const redisClient = getRedisClient();
+              const [duplicates, state, queue] = await Promise.all([
+                findDuplicates(),
+                redisClient.hGetAll('state'),
+                getActionQueue(),
+              ]);
+
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
                   action: 'duplicateFiles',
-                  data: duplicates,
+                  data: {
+                    duplicates,
+                    state,
+                    queue,
+                  },
                 }));
               }
               break;
