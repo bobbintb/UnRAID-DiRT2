@@ -297,52 +297,42 @@ document.addEventListener('DOMContentLoaded', function() {
                             const isNowChecked = headerRadio.checked;
 
                             const otherRadioValue = action === 'delete' ? 'link' : 'delete';
-                            const otherRadio = cell.getElement().querySelector(`input[value="${otherRadioValue}"]`);
+                            const otherHeaderRadio = cell.getElement().querySelector(`input[value="${otherRadioValue}"]`);
 
                             // Handle nullable logic for the header radio itself
                             if (isNowChecked && headerRadio.getAttribute('data-waschecked') === 'true') {
                                 headerRadio.checked = false;
                                 headerRadio.setAttribute('data-waschecked', 'false');
-                                // DESELECT all children with this action
+
+                                // DESELECT: Find all children that are currently selected for this action and click them to deselect.
                                 childRows.forEach(childRow => {
                                     const childData = childRow.getData();
                                     if (childData.isOriginal || childData.isGroupFooter) return;
 
                                     const childCell = childRow.getCell('action');
                                     const childRadio = childCell.getElement().querySelector(`input[value="${action}"]`);
+
                                     if (childRadio && childRadio.checked) {
-                                        removeFileActionFromQueue(childData.path);
-                                        childRadio.checked = false;
-                                        childRadio.setAttribute('data-waschecked', 'false');
+                                        childRadio.click(); // This will trigger the child's nullable logic
                                     }
                                 });
                             } else {
-                                // SELECT all children with this action
+                                // SELECT: Find all children that are not selected for this action and click them to select.
                                 headerRadio.setAttribute('data-waschecked', 'true');
-                                if (otherRadio) {
-                                    otherRadio.checked = false;
-                                    otherRadio.setAttribute('data-waschecked', 'false');
+                                if (otherHeaderRadio) {
+                                    otherHeaderRadio.checked = false;
+                                    otherHeaderRadio.setAttribute('data-waschecked', 'false');
                                 }
 
                                 childRows.forEach(childRow => {
                                     const childData = childRow.getData();
                                     if (childData.isOriginal || childData.isGroupFooter) return;
 
-                                    const filePath = childData.path;
                                     const childCell = childRow.getCell('action');
-                                    const childActionRadios = childCell.getElement().querySelectorAll('input[type="radio"]');
-                                    const targetChildRadio = childCell.getElement().querySelector(`input[value="${action}"]`);
+                                    const childRadio = childCell.getElement().querySelector(`input[value="${action}"]`);
 
-                                    if (targetChildRadio && !targetChildRadio.checked) {
-                                        childActionRadios.forEach(r => r.setAttribute('data-waschecked', 'false'));
-                                        targetChildRadio.checked = true;
-                                        targetChildRadio.setAttribute('data-waschecked', 'true');
-
-                                        dirtySock('setFileAction', { path: filePath, action: action });
-                                        actionQueueTable.getRows().forEach(row => {
-                                            if (row.getData().file === filePath) row.delete();
-                                        });
-                                        actionQueueTable.addRow({ action: action, file: filePath });
+                                    if (childRadio && !childRadio.checked) {
+                                        childRadio.click();
                                     }
                                 });
                             }
