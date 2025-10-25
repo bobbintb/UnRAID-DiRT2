@@ -202,10 +202,96 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 80,
                 formatter: function(cell, formatterParams, onRendered) {
                     const data = cell.getRow().getData();
-                    if (data.isGroupFooter || !!data._children) {
+
+                    // Group Header
+                    if (!!data._children) {
+                        const groupHash = data.hash;
+                        const uniqueName = "action_group_" + groupHash;
+                        const container = document.createElement("div");
+
+                        // --- Delete Radio ---
+                        const delRadio = document.createElement("input");
+                        delRadio.type = "radio";
+                        delRadio.name = uniqueName;
+                        delRadio.value = "delete";
+                        delRadio.id = `del_${uniqueName}`;
+                        delRadio.dataset.nullable = true;
+
+                        const delLabel = document.createElement("label");
+                        delLabel.htmlFor = `del_${uniqueName}`;
+                        delLabel.title = "Delete All";
+                        delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
+
+                        // --- Link Radio ---
+                        const linkRadio = document.createElement("input");
+                        linkRadio.type = "radio";
+                        linkRadio.name = uniqueName;
+                        linkRadio.value = "link";
+                        linkRadio.id = `link_${uniqueName}`;
+                        linkRadio.dataset.nullable = true;
+
+                        const linkLabel = document.createElement("label");
+                        linkLabel.htmlFor = `link_${uniqueName}`;
+                        linkLabel.title = "Hardlink All";
+                        linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
+
+                        // --- Event Handling for Group Header ---
+                        const groupActionChangeHandler = function(e) {
+                            const target = e.target;
+                            const action = target.value; // 'delete' or 'link'
+
+                            // Handle nullable logic for the group header radio itself
+                            if (target.checked && target.getAttribute('data-waschecked') === 'true') {
+                                target.checked = false;
+                                target.setAttribute('data-waschecked', 'false');
+                            } else {
+                                // Set waschecked for all radios in this group header cell
+                                delRadio.setAttribute('data-waschecked', 'false');
+                                linkRadio.setAttribute('data-waschecked', 'false');
+                                target.setAttribute('data-waschecked', 'true');
+                            }
+
+                            const effectiveCheckedState = target.checked;
+                            const childRows = cell.getRow().getTreeChildren();
+
+                            childRows.forEach(row => {
+                                const rowEl = row.getElement();
+                                // Skip disabled rows and footer rows
+                                if (rowEl.classList.contains('disabled-row') || row.getData().isGroupFooter) {
+                                    return;
+                                }
+
+                                const actionCell = row.getCell('action').getElement();
+                                const childRadio = actionCell.querySelector(`input[value="${action}"]`);
+
+                                if (childRadio) {
+                                    // If group is checked, click children that are NOT checked.
+                                    // If group is unchecked, click children that ARE checked.
+                                    if ((effectiveCheckedState && !childRadio.checked) || (!effectiveCheckedState && childRadio.checked)) {
+                                        childRadio.click();
+                                    }
+                                }
+                            });
+                        };
+
+                        delRadio.addEventListener('click', groupActionChangeHandler);
+                        linkRadio.addEventListener('click', groupActionChangeHandler);
+
+
+                        container.appendChild(delRadio);
+                        container.appendChild(delLabel);
+                        container.appendChild(linkRadio);
+                        container.appendChild(linkLabel);
+
+                        return container;
+                    }
+
+                    // Group Footer
+                    if (data.isGroupFooter) {
                         return "";
                     }
 
+                    // Child Row
                     const uniqueName = "action_" + data.ino;
                     const container = document.createElement("div");
 
