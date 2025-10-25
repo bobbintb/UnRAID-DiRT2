@@ -53,9 +53,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             radio.checked = false;
                             radio.setAttribute('data-waschecked', 'false');
                         });
-                        // Also update the group header state
-                        const groupRow = matchingRows[0].getTreeParent();
-                        updateGroupHeaderState(groupRow);
                     }
                 }
             },
@@ -78,48 +75,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 row.delete();
             }
         });
-    }
-
-    // Helper function to sync the group header's state with its children
-    function updateGroupHeaderState(groupRow) {
-        if (!groupRow || !groupRow.isTree()) return;
-
-        const childRows = groupRow.getTreeChildren();
-        const enabledChildRows = childRows.filter(row => {
-            const data = row.getData();
-            return !data.isOriginal && !data.isGroupFooter;
-        });
-
-        if (enabledChildRows.length === 0) return; // No enabled children to check
-
-        let allDelete = true;
-        let allLink = true;
-
-        enabledChildRows.forEach(row => {
-            const actionCell = row.getCell('action');
-            const deleteRadio = actionCell.getElement().querySelector('input[value="delete"]');
-            const linkRadio = actionCell.getElement().querySelector('input[value="link"]');
-
-            if (!deleteRadio || !deleteRadio.checked) {
-                allDelete = false;
-            }
-            if (!linkRadio || !linkRadio.checked) {
-                allLink = false;
-            }
-        });
-
-        const headerCell = groupRow.getCell('action');
-        const headerDeleteRadio = headerCell.getElement().querySelector('input[value="delete"]');
-        const headerLinkRadio = headerCell.getElement().querySelector('input[value="link"]');
-
-        if (headerDeleteRadio) {
-            headerDeleteRadio.checked = allDelete;
-            headerDeleteRadio.setAttribute('data-waschecked', allDelete);
-        }
-        if (headerLinkRadio) {
-            headerLinkRadio.checked = allLink;
-            headerLinkRadio.setAttribute('data-waschecked', allLink);
-        }
     }
 
     function formatBytes(bytes, decimals = 2) {
@@ -194,14 +149,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 row.getElement().classList.add('disabled-row');
             }
         },
-        dataProcessed: function() {
-            // After data is loaded, sync all group headers
-            this.getRows('active').forEach(row => {
-                if (row.isTree()) { // Check if it's a group header row
-                    updateGroupHeaderState(row);
-                }
-            });
-        },
         columns: [
             {
                 title: "",
@@ -255,105 +202,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 80,
                 formatter: function(cell, formatterParams, onRendered) {
                     const data = cell.getRow().getData();
-                    const isGroupHeader = !!data._children;
-
-                    if (isGroupHeader) {
-                        const groupHash = data.hash;
-                        const uniqueName = "group_action_" + groupHash;
-                        const container = document.createElement("div");
-
-                        // --- Delete Radio ---
-                        const delRadio = document.createElement("input");
-                        delRadio.type = "radio";
-                        delRadio.name = uniqueName;
-                        delRadio.value = "delete";
-                        delRadio.id = `group_del_${uniqueName}`;
-                        delRadio.dataset.nullable = true;
-
-                        const delLabel = document.createElement("label");
-                        delLabel.htmlFor = `group_del_${uniqueName}`;
-                        delLabel.title = "Delete All";
-                        delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
-
-                        // --- Link Radio ---
-                        const linkRadio = document.createElement("input");
-                        linkRadio.type = "radio";
-                        linkRadio.name = uniqueName;
-                        linkRadio.value = "link";
-                        linkRadio.id = `group_link_${uniqueName}`;
-                        linkRadio.dataset.nullable = true;
-
-                        const linkLabel = document.createElement("label");
-                        linkLabel.htmlFor = `group_link_${uniqueName}`;
-                        linkLabel.title = "Hardlink All";
-                        linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
-
-                        // --- Event Handling for Group Header ---
-                        const groupActionChangeHandler = (e) => {
-                            const headerRadio = e.target;
-                            const groupRow = cell.getRow();
-                            const childRows = groupRow.getTreeChildren();
-                            const action = headerRadio.value; // 'delete' or 'link'
-                            const isNowChecked = headerRadio.checked;
-
-                            const otherRadioValue = action === 'delete' ? 'link' : 'delete';
-                            const otherHeaderRadio = cell.getElement().querySelector(`input[value="${otherRadioValue}"]`);
-
-                            // Handle nullable logic for the header radio itself
-                            if (isNowChecked && headerRadio.getAttribute('data-waschecked') === 'true') {
-                                headerRadio.checked = false;
-                                headerRadio.setAttribute('data-waschecked', 'false');
-
-                                // DESELECT: Find all children that are currently selected for this action and click them to deselect.
-                                childRows.forEach(childRow => {
-                                    const childData = childRow.getData();
-                                    if (childData.isOriginal || childData.isGroupFooter) return;
-
-                                    const childCell = childRow.getCell('action');
-                                    const childRadio = childCell.getElement().querySelector(`input[value="${action}"]`);
-
-                                    if (childRadio && childRadio.checked) {
-                                        childRadio.click(); // This will trigger the child's nullable logic
-                                    }
-                                });
-                            } else {
-                                // SELECT: Find all children that are not selected for this action and click them to select.
-                                headerRadio.setAttribute('data-waschecked', 'true');
-                                if (otherHeaderRadio) {
-                                    otherHeaderRadio.checked = false;
-                                    otherHeaderRadio.setAttribute('data-waschecked', 'false');
-                                }
-
-                                childRows.forEach(childRow => {
-                                    const childData = childRow.getData();
-                                    if (childData.isOriginal || childData.isGroupFooter) return;
-
-                                    const childCell = childRow.getCell('action');
-                                    const childRadio = childCell.getElement().querySelector(`input[value="${action}"]`);
-
-                                    if (childRadio && !childRadio.checked) {
-                                        childRadio.click();
-                                    }
-                                });
-                            }
-                        };
-
-                        delRadio.addEventListener('click', groupActionChangeHandler);
-                        linkRadio.addEventListener('click', groupActionChangeHandler);
-
-                        container.appendChild(delRadio);
-                        container.appendChild(delLabel);
-                        container.appendChild(linkRadio);
-                        container.appendChild(linkLabel);
-
-                        return container;
-                    }
-
-                    if (data.isGroupFooter) {
+                    if (data.isGroupFooter || !!data._children) {
                         return "";
                     }
 
-                    // It's a child row
                     const uniqueName = "action_" + data.ino;
                     const container = document.createElement("div");
 
@@ -417,8 +269,6 @@ document.addEventListener('DOMContentLoaded', function() {
                                 });
                                 actionQueueTable.addRow({ action: target.value, file: filePath });
                         }
-                        // Sync the parent header
-                        updateGroupHeaderState(cell.getRow().getTreeParent());
                     };
 
                         delRadio.addEventListener('click', actionChangeHandler);
