@@ -140,4 +140,5 @@ module.exports = {
     findWithNonUniqueHashes: redisFunctions.findWithNonUniqueHashes,
     getAllFiles: redisFunctions.getAllFiles,
     findDuplicates: redisFunctions.findDuplicates,
+    getActionQueue: redisFunctions.getActionQueue,
 };

@@ -1,37 +1,56 @@
-from playwright.sync_api import sync_playwright, expect
+import sys
+import subprocess
 import os
 
-def run(playwright):
-    browser = playwright.chromium.launch()
-    page = browser.new_page()
+def run_playwright_test(script_path):
+    """
+    Executes a specific Playwright test script using the `playwright test` command,
+    calling the executable directly from node_modules to ensure it's found.
+    """
+    if not os.path.exists(script_path):
+        print(f"Error: Test script not found at '{script_path}'")
+        sys.exit(1)
 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-    base_path = os.path.join(project_root, 'jules-scratch', 'verification')
+    playwright_executable = os.path.join(project_root, "node_modules", ".bin", "playwright")
 
-    # --- Verify Tabulator Page ---
-    tabulator_path = os.path.join(base_path, 'temp_tabulator.html')
-    page.goto(f"file:///{tabulator_path}")
+    if not os.path.exists(playwright_executable):
+        print(f"Error: Playwright executable not found at '{playwright_executable}'")
+        print("Please ensure you have run 'npm install @playwright/test'")
+        sys.exit(1)
 
-    # Wait for the table to be populated by checking for a known file path from a duplicate group
-    expect(page.get_by_text("/mnt/user/photos/vacation/IMG_001.jpg")).to_be_visible()
-    print("Tabulator page successfully loaded and verified seed data.")
+    command = [
+        playwright_executable,
+        "test",
+        script_path
+    ]
 
-    page.screenshot(path=os.path.join(base_path, "screenshot-tabulator-verified.png"))
-    print("Tabulator page screenshot captured.")
+    print(f"Executing command: {' '.join(command)}")
 
-    # --- Verify DataTables Page ---
-    datatables_path = os.path.join(base_path, 'temp_datatables.html')
-    page.goto(f"file:///{datatables_path}")
+    try:
+        # We run this from the project root to ensure consistent paths.
+        process = subprocess.run(
+            command,
+            check=True,
+            text=True,
+            capture_output=True,
+            cwd=project_root
+        )
+        print("Playwright test script executed successfully.")
+        print("stdout:", process.stdout)
+        if process.stderr:
+            print("stderr:", process.stderr)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing Playwright test script: {script_path}")
+        print("Return code:", e.returncode)
+        print("stdout:", e.stdout)
+        print("stderr:", e.stderr)
+        sys.exit(1)
 
-    # Wait for the table to be populated
-    expect(page.get_by_text("/mnt/user/downloads/document.pdf")).to_be_visible()
-    print("DataTables page successfully loaded and verified seed data.")
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python verify_pipeline.py <path_to_playwright_test_script>")
+        sys.exit(1)
 
-    page.screenshot(path=os.path.join(base_path, "screenshot-datatables-verified.png"))
-    print("DataTables page screenshot captured.")
-
-    browser.close()
-    print("Verification script completed successfully.")
-
-with sync_playwright() as playwright:
-    run(playwright)
+    test_script_path = sys.argv[1]
+    run_playwright_test(test_script_path)
