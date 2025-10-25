@@ -1,0 +1,149 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - grid [ref=e4]:
+    - rowgroup [ref=e5]:
+      - rowgroup [ref=e6]:
+        - row "Action File/Group Size Accessed Modified Changed" [ref=e7]:
+          - columnheader [ref=e8]
+          - columnheader "Action" [ref=e12]:
+            - generic [ref=e15]: Action
+          - columnheader "File/Group" [ref=e17]:
+            - generic [ref=e20]: File/Group
+          - columnheader "Size" [ref=e22]:
+            - generic [ref=e25]: Size
+          - columnheader "Accessed" [ref=e28]:
+            - generic [ref=e31]: Accessed
+          - columnheader "Modified" [ref=e34]:
+            - generic [ref=e37]: Modified
+          - columnheader "Changed" [ref=e40]:
+            - generic [ref=e43]: Changed
+    - rowgroup [ref=e47]:
+      - 'row "Group: duplicate_hash_A_9876543210 (3 files, 12 MB)" [ref=e48]':
+        - gridcell [ref=e49]
+        - gridcell [ref=e52]
+        - 'gridcell "Group: duplicate_hash_A_9876543210 (3 files, 12 MB)" [ref=e54]':
+          - generic [ref=e55]:
+            - strong [ref=e56]: "Group: duplicate_hash_A_9876543210"
+            - text: (3 files, 12 MB)
+        - gridcell [ref=e58]
+        - gridcell [ref=e59]
+        - gridcell [ref=e60]
+        - gridcell [ref=e61]
+      - row "Delete Hardlink /mnt/user/staging/sorted/IMG_001.jpg 4 MB 10/20/2023, 3:00:00 PM 10/20/2023, 3:00:00 PM 10/20/2023, 3:00:00 PM" [ref=e62]:
+        - gridcell [ref=e63]:
+          - radio [checked] [ref=e65]
+        - gridcell "Delete Hardlink" [ref=e66]:
+          - generic [ref=e67]:
+            - radio "Delete" [ref=e68]
+            - generic "Delete"
+            - radio "Hardlink" [ref=e69]
+            - generic "Hardlink"
+        - gridcell "/mnt/user/staging/sorted/IMG_001.jpg" [ref=e71]
+        - gridcell "4 MB" [ref=e73]
+        - gridcell "10/20/2023, 3:00:00 PM" [ref=e74]
+        - gridcell "10/20/2023, 3:00:00 PM" [ref=e75]
+        - gridcell "10/20/2023, 3:00:00 PM" [ref=e76]
+      - row "Delete Hardlink /mnt/user/photos/vacation/IMG_001.jpg 4 MB 8/15/2023, 6:20:00 PM 8/15/2023, 6:20:00 PM 8/15/2023, 6:20:00 PM" [ref=e77]:
+        - gridcell [ref=e78]:
+          - radio [ref=e80]
+        - gridcell "Delete Hardlink" [ref=e81]:
+          - generic [ref=e82]:
+            - radio "Delete" [checked] [ref=e83]
+            - generic "Delete"
+            - radio "Hardlink" [ref=e84]
+            - generic "Hardlink"
+        - gridcell "/mnt/user/photos/vacation/IMG_001.jpg" [ref=e86]
+        - gridcell "4 MB" [ref=e88]
+        - gridcell "8/15/2023, 6:20:00 PM" [ref=e89]
+        - gridcell "8/15/2023, 6:20:00 PM" [ref=e90]
+        - gridcell "8/15/2023, 6:20:00 PM" [ref=e91]
+      - row "Delete Hardlink /mnt/user/backups/photos_2023/IMG_001_copy.jpg 4 MB 9/1/2023, 11:00:00 AM 9/1/2023, 11:00:00 AM 9/1/2023, 11:00:00 AM" [ref=e92]:
+        - gridcell [ref=e93]:
+          - radio [ref=e95]
+        - gridcell "Delete Hardlink" [ref=e96]:
+          - generic [ref=e97]:
+            - radio "Delete" [ref=e98]
+            - generic "Delete"
+            - radio "Hardlink" [ref=e99]
+            - generic "Hardlink"
+        - gridcell "/mnt/user/backups/photos_2023/IMG_001_copy.jpg" [ref=e101]
+        - gridcell "4 MB" [ref=e103]
+        - gridcell "9/1/2023, 11:00:00 AM" [ref=e104]
+        - gridcell "9/1/2023, 11:00:00 AM" [ref=e105]
+        - gridcell "9/1/2023, 11:00:00 AM" [ref=e106]
+      - 'row "Group Total: 3 files" [ref=e107]':
+        - gridcell [ref=e108]
+        - gridcell [ref=e110]
+        - 'gridcell "Group Total: 3 files" [ref=e112]'
+        - gridcell [ref=e114]
+        - gridcell [ref=e115]
+        - gridcell [ref=e116]
+        - gridcell [ref=e117]
+      - 'row "Group: duplicate_hash_B_fedcba54321 (2 files, 2 MB)" [ref=e118]':
+        - gridcell [ref=e119]
+        - gridcell [ref=e122]
+        - 'gridcell "Group: duplicate_hash_B_fedcba54321 (2 files, 2 MB)" [ref=e124]':
+          - generic [ref=e125]:
+            - strong [ref=e126]: "Group: duplicate_hash_B_fedcba54321"
+            - text: (2 files, 2 MB)
+        - gridcell [ref=e128]
+        - gridcell [ref=e129]
+        - gridcell [ref=e130]
+        - gridcell [ref=e131]
+      - row "Delete Hardlink /mnt/user/documents/important/document_final.pdf 1 MB 11/5/2023, 12:05:00 PM 11/5/2023, 12:05:00 PM 11/5/2023, 12:05:00 PM" [ref=e132]:
+        - gridcell [ref=e133]:
+          - radio [checked] [ref=e135]
+        - gridcell "Delete Hardlink" [ref=e136]:
+          - generic [ref=e137]:
+            - radio "Delete" [ref=e138]
+            - generic "Delete"
+            - radio "Hardlink" [ref=e139]
+            - generic "Hardlink"
+        - gridcell "/mnt/user/documents/important/document_final.pdf" [ref=e141]
+        - gridcell "1 MB" [ref=e143]
+        - gridcell "11/5/2023, 12:05:00 PM" [ref=e144]
+        - gridcell "11/5/2023, 12:05:00 PM" [ref=e145]
+        - gridcell "11/5/2023, 12:05:00 PM" [ref=e146]
+      - row "Delete Hardlink /mnt/user/downloads/document.pdf 1 MB 11/5/2023, 12:00:00 PM 11/5/2023, 12:00:00 PM 11/5/2023, 12:00:00 PM" [ref=e147]:
+        - gridcell [ref=e148]:
+          - radio [ref=e150]
+        - gridcell "Delete Hardlink" [ref=e151]:
+          - generic [ref=e152]:
+            - radio "Delete" [ref=e153]
+            - generic "Delete"
+            - radio "Hardlink" [ref=e154]
+            - generic "Hardlink"
+        - gridcell "/mnt/user/downloads/document.pdf" [ref=e156]
+        - gridcell "1 MB" [ref=e158]
+        - gridcell "11/5/2023, 12:00:00 PM" [ref=e159]
+        - gridcell "11/5/2023, 12:00:00 PM" [ref=e160]
+        - gridcell "11/5/2023, 12:00:00 PM" [ref=e161]
+      - 'row "Group Total: 2 files" [ref=e162]':
+        - gridcell [ref=e163]
+        - gridcell [ref=e165]
+        - 'gridcell "Group Total: 2 files" [ref=e167]'
+        - gridcell [ref=e169]
+        - gridcell [ref=e170]
+        - gridcell [ref=e171]
+        - gridcell [ref=e172]
+    - 'row "Total Files: 5" [ref=e175]':
+      - gridcell [ref=e176]
+      - gridcell [ref=e177]
+      - 'gridcell "Total Files: 5" [ref=e178]'
+      - gridcell [ref=e179]
+      - gridcell [ref=e180]
+      - gridcell [ref=e181]
+      - gridcell [ref=e182]
+  - grid [ref=e184]:
+    - rowgroup [ref=e185]:
+      - rowgroup [ref=e186]:
+        - row "Action File" [ref=e187]:
+          - columnheader [ref=e188]
+          - columnheader "Action" [ref=e192]:
+            - generic [ref=e195]: Action
+          - columnheader "File" [ref=e199]:
+            - generic [ref=e202]: File
+    - generic [ref=e208]: No actions queued
+```

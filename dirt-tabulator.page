@@ -2,66 +2,8 @@ Menu="dirtSettings:2"
 Title="Tabulator"
 ---
 <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+<link href="/plugins/bobbintb.system.dirt/nodejs/css/dirt-tabulator.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-
-<style>
-    #tabulator-wrapper {
-        display: flex;
-        height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
-        width: 100%;
-        gap: 10px;
-    }
-    #duplicatesTable-container {
-        flex: 7;
-        min-width: 0; /* Prevents flex item from overflowing its container */
-    }
-    #action-queue-container {
-        flex: 3;
-        min-width: 0; /* Prevents flex item from overflowing its container */
-    }
-    #duplicatesTable, #action-queue-table {
-        height: 100%;
-    }
-    /* Hide the tree branch element in the radio button column */
-    .tabulator-cell[tabulator-field="isPrimary"] .tabulator-data-tree-branch {
-        display: none;
-    }
-
-    .disabled-row {
-        background-color: #f2f2f2 !important;
-        color: #999 !important;
-        pointer-events: none;
-    }
-    .disabled-row .tabulator-cell {
-        pointer-events: none;
-    }
-    .group-footer {
-        background-color: #e0e0e0 !important;
-        font-weight: bold;
-    }
-
-    /* Style for the Del/Link icons */
-    .tabulator-cell[tabulator-field="action"] input[type="radio"] {
-        display: none; /* Hide the actual radio button */
-    }
-
-    .tabulator-cell[tabulator-field="action"] label {
-        cursor: pointer;
-        padding: 0 5px; /* Add some space around the icons */
-        font-size: 1.2em;
-        background-color: transparent;
-        border: none;
-    }
-
-    .tabulator-cell[tabulator-field="action"] input[type="radio"]:checked + label {
-        color: #007bff; /* Highlight the selected icon */
-    }
-
-    /* Remove unwanted background on action column */
-    .tabulator-cell[tabulator-field="action"] {
-        background-color: transparent !important;
-    }
-</style>
 <div id="tabulator-wrapper">
     <div id="duplicatesTable-container">
         <div id="duplicatesTable"></div>
@@ -85,6 +27,38 @@ document.addEventListener('DOMContentLoaded', function() {
         placeholder: "No actions queued",
         layout: "fitColumns",
         columns: [
+            {
+                title: "",
+                field: "remove",
+                hozAlign: "center",
+                width: 40,
+                resizable: false,
+                headerSort: false,
+                formatter: function(cell, formatterParams, onRendered) {
+                    return `<i class="fa fa-trash" style="cursor: pointer;" title="Remove"></i>`;
+                },
+                cellClick: function(e, cell) {
+                    const rowData = cell.getRow().getData();
+                    const filePath = rowData.file;
+
+                    // 1. Send message to backend to remove from Redis
+                    dirtySock('removeFileAction', { path: filePath });
+
+                    // 2. Remove the row from the action queue table
+                    cell.getRow().delete();
+
+                    // 3. Find the corresponding row in the main table and uncheck its radio
+                    const matchingRows = table.searchRows("path", "=", filePath);
+                    if (matchingRows.length > 0) {
+                        const actionCell = matchingRows[0].getCell('action');
+                        const radioInputs = actionCell.getElement().querySelectorAll('input[type="radio"]');
+                        radioInputs.forEach(radio => {
+                            radio.checked = false;
+                            radio.setAttribute('data-waschecked', 'false');
+                        });
+                    }
+                }
+            },
             { title: "Action", field: "action", width: 80, hozAlign: "center", formatter: function(cell) {
                 const action = cell.getValue();
                 return action.charAt(0).toUpperCase() + action.slice(1); // Capitalize

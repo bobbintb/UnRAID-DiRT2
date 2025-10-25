@@ -4,8 +4,8 @@
   "description": "Backend WebSocket server for the DIRT Unraid plugin.",
   "main": "dirt.js",
   "scripts": {
-    "start": "node nodejs/dirt.js",
-    "seed": "node tests/helpers/seed-redis.helper.js",
+    "start": "cd nodejs && node dirt.js",
+    "seed": "cd nodejs && node ../tests/helpers/seed-redis.helper.js",
     "test:ui:prepare": "mkdir -p jules-scratch/verification && tail -n +4 dirt-tabulator.page | sed 's/window.location.hostname/\"localhost\"/' > jules-scratch/verification/temp_tabulator.html && tail -n +4 dirt-datatables.page | sed 's/window.location.hostname/\"localhost\"/' > jules-scratch/verification/temp_datatables.html",
     "clean": "rm -rf dirt_server.log jules-scratch",
     "test:ui": "ps aux | grep 'nodejs/dirt.js' | grep -v grep | awk '{print $2}' | xargs kill -9 || true; npm run start > dirt_server.log 2>&1 & while ! nc -z localhost 41820; do sleep 1; done; npm run seed && npm run test:ui:prepare && python tests/verification-scripts/verify_pipeline.py"
@@ -22,5 +22,8 @@
   "overrides": {
     "blake3-wasm": "3.0.0",
     "@c4312/blake3-internal": "3.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
   }
 }
