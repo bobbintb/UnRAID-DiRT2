@@ -475,11 +475,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
 
                     // --- Event Handling for Nullable ---
-                    const actionChangeHandler = function(e) {
+                    const individualActionChangeHandler = function(e) {
                         const target = e.target;
-                        const filePath = cell.getRow().getData().path;
+                        const filePath = row.getData().path;
                         const action = target.value;
                         const isUnsetting = target.checked && target.getAttribute('data-waschecked') === 'true';
+
+                        // Uncheck the radio if it was already checked
+                        if (isUnsetting) {
+                            target.checked = false;
+                        }
 
                         // Update waschecked attributes for all radios in this cell
                         delRadio.setAttribute('data-waschecked', 'false');
@@ -496,8 +501,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         updateTableHeaderState();
                     };
 
-                    delRadio.addEventListener('click', actionChangeHandler);
-                    linkRadio.addEventListener('click', actionChangeHandler);
+                    delRadio.addEventListener('click', individualActionChangeHandler);
+                    linkRadio.addEventListener('click', individualActionChangeHandler);
 
                     container.appendChild(delRadio);
                     container.appendChild(delLabel);
