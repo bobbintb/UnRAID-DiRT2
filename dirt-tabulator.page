@@ -41,13 +41,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     const rowData = cell.getRow().getData();
                     const filePath = rowData.file;
 
-                    // 1. Send message to backend to remove from Redis
-                    dirtySock('removeFileAction', { path: filePath });
+                    // 1. Remove the action from the queue (UI and backend)
+                    removeFileActionFromQueue(filePath);
 
-                    // 2. Remove the row from the action queue table
-                    cell.getRow().delete();
-
-                    // 3. Find the corresponding row in the main table and uncheck its radio
+                    // 2. Find the corresponding row in the main table and uncheck its radio
                     const matchingRows = table.searchRows("path", "=", filePath);
                     if (matchingRows.length > 0) {
                         const actionCell = matchingRows[0].getCell('action');
@@ -66,6 +63,19 @@ document.addEventListener('DOMContentLoaded', function() {
             { title: "File", field: "file", hozAlign: "left", tooltip: true },
         ],
     });
+
+    // Helper function to remove an action from the queue (UI and backend)
+    function removeFileActionFromQueue(filePath) {
+        // 1. Send message to backend to remove from Redis
+        dirtySock('removeFileAction', { path: filePath });
+
+        // 2. Remove the row from the action queue table
+        actionQueueTable.getRows().forEach(row => {
+            if (row.getData().file === filePath) {
+                row.delete();
+            }
+        });
+    }
 
     function formatBytes(bytes, decimals = 2) {
         if (bytes === 0) return '0 Bytes';
@@ -166,9 +176,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             const rowEl = row.getElement();
                             if (row === clickedRow) {
                                 rowEl.classList.add('disabled-row');
-                                // Uncheck any action radios in this row
+                                // Uncheck any action radios in this row and remove from queue
                                 const actionRadios = rowEl.querySelectorAll('.tabulator-cell[tabulator-field="action"] input[type="radio"]');
                                 actionRadios.forEach(r => r.checked = false);
+                                removeFileActionFromQueue(clickedRow.getData().path);
                             } else {
                                 rowEl.classList.remove('disabled-row');
                             }
@@ -241,13 +252,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (target.checked && target.getAttribute('data-waschecked') === 'true') {
                             target.checked = false;
                             target.setAttribute('data-waschecked', 'false');
-                                // Remove from queue and table
-                                dirtySock('removeFileAction', { path: filePath });
-                                actionQueueTable.getRows().forEach(row => {
-                                    if (row.getData().file === filePath) {
-                                        row.delete();
-                                    }
-                                });
+                            // Remove from queue and table
+                            removeFileActionFromQueue(filePath);
                         } else {
                                 // Set waschecked for all radios in this cell
                             delRadio.setAttribute('data-waschecked', 'false');
