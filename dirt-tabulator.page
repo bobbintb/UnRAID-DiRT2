@@ -77,6 +77,82 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Centralized function to set or unset a file action
+    function setFileAction(filePath, action, isUnsetting = false) {
+        if (isUnsetting) {
+            removeFileActionFromQueue(filePath);
+        } else {
+            // Add/update in queue and table
+            dirtySock('setFileAction', { path: filePath, action: action });
+            // Remove existing entry if it exists, then add the new one
+            actionQueueTable.getRows().forEach(row => {
+                if (row.getData().file === filePath) {
+                    row.delete();
+                }
+            });
+            actionQueueTable.addRow({ action: action, file: filePath });
+        }
+    }
+
+    function updateTableHeaderState() {
+        const headerEl = document.querySelector('.tabulator-header .tabulator-col[tabulator-field="action"]');
+        if (!headerEl) return;
+
+        const headerRadios = headerEl.querySelectorAll('input[type="radio"]');
+        let allDelete = true;
+        let allLink = true;
+        let fileCount = 0;
+
+        table.getRows().forEach(row => {
+            if (!row.getData()._children && !row.getData().isGroupFooter) { // It's a file row
+                fileCount++;
+                const actionCell = row.getCell("action");
+                const delRadio = actionCell.getElement().querySelector('input[value="delete"]');
+                const linkRadio = actionCell.getElement().querySelector('input[value="link"]');
+                if (!delRadio || !delRadio.checked) allDelete = false;
+                if (!linkRadio || !linkRadio.checked) allLink = false;
+            }
+        });
+
+        // Only check headers if there are actual files
+        if (fileCount === 0) {
+            allDelete = false;
+            allLink = false;
+        }
+
+        headerRadios.forEach(r => r.checked = false);
+        if (allDelete) {
+            headerEl.querySelector('input[value="delete"]').checked = true;
+        } else if (allLink) {
+            headerEl.querySelector('input[value="link"]').checked = true;
+        }
+    }
+
+    function updateGroupHeaderState(groupRow) {
+        const groupCell = groupRow.getCell("action");
+        const groupRadios = groupCell.getElement().querySelectorAll('input[type="radio"]');
+        const childRows = groupRow.getTreeChildren();
+        let allDelete = true;
+        let allLink = true;
+
+        childRows.forEach(childRow => {
+            if (!childRow.getData().isGroupFooter) {
+                const actionCell = childRow.getCell("action");
+                const delRadio = actionCell.getElement().querySelector('input[value="delete"]');
+                const linkRadio = actionCell.getElement().querySelector('input[value="link"]');
+                if (!delRadio || !delRadio.checked) allDelete = false;
+                if (!linkRadio || !linkRadio.checked) allLink = false;
+            }
+        });
+
+        groupRadios.forEach(r => r.checked = false);
+        if (allDelete) {
+            groupCell.getElement().querySelector('input[value="delete"]').checked = true;
+        } else if (allLink) {
+            groupCell.getElement().querySelector('input[value="link"]').checked = true;
+        }
+    }
+
     function formatBytes(bytes, decimals = 2) {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -195,17 +271,172 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             {
-                title: "Action",
                 field: "action",
                 hozAlign: "center",
                 headerSort: false,
                 width: 80,
+                headerFormatter: function(cell, formatterParams, onRendered) {
+                    const container = document.createElement("div");
+
+                    const delRadio = document.createElement("input");
+                    delRadio.type = "radio";
+                    delRadio.name = "action_header";
+                    delRadio.value = "delete";
+                    delRadio.id = "del_header";
+
+                    const delLabel = document.createElement("label");
+                    delLabel.htmlFor = "del_header";
+                    delLabel.title = "Delete All";
+                    delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
+
+                    const linkRadio = document.createElement("input");
+                    linkRadio.type = "radio";
+                    linkRadio.name = "action_header";
+                    linkRadio.value = "link";
+                    linkRadio.id = "link_header";
+
+                    const linkLabel = document.createElement("label");
+                    linkLabel.htmlFor = "link_header";
+                    linkLabel.title = "Hardlink All";
+                    linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
+
+                    const actionChangeHandler = function(e) {
+                        const target = e.target;
+                        const action = target.value;
+                        const isUnsetting = target.checked && target.getAttribute('data-waschecked') === 'true';
+
+                        if (isUnsetting) {
+                            target.checked = false;
+                        }
+
+                        // Update waschecked attributes for header radios
+                        delRadio.setAttribute('data-waschecked', 'false');
+                        linkRadio.setAttribute('data-waschecked', 'false');
+                        if (!isUnsetting) {
+                            target.setAttribute('data-waschecked', 'true');
+                        }
+
+                        table.getRows("active").forEach(row => {
+                            if (!row.getData()._children && !row.getData().isGroupFooter) {
+                                const filePath = row.getData().path;
+                                setFileAction(filePath, action, isUnsetting);
+
+                                // Visually update the radio in the row
+                                const actionCell = row.getCell("action");
+                                const radios = actionCell.getElement().querySelectorAll('input[type="radio"]');
+                                radios.forEach(r => {
+                                    r.checked = false;
+                                    r.setAttribute('data-waschecked', 'false');
+                                });
+                                if (!isUnsetting) {
+                                    const radioToSelect = actionCell.getElement().querySelector(`input[value="${action}"]`);
+                                    if (radioToSelect) {
+                                        radioToSelect.checked = true;
+                                        radioToSelect.setAttribute('data-waschecked', 'true');
+                                    }
+                                }
+                            }
+                        });
+                    };
+
+                    delRadio.addEventListener('click', actionChangeHandler);
+                    linkRadio.addEventListener('click', actionChangeHandler);
+
+                    container.appendChild(delRadio);
+                    container.appendChild(delLabel);
+                    container.appendChild(linkRadio);
+                    container.appendChild(linkLabel);
+
+                    return container;
+                },
                 formatter: function(cell, formatterParams, onRendered) {
-                    const data = cell.getRow().getData();
-                    if (data.isGroupFooter || !!data._children) {
+                    const row = cell.getRow();
+                    const data = row.getData();
+
+                    if (data.isGroupFooter) {
                         return "";
                     }
 
+                    // Group Header Formatter
+                    if (!!data._children) {
+                        const container = document.createElement("div");
+                        const groupHash = data.hash;
+                        const uniqueName = "action_group_" + groupHash;
+
+                        const delRadio = document.createElement("input");
+                        delRadio.type = "radio";
+                        delRadio.name = uniqueName;
+                        delRadio.value = "delete";
+                        delRadio.id = `del_${uniqueName}`;
+
+                        const delLabel = document.createElement("label");
+                        delLabel.htmlFor = `del_${uniqueName}`;
+                        delLabel.title = "Delete All in Group";
+                        delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
+
+                        const linkRadio = document.createElement("input");
+                        linkRadio.type = "radio";
+                        linkRadio.name = uniqueName;
+                        linkRadio.value = "link";
+                        linkRadio.id = `link_${uniqueName}`;
+
+                        const linkLabel = document.createElement("label");
+                        linkLabel.htmlFor = `link_${uniqueName}`;
+                        linkLabel.title = "Hardlink All in Group";
+                        linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
+
+                        const groupActionChangeHandler = function(e) {
+                            const target = e.target;
+                            const action = target.value;
+                            const isUnsetting = target.checked && target.getAttribute('data-waschecked') === 'true';
+
+                            if (isUnsetting) {
+                                target.checked = false;
+                            }
+
+                            delRadio.setAttribute('data-waschecked', 'false');
+                            linkRadio.setAttribute('data-waschecked', 'false');
+                            if (!isUnsetting) {
+                                target.setAttribute('data-waschecked', 'true');
+                            }
+
+                            const childRows = row.getTreeChildren();
+                            childRows.forEach(childRow => {
+                                if (!childRow.getData().isGroupFooter) {
+                                    const filePath = childRow.getData().path;
+                                    setFileAction(filePath, action, isUnsetting);
+
+                                    // Visually update the radio in the child row
+                                    const actionCell = childRow.getCell("action");
+                                    const radios = actionCell.getElement().querySelectorAll('input[type="radio"]');
+                                    radios.forEach(r => {
+                                        r.checked = false;
+                                        r.setAttribute('data-waschecked', 'false');
+                                    });
+
+                                    if (!isUnsetting) {
+                                        const radioToSelect = actionCell.getElement().querySelector(`input[value="${action}"]`);
+                                        if (radioToSelect) {
+                                            radioToSelect.checked = true;
+                                            radioToSelect.setAttribute('data-waschecked', 'true');
+                                        }
+                                    }
+                                }
+                            });
+                            updateTableHeaderState();
+                        };
+
+                        delRadio.addEventListener('click', groupActionChangeHandler);
+                        linkRadio.addEventListener('click', groupActionChangeHandler);
+
+                        container.appendChild(delRadio);
+                        container.appendChild(delLabel);
+                        container.appendChild(linkRadio);
+                        container.appendChild(linkLabel);
+                        return container;
+                    }
+
+                    // Individual Row Formatter
                     const uniqueName = "action_" + data.ino;
                     const container = document.createElement("div");
 
@@ -244,35 +475,52 @@ document.addEventListener('DOMContentLoaded', function() {
                     linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
 
                     // --- Event Handling for Nullable ---
-                        const actionChangeHandler = function(e) {
+                    const actionChangeHandler = function(e) {
                         const target = e.target;
-                            const filePath = cell.getRow().getData().path;
+                        const filePath = cell.getRow().getData().path;
+                        const action = target.value;
+                        const isUnsetting = target.checked && target.getAttribute('data-waschecked') === 'true';
 
-                            // Handle nullable logic
-                        if (target.checked && target.getAttribute('data-waschecked') === 'true') {
+                        // Uncheck the radio if it was already checked
+                        if (isUnsetting) {
                             target.checked = false;
-                            target.setAttribute('data-waschecked', 'false');
-                            // Remove from queue and table
-                            removeFileActionFromQueue(filePath);
-                        } else {
-                                // Set waschecked for all radios in this cell
-                            delRadio.setAttribute('data-waschecked', 'false');
-                            linkRadio.setAttribute('data-waschecked', 'false');
-                            target.setAttribute('data-waschecked', 'true');
-                                // Add/update in queue and table
-                                dirtySock('setFileAction', { path: filePath, action: target.value });
-                                // Remove existing entry if it exists, then add the new one
-                                actionQueueTable.getRows().forEach(row => {
-                                    if (row.getData().file === filePath) {
-                                        row.delete();
-                                    }
-                                });
-                                actionQueueTable.addRow({ action: target.value, file: filePath });
                         }
+
+                        // Update waschecked attributes for all radios in this cell
+                        delRadio.setAttribute('data-waschecked', 'false');
+                        linkRadio.setAttribute('data-waschecked', 'false');
+                        if (!isUnsetting) {
+                            target.setAttribute('data-waschecked', 'true');
+                        }
+
+                        // Call the centralized function
+                        setFileAction(filePath, action, isUnsetting);
                     };
 
-                        delRadio.addEventListener('click', actionChangeHandler);
-                        linkRadio.addEventListener('click', actionChangeHandler);
+                    // --- Event Handling for Nullable ---
+                    const actionChangeHandler = function(e) {
+                        const target = e.target;
+                        const filePath = cell.getRow().getData().path;
+                        const action = target.value;
+                        const isUnsetting = target.checked && target.getAttribute('data-waschecked') === 'true';
+
+                        // Update waschecked attributes for all radios in this cell
+                        delRadio.setAttribute('data-waschecked', 'false');
+                        linkRadio.setAttribute('data-waschecked', 'false');
+                        if (!isUnsetting) {
+                            target.setAttribute('data-waschecked', 'true');
+                        }
+
+                        // Call the centralized function
+                        setFileAction(filePath, action, isUnsetting);
+
+                        // Update the group header state
+                        updateGroupHeaderState(row.getTreeParent());
+                        updateTableHeaderState();
+                    };
+
+                    delRadio.addEventListener('click', actionChangeHandler);
+                    linkRadio.addEventListener('click', actionChangeHandler);
 
                     container.appendChild(delRadio);
                     container.appendChild(delLabel);
