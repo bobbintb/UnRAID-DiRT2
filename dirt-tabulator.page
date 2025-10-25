@@ -481,29 +481,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         const action = target.value;
                         const isUnsetting = target.checked && target.getAttribute('data-waschecked') === 'true';
 
-                        // Uncheck the radio if it was already checked
-                        if (isUnsetting) {
-                            target.checked = false;
-                        }
-
-                        // Update waschecked attributes for all radios in this cell
-                        delRadio.setAttribute('data-waschecked', 'false');
-                        linkRadio.setAttribute('data-waschecked', 'false');
-                        if (!isUnsetting) {
-                            target.setAttribute('data-waschecked', 'true');
-                        }
-
-                        // Call the centralized function
-                        setFileAction(filePath, action, isUnsetting);
-                    };
-
-                    // --- Event Handling for Nullable ---
-                    const actionChangeHandler = function(e) {
-                        const target = e.target;
-                        const filePath = cell.getRow().getData().path;
-                        const action = target.value;
-                        const isUnsetting = target.checked && target.getAttribute('data-waschecked') === 'true';
-
                         // Update waschecked attributes for all radios in this cell
                         delRadio.setAttribute('data-waschecked', 'false');
                         linkRadio.setAttribute('data-waschecked', 'false');
