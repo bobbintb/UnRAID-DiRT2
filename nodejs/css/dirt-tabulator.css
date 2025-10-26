@@ -1,16 +1,22 @@
-#tabulator-wrapper {
+#split {
     display: flex;
+    flex-direction: row;
     height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
-    width: 100%;
-    gap: 10px;
 }
-#duplicatesTable-container {
-    flex: 7;
-    min-width: 0; /* Prevents flex item from overflowing its container */
+
+.gutter {
+    background-color: #eee;
+    background-repeat: no-repeat;
+    background-position: 50%;
 }
-#action-queue-container {
-    flex: 3;
-    min-width: 0; /* Prevents flex item from overflowing its container */
+
+.gutter.gutter-horizontal {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
+    cursor: col-resize;
+}
+
+#duplicatesTable-container, #action-queue-container {
+    overflow: hidden; /* Prevent content from spilling out during resize */
 }
 #duplicatesTable, #action-queue-table {
     height: 100%;

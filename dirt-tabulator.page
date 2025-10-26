@@ -4,7 +4,8 @@ Title="Tabulator"
 <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
 <link href="/plugins/bobbintb.system.dirt/nodejs/css/dirt-tabulator.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-<div id="tabulator-wrapper">
+<script src="https://unpkg.com/split.js/dist/split.min.js"></script>
+<div id="split">
     <div id="duplicatesTable-container">
         <div id="duplicatesTable"></div>
     </div>
@@ -15,6 +16,12 @@ Title="Tabulator"
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    Split(['#duplicatesTable-container', '#action-queue-container'], {
+        gutterSize: 10,
+        sizes: [70, 30], // Initial sizes in percentage
+        minSize: [200, 100], // Minimum sizes in pixels
+    });
+
     let socket;
     let table;
     let actionQueueTable;
