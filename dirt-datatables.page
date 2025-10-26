@@ -28,6 +28,9 @@ Title="DataTables"
         cursor: col-resize;
         width: 10px;
     }
+    tr.group {
+        cursor: pointer;
+    }
 </style>
 
 <div class="split-container">
@@ -108,6 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializeTable(data) {
         if ($.fn.DataTable.isDataTable('#datatables-table')) {
             $('#datatables-table').DataTable().destroy();
+            $('#datatables-table tbody').empty(); // Clear tbody to remove old event listeners
         }
 
         table = new DataTable('#datatables-table', {
@@ -135,12 +139,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 api.column(0, { page: 'current' }).data().each(function(group, i) {
                     if (last !== group) {
-                        $(rows).eq(i).before(
-                            '<tr class="group" style="background-color: #f0f0f0; font-weight: bold;"><td colspan="3">' + group + '</td></tr>'
-                        );
+                        const groupRow = $('<tr class="group" style="background-color: #f0f0f0; font-weight: bold; color: black;"><td colspan="3"><span class="toggle-icon">▼</span> ' + group + '</td></tr>');
+                        $(rows).eq(i).before(groupRow);
                         last = group;
                     }
                 });
+            }
+        });
+
+        $('#datatables-table tbody').on('click', 'tr.group', function () {
+            const $this = $(this);
+            const icon = $this.find('.toggle-icon');
+            let nextUntil = $this.nextUntil('tr.group');
+
+            // Toggle visibility of the child rows
+            nextUntil.toggle();
+
+            // Update the icon
+            if (nextUntil.is(':visible')) {
+                icon.text('▼');
+            } else {
+                icon.text('▶');
             }
         });
     }

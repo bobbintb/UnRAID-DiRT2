@@ -51,6 +51,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let socket;
     let table;
 
+    function formatBytes(bytes, decimals = 2) {
+        if (!bytes || bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
 
@@ -99,8 +108,8 @@ document.addEventListener('DOMContentLoaded', function() {
             groupBy: "hash",
             columns: [
                 { title: "Path", field: "path", widthGrow: 1 },
-                { title: "Size", field: "size", width: 120, formatter: "money", formatterParams: { symbol: " B", precision: 0 } },
-                { title: "Modified", field: "mtime", width: 170, formatter: "datetime", formatterParams: { outputFormat: "YYYY-MM-DD hh:mm:ss A" } },
+                { title: "Size", field: "size", width: 120, formatter: (cell) => formatBytes(cell.getValue()) },
+                { title: "Modified", field: "mtime", width: 170, formatter: (cell) => cell.getValue() ? new Date(cell.getValue()).toLocaleString() : "" },
             ],
         });
     }
