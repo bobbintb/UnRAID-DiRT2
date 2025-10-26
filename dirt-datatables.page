@@ -2,182 +2,73 @@ Menu="dirtSettings:3"
 Title="DataTables"
 ---
 <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
+<script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
 <style>
-    .group-row {
-        background-color: #f0f0f0;
-        font-weight: bold;
-        cursor: pointer;
+    /* Basic styling for the split layout */
+    .split-container {
+        display: flex;
+        flex-direction: row;
+        height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
+        width: 100%;
     }
-    .group-row:hover {
-        background-color: #e0e0e0;
+    .split {
+        padding: 10px;
+        box-sizing: border-box;
+        overflow: auto;
     }
-    .child-row {
-        padding-left: 30px;
+    .gutter {
+        background-color: #f7f7f7;
+        background-repeat: no-repeat;
+        background-position: 50%;
     }
-    table.dataTable tbody tr.group-row td {
-        border-bottom: 2px solid #ddd;
-    }
-    .toggle-icon {
-        margin-right: 5px;
-        display: inline-block;
+    .gutter.gutter-horizontal {
+        cursor: col-resize;
         width: 10px;
     }
 </style>
 
-<table id="duplicatesTableElement" class="display" style="width:100%">
-    <thead>
-        <tr>
-            <th>File/Group</th>
-            <th>Size</th>
-            <th>Accessed</th>
-            <th>Modified</th>
-            <th>Changed</th>
-        </tr>
-    </thead>
-    <tbody>
-    </tbody>
-</table>
+<div class="split-container">
+    <div id="left-pane" class="split">
+        <table id="datatables-table" class="display" style="width:100%"></table>
+    </div>
+    <div id="right-pane" class="split">
+        <!-- Right table will go here -->
+    </div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    Split(['#left-pane', '#right-pane'], {
+        sizes: [70, 30],
+        minSize: [300, 150],
+        gutterSize: 10,
+        cursor: 'col-resize',
+    });
+
+    // --- WebSocket and Table Implementation ---
     let socket;
     let table;
-    let duplicateData = [];
 
     function formatBytes(bytes, decimals = 2) {
-        if (bytes === 0) return '0 Bytes';
+        if (!bytes || bytes === 0) return '0 Bytes';
         const k = 1024;
         const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
     }
 
     function formatDate(timestamp) {
-        return timestamp ? new Date(timestamp).toLocaleString() : '';
+        if (!timestamp) return '';
+        return new Date(timestamp).toLocaleString();
     }
 
-    // Convert grouped data to flat rows for DataTables
-    function convertDataForDataTables(groups) {
-        const rows = [];
-        groups.forEach(group => {
-            // Add parent row
-            rows.push({
-                isGroup: true,
-                hash: group.hash,
-                count: group.count,
-                totalSize: group.totalSize,
-                path: `Group: ${group.hash}`,
-                size: group.totalSize,
-                atime: '',
-                mtime: '',
-                ctime: '',
-                groupHash: group.hash,
-                expanded: true
-            });
-            // Add child rows
-            group.files.forEach(file => {
-                rows.push({
-                    isGroup: false,
-                    path: file.path,
-                    size: file.size,
-                    atime: file.atime,
-                    mtime: file.mtime,
-                    ctime: file.ctime,
-                    groupHash: group.hash
-                });
-            });
-        });
-        return rows;
-    }
-
-    // Initialize DataTables
-    table = new DataTable('#duplicatesTableElement', {
-        data: [],
-        columns: [
-            {
-                data: 'path',
-                render: function(data, type, row) {
-                    if (type === 'display') {
-                        if (row.isGroup) {
-                            return `<span class="toggle-icon">▼</span><strong>${data}</strong> <span>(${row.count} files, ${formatBytes(row.totalSize)})</span>`;
-                        } else {
-                            return `<span style="margin-left: 30px;">${data}</span>`;
-                        }
-                    }
-                    return data;
-                }
-            },
-            {
-                data: 'size',
-                render: function(data, type, row) {
-                    if (type === 'display' && !row.isGroup) {
-                        return formatBytes(data);
-                    }
-                    return row.isGroup ? '' : data;
-                }
-            },
-            {
-                data: 'atime',
-                render: function(data, type, row) {
-                    return type === 'display' ? formatDate(data) : data;
-                }
-            },
-            {
-                data: 'mtime',
-                render: function(data, type, row) {
-                    return type === 'display' ? formatDate(data) : data;
-                }
-            },
-            {
-                data: 'ctime',
-                render: function(data, type, row) {
-                    return type === 'display' ? formatDate(data) : data;
-                }
-            }
-        ],
-        paging: false,
-        searching: true,
-        ordering: false,
-        info: false,
-        language: {
-            emptyTable: "No duplicate files found"
-        },
-        createdRow: function(row, data, dataIndex) {
-            if (data.isGroup) {
-                row.classList.add('group-row');
-                row.setAttribute('data-group-hash', data.groupHash);
-            } else {
-                row.classList.add('child-row');
-                row.setAttribute('data-parent-hash', data.groupHash);
-            }
-        }
-    });
-
-    // Handle group row clicks to toggle child visibility
-    document.querySelector('#duplicatesTableElement tbody').addEventListener('click', function(e) {
-        const groupRow = e.target.closest('tr.group-row');
-        if (!groupRow) return;
-
-        const groupHash = groupRow.getAttribute('data-group-hash');
-        const childRows = document.querySelectorAll(`tr.child-row[data-parent-hash="${groupHash}"]`);
-        const toggleIcon = groupRow.querySelector('.toggle-icon');
-
-        childRows.forEach(row => {
-            row.style.display = row.style.display === 'none' ? '' : 'none';
-        });
-
-        // Toggle icon
-        const isVisible = childRows[0] && childRows[0].style.display !== 'none';
-        if (toggleIcon) {
-            toggleIcon.textContent = isVisible ? '▼' : '▶';
-        }
-    });
 
     function connect() {
-        socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
+        socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-datatables.page`);
 
         socket.onopen = function() {
             console.log("DataTables Tab: WebSocket connection established.");
@@ -189,12 +80,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const { action, data } = parsedMessage;
 
             if (action === 'duplicateFiles') {
-                console.log("DataTables Tab: Received duplicateFiles data.");
-                duplicateData = data;
-                const tableData = convertDataForDataTables(data);
-                table.clear();
-                table.rows.add(tableData);
-                table.draw();
+                console.log("DataTables Tab: Received duplicateFiles data package.");
+                const { duplicates } = data;
+
+                const flatData = duplicates.flatMap(group =>
+                    group.files.map(file => ({
+                        ...file,
+                        hash: group.hash // Add group hash to each file
+                    }))
+                );
+
+                initializeTable(flatData);
             }
         };
 
@@ -209,9 +105,49 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
+    function initializeTable(data) {
+        if ($.fn.DataTable.isDataTable('#datatables-table')) {
+            $('#datatables-table').DataTable().destroy();
+        }
+
+        table = new DataTable('#datatables-table', {
+            data: data,
+            paging: false,
+            searching: false,
+            info: false,
+            language: {
+                emptyTable: "No duplicate files found."
+            },
+            columns: [
+                { data: 'hash' }, // The grouping column
+                { data: 'path', title: 'Path' },
+                { data: 'size', title: 'Size', render: (d, t, r) => t === 'display' ? formatBytes(d) : d },
+                { data: 'mtime', title: 'Modified', render: (d, t, r) => t === 'display' ? formatDate(d) : d }
+            ],
+            columnDefs: [
+                { visible: false, targets: 0 } // Hide the grouping column
+            ],
+            order: [[0, 'asc']], // Order by the grouping column
+            drawCallback: function(settings) {
+                const api = this.api();
+                const rows = api.rows({ page: 'current' }).nodes();
+                let last = null;
+
+                api.column(0, { page: 'current' }).data().each(function(group, i) {
+                    if (last !== group) {
+                        $(rows).eq(i).before(
+                            '<tr class="group" style="background-color: #f0f0f0; font-weight: bold;"><td colspan="3">' + group + '</td></tr>'
+                        );
+                        last = group;
+                    }
+                });
+            }
+        });
+    }
+
     function dirtySock(action, data) {
         const message = {
-            clientId: "dirt-tabulator.page",
+            clientId: "dirt-datatables.page",
             action: action,
             data: data
         };

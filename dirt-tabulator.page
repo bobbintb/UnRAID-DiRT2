@@ -2,414 +2,60 @@ Menu="dirtSettings:2"
 Title="Tabulator"
 ---
 <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
-<link href="/plugins/bobbintb.system.dirt/nodejs/css/dirt-tabulator.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
-<div id="split">
-    <div id="duplicatesTable-container">
-        <div id="duplicatesTable"></div>
+
+<style>
+    /* Basic styling for the split layout */
+    .split-container {
+        display: flex;
+        flex-direction: row;
+        height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
+        width: 100%;
+    }
+    .split {
+        padding: 10px;
+        box-sizing: border-box;
+        overflow: auto;
+    }
+    .gutter {
+        background-color: #f7f7f7;
+        background-repeat: no-repeat;
+        background-position: 50%;
+    }
+    .gutter.gutter-horizontal {
+        cursor: col-resize;
+        width: 10px;
+    }
+</style>
+
+<div class="split-container">
+    <div id="left-pane" class="split">
+        <div id="tabulator-table"></div>
     </div>
-    <div id="action-queue-container">
-        <div id="action-queue-table"></div>
+    <div id="right-pane" class="split">
+        <!-- Right table will go here -->
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    Split(['#duplicatesTable-container', '#action-queue-container'], {
+    Split(['#left-pane', '#right-pane'], {
+        sizes: [70, 30],
+        minSize: [300, 150],
         gutterSize: 10,
-        sizes: [70, 30], // Initial sizes in percentage
-        minSize: [200, 100], // Minimum sizes in pixels
+        cursor: 'col-resize',
     });
 
+    // --- WebSocket and Table Implementation ---
     let socket;
     let table;
-    let actionQueueTable;
-    let actionQueueData = {}; // To hold the initial queue state
-
-    // The Tabulator table definition for the Action Queue
-    actionQueueTable = new Tabulator("#action-queue-table", {
-        height: "100%",
-        data: [],
-        placeholder: "No actions queued",
-        layout: "fitColumns",
-        columns: [
-            {
-                title: "",
-                field: "remove",
-                hozAlign: "center",
-                width: 40,
-                resizable: false,
-                headerSort: false,
-                formatter: function(cell, formatterParams, onRendered) {
-                    return `<i class="fa fa-trash" style="cursor: pointer;" title="Remove"></i>`;
-                },
-                cellClick: function(e, cell) {
-                    const rowData = cell.getRow().getData();
-                    const filePath = rowData.file;
-
-                    // 1. Remove the action from the queue (UI and backend)
-                    removeFileActionFromQueue(filePath);
-
-                    // 2. Find the corresponding row in the main table and uncheck its radio
-                    const matchingRows = table.searchRows("path", "=", filePath);
-                    if (matchingRows.length > 0) {
-                        const actionCell = matchingRows[0].getCell('action');
-                        const radioInputs = actionCell.getElement().querySelectorAll('input[type="radio"]');
-                        radioInputs.forEach(radio => {
-                            radio.checked = false;
-                            radio.setAttribute('data-waschecked', 'false');
-                        });
-                    }
-                }
-            },
-            { title: "Action", field: "action", width: 80, hozAlign: "center", formatter: function(cell) {
-                const action = cell.getValue();
-                return action.charAt(0).toUpperCase() + action.slice(1); // Capitalize
-            }},
-            { title: "File", field: "file", hozAlign: "left", tooltip: true },
-        ],
-    });
-
-    // Helper function to remove an action from the queue (UI and backend)
-    function removeFileActionFromQueue(filePath) {
-        // 1. Send message to backend to remove from Redis
-        dirtySock('removeFileAction', { path: filePath });
-
-        // 2. Remove the row from the action queue table
-        actionQueueTable.getRows().forEach(row => {
-            if (row.getData().file === filePath) {
-                row.delete();
-            }
-        });
-    }
-
-    function formatBytes(bytes, decimals = 2) {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-    }
-
-    // Helper function to format dates
-    function formatDate(cell) {
-        const data = cell.getRow().getData();
-        if (data.isGroupFooter) {
-            return "";
-        }
-        const value = cell.getValue();
-        return value ? new Date(value).toLocaleString() : '';
-    }
-
-    // Helper function to format size
-    function formatSize(cell) {
-        const data = cell.getRow().getData();
-        if (data.isGroupFooter || !!data._children) {
-            return "";
-        }
-        const value = cell.getValue();
-        return formatBytes(value);
-    }
-
-    // Custom formatter for the tree's first column
-    const treeFormatter = (cell, formatterParams, onRendered) => {
-        const data = cell.getRow().getData();
-        const isParent = !!data._children; // Check if it's a parent group
-
-        if (isParent) {
-            const strong = document.createElement('strong');
-            strong.textContent = `Group: ${data.hash}`;
-
-            const span = document.createElement('span');
-            span.textContent = ` (${data.count} files, ${formatBytes(data.totalSize)})`;
-
-            const container = document.createElement('div');
-            container.appendChild(strong);
-            container.appendChild(span);
-            return container;
-        } else if (data.isGroupFooter) {
-            return `Group Total: ${data.count} files`;
-        } else {
-            // It's a child row, just show the path
-            return data.path;
-        }
-    };
-
-    // The Tabulator table definition
-    table = new Tabulator("#duplicatesTable", {
-        height: "100%", // Use full page height
-        data: [], // Set initial data to empty
-        placeholder: "No duplicate files found",
-        layout: "fitColumns",
-        dataTree: true,
-        dataTreeChildColumnCalcs: true, // include child rows in column calculations
-        dataTreeStartExpanded: true, // Expand all nodes by default
-        dataTreeChildIndent: 0, // Remove tree branch indentation
-        dataTreeSelectPropagate: false, // Disable default parent/child selection propagation
-        rowFormatter: function(row) {
-            const data = row.getData();
-            if (data.isGroupFooter) {
-                row.getElement().classList.add('group-footer');
-            } else if (data.isOriginal) {
-                row.getElement().classList.add('disabled-row');
-            }
-        },
-        columns: [
-            {
-                title: "",
-                field: "isPrimary",
-                hozAlign: "center",
-                headerSort: false,
-                width: 30,
-                minWidth: 30,
-                resizable: false,
-                formatter: function(cell, formatterParams, onRendered) {
-                    const data = cell.getRow().getData();
-                    if (data.isGroupFooter || !!data._children) {
-                        return "";
-                    }
-                    const radio = document.createElement("input");
-                    radio.type = "radio";
-                    radio.name = "primary_group_" + cell.getRow().getTreeParent().getData().hash;
-                    radio.checked = data.isOriginal;
-
-                    radio.addEventListener('click', function() {
-                        const clickedRow = cell.getRow();
-                        const groupRows = clickedRow.getTreeParent().getTreeChildren();
-
-                        groupRows.forEach(row => {
-                            const rowEl = row.getElement();
-                            if (row === clickedRow) {
-                                rowEl.classList.add('disabled-row');
-                                // Uncheck any action radios in this row and remove from queue
-                                const actionRadios = rowEl.querySelectorAll('.tabulator-cell[tabulator-field="action"] input[type="radio"]');
-                                actionRadios.forEach(r => r.checked = false);
-                                removeFileActionFromQueue(clickedRow.getData().path);
-                            } else {
-                                rowEl.classList.remove('disabled-row');
-                            }
-                        });
-
-                        // Send the selection to the backend
-                        const groupHash = clickedRow.getTreeParent().getData().hash;
-                        const fileIno = clickedRow.getData().ino;
-                        dirtySock('setOriginalFile', { hash: groupHash, ino: fileIno });
-                    });
-
-                    return radio;
-                }
-            },
-            {
-                title: "Action",
-                field: "action",
-                hozAlign: "center",
-                headerSort: false,
-                width: 80,
-                formatter: function(cell, formatterParams, onRendered) {
-                    const data = cell.getRow().getData();
-
-                    // Group Header
-                    if (!!data._children) {
-                        const groupHash = data.hash;
-                        const uniqueName = "action_group_" + groupHash;
-                        const container = document.createElement("div");
-
-                        // --- Delete Radio ---
-                        const delRadio = document.createElement("input");
-                        delRadio.type = "radio";
-                        delRadio.name = uniqueName;
-                        delRadio.value = "delete";
-                        delRadio.id = `del_${uniqueName}`;
-                        delRadio.dataset.nullable = true;
-
-                        const delLabel = document.createElement("label");
-                        delLabel.htmlFor = `del_${uniqueName}`;
-                        delLabel.title = "Delete All";
-                        delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
-
-                        // --- Link Radio ---
-                        const linkRadio = document.createElement("input");
-                        linkRadio.type = "radio";
-                        linkRadio.name = uniqueName;
-                        linkRadio.value = "link";
-                        linkRadio.id = `link_${uniqueName}`;
-                        linkRadio.dataset.nullable = true;
-
-                        const linkLabel = document.createElement("label");
-                        linkLabel.htmlFor = `link_${uniqueName}`;
-                        linkLabel.title = "Hardlink All";
-                        linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
-
-                        // --- Event Handling for Group Header ---
-                        const groupActionChangeHandler = function(e) {
-                            const target = e.target;
-                            const action = target.value; // 'delete' or 'link'
-
-                            // Handle nullable logic for the group header radio itself
-                            if (target.checked && target.getAttribute('data-waschecked') === 'true') {
-                                target.checked = false;
-                                target.setAttribute('data-waschecked', 'false');
-                            } else {
-                                // Set waschecked for all radios in this group header cell
-                                delRadio.setAttribute('data-waschecked', 'false');
-                                linkRadio.setAttribute('data-waschecked', 'false');
-                                target.setAttribute('data-waschecked', 'true');
-                            }
-
-                            const effectiveCheckedState = target.checked;
-                            const childRows = cell.getRow().getTreeChildren();
-
-                            childRows.forEach(row => {
-                                const rowEl = row.getElement();
-                                // Skip disabled rows and footer rows
-                                if (rowEl.classList.contains('disabled-row') || row.getData().isGroupFooter) {
-                                    return;
-                                }
-
-                                const actionCell = row.getCell('action').getElement();
-                                const childRadio = actionCell.querySelector(`input[value="${action}"]`);
-
-                                if (childRadio) {
-                                    // If group is checked, click children that are NOT checked.
-                                    // If group is unchecked, click children that ARE checked.
-                                    if ((effectiveCheckedState && !childRadio.checked) || (!effectiveCheckedState && childRadio.checked)) {
-                                        childRadio.click();
-                                    }
-                                }
-                            });
-                        };
-
-                        delRadio.addEventListener('click', groupActionChangeHandler);
-                        linkRadio.addEventListener('click', groupActionChangeHandler);
-
-
-                        container.appendChild(delRadio);
-                        container.appendChild(delLabel);
-                        container.appendChild(linkRadio);
-                        container.appendChild(linkLabel);
-
-                        return container;
-                    }
-
-                    // Group Footer
-                    if (data.isGroupFooter) {
-                        return "";
-                    }
-
-                    // Child Row
-                    const uniqueName = "action_" + data.ino;
-                    const container = document.createElement("div");
-
-                    // --- Delete Radio ---
-                    const delRadio = document.createElement("input");
-                    delRadio.type = "radio";
-                    delRadio.name = uniqueName;
-                    delRadio.value = "delete";
-                    delRadio.id = `del_${uniqueName}`;
-                    delRadio.dataset.nullable = true;
-                    if (actionQueueData[data.path] === 'delete') {
-                        delRadio.checked = true;
-                        delRadio.setAttribute('data-waschecked', 'true');
-                    }
-
-                    const delLabel = document.createElement("label");
-                    delLabel.htmlFor = `del_${uniqueName}`;
-                    delLabel.title = "Delete";
-                    delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
-
-                    // --- Link Radio ---
-                    const linkRadio = document.createElement("input");
-                    linkRadio.type = "radio";
-                    linkRadio.name = uniqueName;
-                    linkRadio.value = "link";
-                    linkRadio.id = `link_${uniqueName}`;
-                    linkRadio.dataset.nullable = true;
-                    if (actionQueueData[data.path] === 'link') {
-                        linkRadio.checked = true;
-                        linkRadio.setAttribute('data-waschecked', 'true');
-                    }
-
-                    const linkLabel = document.createElement("label");
-                    linkLabel.htmlFor = `link_${uniqueName}`;
-                    linkLabel.title = "Hardlink";
-                    linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
-
-                    // --- Event Handling for Nullable ---
-                        const actionChangeHandler = function(e) {
-                        const target = e.target;
-                            const filePath = cell.getRow().getData().path;
-
-                            // Handle nullable logic
-                        if (target.checked && target.getAttribute('data-waschecked') === 'true') {
-                            target.checked = false;
-                            target.setAttribute('data-waschecked', 'false');
-                            // Remove from queue and table
-                            removeFileActionFromQueue(filePath);
-                        } else {
-                                // Set waschecked for all radios in this cell
-                            delRadio.setAttribute('data-waschecked', 'false');
-                            linkRadio.setAttribute('data-waschecked', 'false');
-                            target.setAttribute('data-waschecked', 'true');
-                                // Add/update in queue and table
-                                dirtySock('setFileAction', { path: filePath, action: target.value });
-                                // Remove existing entry if it exists, then add the new one
-                                actionQueueTable.getRows().forEach(row => {
-                                    if (row.getData().file === filePath) {
-                                        row.delete();
-                                    }
-                                });
-                                actionQueueTable.addRow({ action: target.value, file: filePath });
-                        }
-                    };
-
-                        delRadio.addEventListener('click', actionChangeHandler);
-                        linkRadio.addEventListener('click', actionChangeHandler);
-
-                    container.appendChild(delRadio);
-                    container.appendChild(delLabel);
-                    container.appendChild(linkRadio);
-                    container.appendChild(linkLabel);
-
-                    return container;
-                }
-            },
-            {
-                title: "File/Group",
-                field: "path",
-                formatter: treeFormatter,
-                headerSort: false,
-                htmlOutput:true,
-                widthGrow: 1,
-                bottomCalc: function(values, data, calcParams) {
-                    // Count only the actual file rows (not group headers or footers)
-                    let count = 0;
-                    data.forEach(group => {
-                        if (group._children) {
-                            group._children.forEach(child => {
-                                if (!child.isGroupFooter) {
-                                    count++;
-                                }
-                            });
-                        }
-                    });
-                    return `Total Files: ${count}`;
-                }
-            },
-            { title: "Size", field: "size", formatter: formatSize, width: 90, resizable: false },
-            { title: "Accessed", field: "atime", formatter: formatDate, width: 170, resizable: false },
-            { title: "Modified", field: "mtime", formatter: formatDate, width: 170, resizable: false },
-            { title: "Changed", field: "ctime", formatter: formatDate, width: 170, resizable: false }
-        ],
-    });
 
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
 
         socket.onopen = function() {
             console.log("Tabulator Tab: WebSocket connection established.");
-            // Request the consolidated data payload
             dirtySock('findDuplicates', null);
         };
 
@@ -419,46 +65,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (action === 'duplicateFiles') {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
-                const { duplicates, state, queue } = data;
-                processAndRenderTable(duplicates, state, queue);
+                const { duplicates } = data; // We only need the duplicates for now
+
+                // Tabulator's groupBy expects a flat array. Let's transform the data.
+                const flatData = duplicates.flatMap(group =>
+                    group.files.map(file => ({
+                        ...file,
+                        hash: group.hash // Add the group hash to each file object
+                    }))
+                );
+
+                initializeTable(flatData);
             }
         };
-
-        function processAndRenderTable(duplicateFilesData, originalFileState, receivedActionQueueData) {
-            console.log("Tabulator Tab: Processing and rendering tables.");
-
-            // Store the queue data for use in formatters
-            actionQueueData = receivedActionQueueData;
-
-            // 1. Populate the Action Queue table
-            const queueTableData = Object.entries(actionQueueData).map(([path, action]) => ({
-                action: action,
-                file: path,
-            }));
-            actionQueueTable.setData(queueTableData);
-
-
-            // 2. Populate the main duplicates table
-            const tableData = duplicateFilesData.map(group => {
-                const originalIno = originalFileState[group.hash];
-
-                const children = group.files.map((file, index) => {
-                    const isOriginal = originalIno ? (file.ino === originalIno) : (index === 0);
-                    return { ...file, isOriginal };
-                });
-
-                children.push({
-                    isGroupFooter: true,
-                    hash: group.hash,
-                    count: group.count,
-                    totalSize: group.totalSize
-                });
-
-                return { ...group, _children: children };
-            });
-
-            table.setData(tableData);
-        }
 
         socket.onclose = function(event) {
             console.log("Tabulator Tab: WebSocket connection closed. Reconnecting...");
@@ -469,6 +88,21 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error("Tabulator Tab: WebSocket error: ", error);
             socket.close();
         };
+    }
+
+    function initializeTable(data) {
+        table = new Tabulator("#tabulator-table", {
+            height: "100%",
+            data: data,
+            placeholder: "No duplicate files found.",
+            layout: "fitColumns",
+            groupBy: "hash",
+            columns: [
+                { title: "Path", field: "path", widthGrow: 1 },
+                { title: "Size", field: "size", width: 120, formatter: "money", formatterParams: { symbol: " B", precision: 0 } },
+                { title: "Modified", field: "mtime", width: 170, formatter: "datetime", formatterParams: { outputFormat: "YYYY-MM-DD hh:mm:ss A" } },
+            ],
+        });
     }
 
     function dirtySock(action, data) {
