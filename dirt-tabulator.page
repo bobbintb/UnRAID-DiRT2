@@ -126,17 +126,27 @@ document.addEventListener('DOMContentLoaded', function() {
             const span = document.createElement('span');
             span.textContent = ` (${count} files, ${formatBytes(totalSize)})`;
 
+            // Main container to mimic column layout
             const container = document.createElement('div');
-            container.appendChild(strong);
-            container.appendChild(span);
+            container.style.display = 'flex';
+            container.style.alignItems = 'center';
 
-            // Add Action Radios to the group header
+            // 1. Spacer for the 'isPrimary' column (width: 30px)
+            const primarySpacer = document.createElement('div');
+            primarySpacer.style.width = '30px';
+            primarySpacer.style.minWidth = '30px';
+            container.appendChild(primarySpacer);
+
+            // 2. Container for Action Buttons (width: 80px)
             const groupHash = value;
             const uniqueName = "action_group_" + groupHash;
             const actionContainer = document.createElement("div");
             actionContainer.className = 'group-action-container';
+            actionContainer.style.width = '80px';
+            actionContainer.style.minWidth = '80px';
+            actionContainer.style.display = 'flex';
+            actionContainer.style.justifyContent = 'center';
 
-            // --- Delete Radio ---
             const delRadio = document.createElement("input");
             delRadio.type = "radio";
             delRadio.name = uniqueName;
@@ -149,7 +159,6 @@ document.addEventListener('DOMContentLoaded', function() {
             delLabel.title = "Delete All";
             delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
 
-            // --- Link Radio ---
             const linkRadio = document.createElement("input");
             linkRadio.type = "radio";
             linkRadio.name = uniqueName;
@@ -166,14 +175,22 @@ document.addEventListener('DOMContentLoaded', function() {
             actionContainer.appendChild(delLabel);
             actionContainer.appendChild(linkRadio);
             actionContainer.appendChild(linkLabel);
+            container.appendChild(actionContainer);
 
-            // --- Event Handling for Group Header Actions ---
+            // 3. Container for the group info text
+            const infoContainer = document.createElement('div');
+            infoContainer.style.paddingLeft = '4px';
+            infoContainer.appendChild(strong);
+            infoContainer.appendChild(span);
+            container.appendChild(infoContainer);
+
+
+            // Event Handling for Group Header Actions
             const groupActionChangeHandler = function(e) {
                 e.stopPropagation(); // Prevent group from collapsing/expanding
                 const target = e.target;
                 const action = target.value;
 
-                // Handle nullable logic
                 if (target.checked && target.getAttribute('data-waschecked') === 'true') {
                     target.checked = false;
                     target.setAttribute('data-waschecked', 'false');
@@ -189,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 childRows.forEach(row => {
                     const rowEl = row.getElement();
                     if (rowEl.classList.contains('disabled-row')) {
-                        return; // Skip disabled rows
+                        return;
                     }
                     const actionCell = row.getCell('action').getElement();
                     const childRadio = actionCell.querySelector(`input[value="${action}"]`);
@@ -203,8 +220,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
             delRadio.addEventListener('click', groupActionChangeHandler);
             linkRadio.addEventListener('click', groupActionChangeHandler);
-
-            container.appendChild(actionContainer);
 
             return container;
         },
