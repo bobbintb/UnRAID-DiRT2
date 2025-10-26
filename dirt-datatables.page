@@ -119,6 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
             paging: false,
             searching: false,
             info: false,
+            autoWidth: false,
             language: {
                 emptyTable: "No duplicate files found."
             },
