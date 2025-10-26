@@ -130,7 +130,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const container = document.createElement('div');
             container.style.display = 'flex';
             container.style.alignItems = 'center';
-            container.style.marginLeft = '-10px'; // Counteract Tabulator's default group padding
 
             // 1. Spacer for the 'isPrimary' column (width: 30px)
             const primarySpacer = document.createElement('div');

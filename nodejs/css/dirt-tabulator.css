@@ -63,3 +63,8 @@
 .tabulator-cell[tabulator-field="action"] {
     background-color: transparent !important;
 }
+
+/* Override default group header padding to allow for custom alignment */
+.tabulator-group {
+    padding-left: 0px !important;
+}
