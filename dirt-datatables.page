@@ -2,7 +2,6 @@ Menu="dirtSettings:3"
 Title="DataTables"
 ---
 <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css">
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 <script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
@@ -38,7 +37,7 @@ Title="DataTables"
         <table id="datatables-table" class="display" style="width:100%"></table>
     </div>
     <div id="right-pane" class="split">
-        <!-- Right table will go here -->
+        <table id="right-table" class="display" style="width:100%"></table>
     </div>
 </div>
 
@@ -53,7 +52,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- WebSocket and Table Implementation ---
     let socket;
-    let table;
+    let leftTable;
+    let rightTable;
 
     function formatBytes(bytes, decimals = 2) {
         if (!bytes || bytes === 0) return '0 Bytes';
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }))
                 );
 
-                initializeTable(flatData);
+                initializeTables(flatData);
             }
         };
 
@@ -108,13 +108,14 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    function initializeTable(data) {
+    function initializeTables(data) {
+        // Left Table
         if ($.fn.DataTable.isDataTable('#datatables-table')) {
             $('#datatables-table').DataTable().destroy();
-            $('#datatables-table tbody').empty(); // Clear tbody to remove old event listeners
+            $('#datatables-table tbody').empty();
         }
 
-        table = new DataTable('#datatables-table', {
+        leftTable = new DataTable('#datatables-table', {
             data: data,
             paging: false,
             searching: false,
@@ -153,15 +154,27 @@ document.addEventListener('DOMContentLoaded', function() {
             const icon = $this.find('.toggle-icon');
             let nextUntil = $this.nextUntil('tr.group');
 
-            // Toggle visibility of the child rows
             nextUntil.toggle();
+            icon.text(nextUntil.is(':visible') ? '▼' : '▶');
+        });
 
-            // Update the icon
-            if (nextUntil.is(':visible')) {
-                icon.text('▼');
-            } else {
-                icon.text('▶');
-            }
+        // Right Table
+        if ($.fn.DataTable.isDataTable('#right-table')) {
+            $('#right-table').DataTable().destroy();
+        }
+
+        rightTable = new DataTable('#right-table', {
+            data: [],
+            paging: false,
+            searching: false,
+            info: false,
+            language: {
+                emptyTable: "No actions selected."
+            },
+            columns: [
+                { title: 'Action' },
+                { title: 'Path' }
+            ]
         });
     }
 
@@ -178,6 +191,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Initial setup on DOM ready
+    initializeTables([]);
     connect();
 });
 </script>

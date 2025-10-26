@@ -34,7 +34,7 @@ Title="Tabulator"
         <div id="tabulator-table"></div>
     </div>
     <div id="right-pane" class="split">
-        <!-- Right table will go here -->
+        <div id="right-table"></div>
     </div>
 </div>
 
@@ -49,7 +49,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- WebSocket and Table Implementation ---
     let socket;
-    let table;
+    let leftTable;
+    let rightTable;
 
     function formatBytes(bytes, decimals = 2) {
         if (!bytes || bytes === 0) return '0 Bytes';
@@ -84,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }))
                 );
 
-                initializeTable(flatData);
+                initializeTables(flatData);
             }
         };
 
@@ -99,8 +100,9 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    function initializeTable(data) {
-        table = new Tabulator("#tabulator-table", {
+    function initializeTables(data) {
+        // Left Table
+        leftTable = new Tabulator("#tabulator-table", {
             height: "100%",
             data: data,
             placeholder: "No duplicate files found.",
@@ -110,6 +112,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 { title: "Path", field: "path", widthGrow: 1 },
                 { title: "Size", field: "size", width: 120, formatter: (cell) => formatBytes(cell.getValue()) },
                 { title: "Modified", field: "mtime", width: 170, formatter: (cell) => cell.getValue() ? new Date(cell.getValue()).toLocaleString() : "" },
+            ],
+        });
+
+        // Right Table
+        rightTable = new Tabulator("#right-table", {
+            height: "100%",
+            data: [],
+            placeholder: "No actions selected.",
+            layout: "fitColumns",
+            columns: [
+                { title: "Action", field: "action", widthGrow: 1 },
+                { title: "Path", field: "path", widthGrow: 2 },
             ],
         });
     }
@@ -127,6 +141,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Initial setup on DOM ready, before WebSocket connects
+    initializeTables([]);
     connect();
 });
 </script>
