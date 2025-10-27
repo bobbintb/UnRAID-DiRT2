@@ -34,10 +34,10 @@ Title="DataTables"
 
 <div class="split-container">
     <div id="left-pane" class="split">
-        <table id="datatables-table" class="display" style="width:100%"></table>
+        <table id="datatables-table" style="width:100%"></table>
     </div>
     <div id="right-pane" class="split">
-        <table id="right-table" class="display" style="width:100%"></table>
+        <table id="right-table" style="width:100%"></table>
     </div>
 </div>
 
