@@ -241,11 +241,59 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             {
-                title: "Action",
                 field: "action",
                 hozAlign: "center",
                 headerSort: false,
                 width: 80,
+                titleFormatter: function() {
+                    const uniqueName = "action_group_table_header";
+                    return `
+                        <div class="group-action-container">
+                            <input type="radio" name="${uniqueName}" value="delete" id="del_${uniqueName}" data-nullable="true">
+                            <label for="del_${uniqueName}" title="Delete All"><i class="fa fa-trash"></i></label>
+                            <input type="radio" name="${uniqueName}" value="link" id="link_${uniqueName}" data-nullable="true">
+                            <label for="link_${uniqueName}" title="Hardlink All"><i class="fa fa-link"></i></label>
+                        </div>
+                    `;
+                },
+                headerRendered: function(column) {
+                    const headerEl = column.getElement();
+                    const delRadio = headerEl.querySelector('input[value="delete"]');
+                    const linkRadio = headerEl.querySelector('input[value="link"]');
+
+                    const headerActionClickHandler = function(e) {
+                        const target = e.target;
+                        const action = target.value;
+
+                        // Handle nullable radio logic
+                        if (target.checked && target.getAttribute('data-waschecked') === 'true') {
+                            target.checked = false;
+                            target.setAttribute('data-waschecked', 'false');
+                        } else {
+                            // Unset waschecked on both before setting it on the target
+                            delRadio.setAttribute('data-waschecked', 'false');
+                            linkRadio.setAttribute('data-waschecked', 'false');
+                            target.setAttribute('data-waschecked', 'true');
+                        }
+
+                        const effectiveCheckedState = target.checked;
+                        const groups = table.getGroups();
+
+                        groups.forEach(group => {
+                            const groupEl = group.getElement();
+                            const groupRadio = groupEl.querySelector(`input[value="${action}"]`);
+                            if (groupRadio) {
+                                // Click the group radio only if its state is different from the header's state
+                                if ((effectiveCheckedState && !groupRadio.checked) || (!effectiveCheckedState && groupRadio.checked)) {
+                                    groupRadio.click();
+                                }
+                            }
+                        });
+                    };
+
+                    delRadio.addEventListener('click', headerActionClickHandler);
+                    linkRadio.addEventListener('click', headerActionClickHandler);
+                },
                 formatter: function(cell, formatterParams, onRendered) {
                     const data = cell.getRow().getData();
                     const uniqueName = "action_" + data.ino;
