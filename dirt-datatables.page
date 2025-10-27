@@ -24,11 +24,16 @@ Title="DataTables"
         display: inline-block;
         width: 10px;
     }
+    .disabled-row {
+        pointer-events: none;
+        opacity: 0.6;
+    }
 </style>
 
 <table id="duplicatesTableElement" class="display" style="width:100%">
     <thead>
         <tr>
+            <th></th>
             <th>File/Group</th>
             <th>Size</th>
             <th>Accessed</th>
@@ -60,9 +65,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Convert grouped data to flat rows for DataTables
-    function convertDataForDataTables(groups) {
+    function convertDataForDataTables(groups, state) {
         const rows = [];
         groups.forEach(group => {
+            const originalIno = state[group.hash];
+
             // Add parent row
             rows.push({
                 isGroup: true,
@@ -77,16 +84,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 groupHash: group.hash,
                 expanded: true
             });
+
             // Add child rows
-            group.files.forEach(file => {
+            group.files.forEach((file, index) => {
+                const isOriginal = originalIno ? (file.ino === originalIno) : (index === 0);
                 rows.push({
                     isGroup: false,
-                    path: file.path,
-                    size: file.size,
-                    atime: file.atime,
-                    mtime: file.mtime,
-                    ctime: file.ctime,
-                    groupHash: group.hash
+                    ...file, // Spread the file properties
+                    groupHash: group.hash,
+                    isOriginal: isOriginal
                 });
             });
         });
@@ -97,6 +103,18 @@ document.addEventListener('DOMContentLoaded', function() {
     table = new DataTable('#duplicatesTableElement', {
         data: [],
         columns: [
+            {
+                data: null, // This column doesn't have a direct data source
+                render: function(data, type, row) {
+                    if (type === 'display' && !row.isGroup) {
+                        const checked = row.isOriginal ? 'checked' : '';
+                        return `<input type="radio" name="original_group_${row.groupHash}" ${checked} />`;
+                    }
+                    return ''; // Return empty for group rows and non-display types
+                },
+                orderable: false,
+                className: 'select-radio'
+            },
             {
                 data: 'path',
                 render: function(data, type, row) {
@@ -152,6 +170,9 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 row.classList.add('child-row');
                 row.setAttribute('data-parent-hash', data.groupHash);
+                if (data.isOriginal) {
+                    row.classList.add('disabled-row');
+                }
             }
         }
     });
@@ -176,6 +197,34 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Handle radio button clicks to set the original file
+    document.querySelector('#duplicatesTableElement tbody').addEventListener('click', function(e) {
+        const radio = e.target.closest('input[type="radio"]');
+        if (!radio) return;
+
+        const clickedRowElement = e.target.closest('tr');
+        if (!clickedRowElement) return;
+
+        const rowData = table.row(clickedRowElement).data();
+        const groupHash = rowData.groupHash;
+        const fileIno = rowData.ino;
+
+        // Send the selection to the backend
+        dirtySock('setOriginalFile', { hash: groupHash, ino: fileIno });
+
+        // Update the UI
+        const parentHash = clickedRowElement.getAttribute('data-parent-hash');
+        const allRowsInGroup = document.querySelectorAll(`tr.child-row[data-parent-hash="${parentHash}"]`);
+
+        allRowsInGroup.forEach(row => {
+            if (row === clickedRowElement) {
+                row.classList.add('disabled-row');
+            } else {
+                row.classList.remove('disabled-row');
+            }
+        });
+    });
+
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
 
@@ -192,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("DataTables Tab: Received duplicateFiles data.");
                 const { duplicates, state, queue } = data;
                 duplicateData = duplicates; // Assuming you want to store the array of groups
-                const tableData = convertDataForDataTables(duplicates);
+                const tableData = convertDataForDataTables(duplicates, state || {});
                 table.clear();
                 table.rows.add(tableData);
                 table.draw();
