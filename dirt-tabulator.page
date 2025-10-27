@@ -34,7 +34,7 @@ Title="Tabulator"
         <div id="tabulator-table"></div>
     </div>
     <div id="right-pane" class="split">
-            <table id="right-table-tabulator"></table>
+            <div id="right-table-tabulator"></div>
     </div>
 </div>
 

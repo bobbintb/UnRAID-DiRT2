@@ -37,7 +37,7 @@ Title="DataTables"
         <table id="datatables-table" style="width:100%"></table>
     </div>
     <div id="right-pane" class="split">
-        <table id="right-table-datatables" class="display" style="width:100%"></table>
+        <table id="right-table-datatables" style="width:100%"></table>
     </div>
 </div>
 
@@ -149,7 +149,7 @@ $(document).ready(function() {
             }
         });
 
-        $('#datatables-table tbody').on('click', 'tr.group', function () {
+        $('#datatables-table').on('click', 'tbody tr.group', function () {
             const $this = $(this);
             const icon = $this.find('.toggle-icon');
             let nextUntil = $this.nextUntil('tr.group');
