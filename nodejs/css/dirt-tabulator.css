@@ -1,7 +1,7 @@
 #split {
     display: flex;
     flex-direction: row;
-    height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
+    height: calc(100vh - 225px); /* Adjust for Unraid header/footer */
 }
 
 .gutter {
