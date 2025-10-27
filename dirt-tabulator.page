@@ -245,26 +245,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 hozAlign: "center",
                 headerSort: false,
                 width: 80,
-                titleFormatter: function() {
+                titleFormatter: function(cell, formatterParams, onRendered){
                     const uniqueName = "action_group_table_header";
-                    // This HTML structure MUST mirror the groupHeader's structure for consistent styling
-                    return `
-                        <div class="group-header-flex-container" style="justify-content: center;">
-                            <div class="group-action-container">
-                                <input type="radio" name="${uniqueName}" value="delete" id="del_${uniqueName}" data-nullable="true">
-                                <label for="del_${uniqueName}" title="Delete All"><i class="fa fa-trash"></i></label>
-                                <input type="radio" name="${uniqueName}" value="link" id="link_${uniqueName}" data-nullable="true">
-                                <label for="link_${uniqueName}" title="Hardlink All"><i class="fa fa-link"></i></label>
-                            </div>
+
+                    // Create a container div, mirroring the groupHeader structure for correct styling and functionality
+                    const container = document.createElement('div');
+                    container.className = 'group-header-flex-container';
+                    container.style.justifyContent = 'center';
+
+                    container.innerHTML = `
+                        <div class="group-action-container">
+                            <input type="radio" name="${uniqueName}" value="delete" id="del_${uniqueName}" data-nullable="true">
+                            <label for="del_${uniqueName}" title="Delete All"><i class="fa fa-trash"></i></label>
+                            <input type="radio" name="${uniqueName}" value="link" id="link_${uniqueName}" data-nullable="true">
+                            <label for="link_${uniqueName}" title="Hardlink All"><i class="fa fa-link"></i></label>
                         </div>
                     `;
-                },
-                headerRendered: function(column) {
-                    const headerEl = column.getElement();
-                    const delRadio = headerEl.querySelector('input[value="delete"]');
-                    const linkRadio = headerEl.querySelector('input[value="link"]');
 
-                    // This logic is copied verbatim from the groupActionChangeHandler to ensure correctness
+                    // Find the radio buttons within the newly created HTML
+                    const delRadio = container.querySelector(`#del_${uniqueName}`);
+                    const linkRadio = container.querySelector(`#link_${uniqueName}`);
+
+                    // Event Handling - this logic is adapted directly from the working groupHeader handler
                     const headerActionClickHandler = function(e) {
                         const target = e.target;
                         const action = target.value;
@@ -274,7 +276,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             target.checked = false;
                             target.setAttribute('data-waschecked', 'false');
                         } else {
-                            // Unset waschecked on both before setting it on the target
                             delRadio.setAttribute('data-waschecked', 'false');
                             linkRadio.setAttribute('data-waschecked', 'false');
                             target.setAttribute('data-waschecked', 'true');
@@ -297,6 +298,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     delRadio.addEventListener('click', headerActionClickHandler);
                     linkRadio.addEventListener('click', headerActionClickHandler);
+
+                    return container;
                 },
                 formatter: function(cell, formatterParams, onRendered) {
                     const data = cell.getRow().getData();
