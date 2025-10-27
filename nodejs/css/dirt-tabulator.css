@@ -103,3 +103,7 @@
 .group-info-container {
     padding-left: 4px;
 }
+
+.tabulator-group .tabulator-group-toggle {
+    padding-right: 3.5px;
+}
