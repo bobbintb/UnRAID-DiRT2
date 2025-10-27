@@ -1,5 +1,6 @@
-Menu="dirtSettings:2"
-Title="Tabulator"
+Menu="DiskUtilities"
+Title="Deduplication in Real-Time"
+Icon="fa-search-minus"
 ---
 <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
 <link href="/plugins/bobbintb.system.dirt/nodejs/css/dirt-tabulator.css" rel="stylesheet">
@@ -244,7 +245,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "action",
                 hozAlign: "center",
                 headerSort: false,
-                width: 80,
+                width: 65,
+                resizable: false,
                 titleFormatter: function(cell, formatterParams, onRendered){
                     const uniqueName = "action_group_table_header";
 

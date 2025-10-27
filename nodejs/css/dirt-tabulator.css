@@ -1,7 +1,7 @@
 #split {
     display: flex;
     flex-direction: row;
-    height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
+    height: calc(100vh - 245px); /* Adjust for Unraid header/footer */
 }
 
 .gutter {
@@ -94,12 +94,16 @@
 }
 
 .group-action-container {
-    width: 80px;
-    min-width: 80px;
+    width: 65px;
+    min-width: 65px;
     display: flex;
     justify-content: center;
 }
 
 .group-info-container {
     padding-left: 4px;
+}
+
+.tabulator-group .tabulator-group-toggle {
+    padding-right: 3.5px;
 }
