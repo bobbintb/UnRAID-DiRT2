@@ -190,8 +190,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (action === 'duplicateFiles') {
                 console.log("DataTables Tab: Received duplicateFiles data.");
-                duplicateData = data;
-                const tableData = convertDataForDataTables(data);
+                const { duplicates, state, queue } = data;
+                duplicateData = duplicates; // Assuming you want to store the array of groups
+                const tableData = convertDataForDataTables(duplicates);
                 table.clear();
                 table.rows.add(tableData);
                 table.draw();
