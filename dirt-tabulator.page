@@ -95,47 +95,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper function to format dates
     function formatDate(cell) {
-        const data = cell.getRow().getData();
-        if (data.isGroupFooter) {
-            return "";
-        }
         const value = cell.getValue();
         return value ? new Date(value).toLocaleString() : '';
     }
 
     // Helper function to format size
     function formatSize(cell) {
-        const data = cell.getRow().getData();
-        if (data.isGroupFooter || !!data._children) {
-            return "";
-        }
         const value = cell.getValue();
         return formatBytes(value);
     }
-
-    // Custom formatter for the tree's first column
-    const treeFormatter = (cell, formatterParams, onRendered) => {
-        const data = cell.getRow().getData();
-        const isParent = !!data._children; // Check if it's a parent group
-
-        if (isParent) {
-            const strong = document.createElement('strong');
-            strong.textContent = `Group: ${data.hash}`;
-
-            const span = document.createElement('span');
-            span.textContent = ` (${data.count} files, ${formatBytes(data.totalSize)})`;
-
-            const container = document.createElement('div');
-            container.appendChild(strong);
-            container.appendChild(span);
-            return container;
-        } else if (data.isGroupFooter) {
-            return `Group Total: ${data.count} files`;
-        } else {
-            // It's a child row, just show the path
-            return data.path;
-        }
-    };
 
     // The Tabulator table definition
     table = new Tabulator("#duplicatesTable", {
@@ -143,16 +111,121 @@ document.addEventListener('DOMContentLoaded', function() {
         data: [], // Set initial data to empty
         placeholder: "No duplicate files found",
         layout: "fitColumns",
-        dataTree: true,
-        dataTreeChildColumnCalcs: true, // include child rows in column calculations
-        dataTreeStartExpanded: true, // Expand all nodes by default
-        dataTreeChildIndent: 0, // Remove tree branch indentation
-        dataTreeSelectPropagate: false, // Disable default parent/child selection propagation
+        groupBy: "hash",
+        groupHeader: function(value, count, data, group) {
+            // value - the value all members of this group share (the hash)
+            // count - the number of rows in this group
+            // data - an array of all the row data objects in this group
+
+            // Calculate total size
+            const totalSize = data.reduce((acc, row) => acc + (row.size || 0), 0);
+
+            const strong = document.createElement('strong');
+            strong.textContent = `Group: ${value}`;
+
+            const span = document.createElement('span');
+            span.textContent = ` (${count} files, ${formatBytes(totalSize)})`;
+
+            // Main container to mimic column layout
+            const container = document.createElement('div');
+            container.style.display = 'flex';
+            container.style.alignItems = 'center';
+
+            // 1. Spacer for the 'isPrimary' column (width: 30px)
+            const primarySpacer = document.createElement('div');
+            primarySpacer.style.width = '30px';
+            primarySpacer.style.minWidth = '30px';
+            container.appendChild(primarySpacer);
+
+            // 2. Container for Action Buttons (width: 80px)
+            const groupHash = value;
+            const uniqueName = "action_group_" + groupHash;
+            const actionContainer = document.createElement("div");
+            actionContainer.className = 'group-action-container';
+            actionContainer.style.width = '80px';
+            actionContainer.style.minWidth = '80px';
+            actionContainer.style.display = 'flex';
+            actionContainer.style.justifyContent = 'center';
+
+            const delRadio = document.createElement("input");
+            delRadio.type = "radio";
+            delRadio.name = uniqueName;
+            delRadio.value = "delete";
+            delRadio.id = `del_${uniqueName}`;
+            delRadio.dataset.nullable = true;
+
+            const delLabel = document.createElement("label");
+            delLabel.htmlFor = `del_${uniqueName}`;
+            delLabel.title = "Delete All";
+            delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
+
+            const linkRadio = document.createElement("input");
+            linkRadio.type = "radio";
+            linkRadio.name = uniqueName;
+            linkRadio.value = "link";
+            linkRadio.id = `link_${uniqueName}`;
+            linkRadio.dataset.nullable = true;
+
+            const linkLabel = document.createElement("label");
+            linkLabel.htmlFor = `link_${uniqueName}`;
+            linkLabel.title = "Hardlink All";
+            linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
+
+            actionContainer.appendChild(delRadio);
+            actionContainer.appendChild(delLabel);
+            actionContainer.appendChild(linkRadio);
+            actionContainer.appendChild(linkLabel);
+            container.appendChild(actionContainer);
+
+            // 3. Container for the group info text
+            const infoContainer = document.createElement('div');
+            infoContainer.style.paddingLeft = '4px';
+            infoContainer.appendChild(strong);
+            infoContainer.appendChild(span);
+            container.appendChild(infoContainer);
+
+
+            // Event Handling for Group Header Actions
+            const groupActionChangeHandler = function(e) {
+                e.stopPropagation(); // Prevent group from collapsing/expanding
+                const target = e.target;
+                const action = target.value;
+
+                if (target.checked && target.getAttribute('data-waschecked') === 'true') {
+                    target.checked = false;
+                    target.setAttribute('data-waschecked', 'false');
+                } else {
+                    delRadio.setAttribute('data-waschecked', 'false');
+                    linkRadio.setAttribute('data-waschecked', 'false');
+                    target.setAttribute('data-waschecked', 'true');
+                }
+
+                const effectiveCheckedState = target.checked;
+                const childRows = group.getRows();
+
+                childRows.forEach(row => {
+                    const rowEl = row.getElement();
+                    if (rowEl.classList.contains('disabled-row')) {
+                        return;
+                    }
+                    const actionCell = row.getCell('action').getElement();
+                    const childRadio = actionCell.querySelector(`input[value="${action}"]`);
+                    if (childRadio) {
+                        if ((effectiveCheckedState && !childRadio.checked) || (!effectiveCheckedState && childRadio.checked)) {
+                            childRadio.click();
+                        }
+                    }
+                });
+            };
+
+            delRadio.addEventListener('click', groupActionChangeHandler);
+            linkRadio.addEventListener('click', groupActionChangeHandler);
+
+            return container;
+        },
         rowFormatter: function(row) {
             const data = row.getData();
-            if (data.isGroupFooter) {
-                row.getElement().classList.add('group-footer');
-            } else if (data.isOriginal) {
+            if (data.isOriginal) {
                 row.getElement().classList.add('disabled-row');
             }
         },
@@ -167,21 +240,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 resizable: false,
                 formatter: function(cell, formatterParams, onRendered) {
                     const data = cell.getRow().getData();
-                    if (data.isGroupFooter || !!data._children) {
-                        return "";
-                    }
                     const radio = document.createElement("input");
                     radio.type = "radio";
-                    radio.name = "primary_group_" + cell.getRow().getTreeParent().getData().hash;
+                    radio.name = "primary_group_" + data.hash;
                     radio.checked = data.isOriginal;
 
                     radio.addEventListener('click', function() {
                         const clickedRow = cell.getRow();
-                        const groupRows = clickedRow.getTreeParent().getTreeChildren();
+                        const groupRows = clickedRow.getGroup().getRows();
 
                         groupRows.forEach(row => {
                             const rowEl = row.getElement();
-                            if (row === clickedRow) {
+                            if (row.getData().ino === clickedRow.getData().ino) {
                                 rowEl.classList.add('disabled-row');
                                 // Uncheck any action radios in this row and remove from queue
                                 const actionRadios = rowEl.querySelectorAll('.tabulator-cell[tabulator-field="action"] input[type="radio"]');
@@ -193,7 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
 
                         // Send the selection to the backend
-                        const groupHash = clickedRow.getTreeParent().getData().hash;
+                        const groupHash = clickedRow.getData().hash;
                         const fileIno = clickedRow.getData().ino;
                         dirtySock('setOriginalFile', { hash: groupHash, ino: fileIno });
                     });
@@ -209,96 +279,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 80,
                 formatter: function(cell, formatterParams, onRendered) {
                     const data = cell.getRow().getData();
-
-                    // Group Header
-                    if (!!data._children) {
-                        const groupHash = data.hash;
-                        const uniqueName = "action_group_" + groupHash;
-                        const container = document.createElement("div");
-
-                        // --- Delete Radio ---
-                        const delRadio = document.createElement("input");
-                        delRadio.type = "radio";
-                        delRadio.name = uniqueName;
-                        delRadio.value = "delete";
-                        delRadio.id = `del_${uniqueName}`;
-                        delRadio.dataset.nullable = true;
-
-                        const delLabel = document.createElement("label");
-                        delLabel.htmlFor = `del_${uniqueName}`;
-                        delLabel.title = "Delete All";
-                        delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
-
-                        // --- Link Radio ---
-                        const linkRadio = document.createElement("input");
-                        linkRadio.type = "radio";
-                        linkRadio.name = uniqueName;
-                        linkRadio.value = "link";
-                        linkRadio.id = `link_${uniqueName}`;
-                        linkRadio.dataset.nullable = true;
-
-                        const linkLabel = document.createElement("label");
-                        linkLabel.htmlFor = `link_${uniqueName}`;
-                        linkLabel.title = "Hardlink All";
-                        linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
-
-                        // --- Event Handling for Group Header ---
-                        const groupActionChangeHandler = function(e) {
-                            const target = e.target;
-                            const action = target.value; // 'delete' or 'link'
-
-                            // Handle nullable logic for the group header radio itself
-                            if (target.checked && target.getAttribute('data-waschecked') === 'true') {
-                                target.checked = false;
-                                target.setAttribute('data-waschecked', 'false');
-                            } else {
-                                // Set waschecked for all radios in this group header cell
-                                delRadio.setAttribute('data-waschecked', 'false');
-                                linkRadio.setAttribute('data-waschecked', 'false');
-                                target.setAttribute('data-waschecked', 'true');
-                            }
-
-                            const effectiveCheckedState = target.checked;
-                            const childRows = cell.getRow().getTreeChildren();
-
-                            childRows.forEach(row => {
-                                const rowEl = row.getElement();
-                                // Skip disabled rows and footer rows
-                                if (rowEl.classList.contains('disabled-row') || row.getData().isGroupFooter) {
-                                    return;
-                                }
-
-                                const actionCell = row.getCell('action').getElement();
-                                const childRadio = actionCell.querySelector(`input[value="${action}"]`);
-
-                                if (childRadio) {
-                                    // If group is checked, click children that are NOT checked.
-                                    // If group is unchecked, click children that ARE checked.
-                                    if ((effectiveCheckedState && !childRadio.checked) || (!effectiveCheckedState && childRadio.checked)) {
-                                        childRadio.click();
-                                    }
-                                }
-                            });
-                        };
-
-                        delRadio.addEventListener('click', groupActionChangeHandler);
-                        linkRadio.addEventListener('click', groupActionChangeHandler);
-
-
-                        container.appendChild(delRadio);
-                        container.appendChild(delLabel);
-                        container.appendChild(linkRadio);
-                        container.appendChild(linkLabel);
-
-                        return container;
-                    }
-
-                    // Group Footer
-                    if (data.isGroupFooter) {
-                        return "";
-                    }
-
-                    // Child Row
                     const uniqueName = "action_" + data.ino;
                     const container = document.createElement("div");
 
@@ -376,26 +356,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             {
-                title: "File/Group",
+                title: "File",
                 field: "path",
-                formatter: treeFormatter,
                 headerSort: false,
-                htmlOutput:true,
                 widthGrow: 1,
-                bottomCalc: function(values, data, calcParams) {
-                    // Count only the actual file rows (not group headers or footers)
-                    let count = 0;
-                    data.forEach(group => {
-                        if (group._children) {
-                            group._children.forEach(child => {
-                                if (!child.isGroupFooter) {
-                                    count++;
-                                }
-                            });
-                        }
-                    });
-                    return `Total Files: ${count}`;
-                }
+                bottomCalc: "count",
             },
             { title: "Size", field: "size", formatter: formatSize, width: 90, resizable: false },
             { title: "Accessed", field: "atime", formatter: formatDate, width: 170, resizable: false },
@@ -438,23 +403,18 @@ document.addEventListener('DOMContentLoaded', function() {
             actionQueueTable.setData(queueTableData);
 
 
-            // 2. Populate the main duplicates table
-            const tableData = duplicateFilesData.map(group => {
+            // 2. Populate the main duplicates table with a flat list of files
+            const tableData = [];
+            duplicateFilesData.forEach(group => {
                 const originalIno = originalFileState[group.hash];
-
-                const children = group.files.map((file, index) => {
+                group.files.forEach((file, index) => {
                     const isOriginal = originalIno ? (file.ino === originalIno) : (index === 0);
-                    return { ...file, isOriginal };
+                    tableData.push({
+                        ...file,
+                        hash: group.hash, // Add hash to each file for grouping
+                        isOriginal: isOriginal
+                    });
                 });
-
-                children.push({
-                    isGroupFooter: true,
-                    hash: group.hash,
-                    count: group.count,
-                    totalSize: group.totalSize
-                });
-
-                return { ...group, _children: children };
             });
 
             table.setData(tableData);

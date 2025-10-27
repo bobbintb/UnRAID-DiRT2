@@ -40,11 +40,13 @@
 }
 
 /* Style for the Del/Link icons */
-.tabulator-cell[tabulator-field="action"] input[type="radio"] {
+.tabulator-cell[tabulator-field="action"] input[type="radio"],
+.tabulator-group .group-action-container input[type="radio"] {
     display: none; /* Hide the actual radio button */
 }
 
-.tabulator-cell[tabulator-field="action"] label {
+.tabulator-cell[tabulator-field="action"] label,
+.tabulator-group .group-action-container label {
     cursor: pointer;
     padding: 0 5px; /* Add some space around the icons */
     font-size: 1.2em;
@@ -52,11 +54,17 @@
     border: none;
 }
 
-.tabulator-cell[tabulator-field="action"] input[type="radio"]:checked + label {
+.tabulator-cell[tabulator-field="action"] input[type="radio"]:checked + label,
+.tabulator-group .group-action-container input[type="radio"]:checked + label {
     color: #007bff; /* Highlight the selected icon */
 }
 
 /* Remove unwanted background on action column */
 .tabulator-cell[tabulator-field="action"] {
     background-color: transparent !important;
+}
+
+/* Override default group header padding to allow for custom alignment */
+.tabulator-group {
+    padding-left: 4px !important;
 }

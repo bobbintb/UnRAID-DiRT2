@@ -25,8 +25,5 @@
   "overrides": {
     "blake3-wasm": "3.0.0",
     "@c4312/blake3-internal": "3.0.0"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.56.1"
   }
 }
