@@ -66,5 +66,5 @@
 
 /* Override default group header padding to allow for custom alignment */
 .tabulator-group {
-    padding-left: 0px !important;
+    padding-left: 4px !important;
 }
