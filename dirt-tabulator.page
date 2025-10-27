@@ -231,15 +231,17 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         groupRendered: function(group) {
             // This function is called after the group header DOM has been rendered.
-            // We'll use it to move the toggle arrow into our custom container.
-
+            // We will manipulate the DOM to achieve the desired layout.
             const groupEl = group.getElement();
-            const container = groupEl.querySelector('.group-header-flex-container');
-            const toggleEl = groupEl.querySelector('.tabulator-group-toggle');
+            const headerEl = groupEl.querySelector(".tabulator-group-header");
+            const toggleEl = groupEl.querySelector(".tabulator-group-toggle");
+            const flexContainer = groupEl.querySelector(".group-header-flex-container");
 
-            if (container && toggleEl) {
-                // Move the toggle element to be the first child of our flex container
-                container.insertBefore(toggleEl, container.firstChild);
+            if (headerEl && toggleEl && flexContainer) {
+                // Remove the original toggle element, as Tabulator places it outside the custom header content.
+                toggleEl.parentNode.removeChild(toggleEl);
+                // Prepend the toggle element to our custom flex container.
+                flexContainer.insertBefore(toggleEl, flexContainer.firstChild);
             }
         },
         rowFormatter: function(row) {
