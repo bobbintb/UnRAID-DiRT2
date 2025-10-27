@@ -1,5 +1,6 @@
-Menu="dirtSettings:3"
-Title="DataTables"
+Menu="DiskUtilities"
+Title="Deduplication in Real-Time (DataTables)"
+Icon="fa-search-minus"
 ---
 <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css">
 <script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
