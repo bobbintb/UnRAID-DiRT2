@@ -30,13 +30,12 @@ Title="DataTables"
     }
 </style>
 
-<table id="duplicatesTableElement" class="display" style="width:100%">
+<table id="duplicatesTableElement" style="width:100%">
     <thead>
         <tr>
             <th></th>
             <th>File/Group</th>
             <th>Size</th>
-            <th>Accessed</th>
             <th>Modified</th>
             <th>Changed</th>
         </tr>
@@ -138,12 +137,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             },
             {
-                data: 'atime',
-                render: function(data, type, row) {
-                    return type === 'display' ? formatDate(data) : data;
-                }
-            },
-            {
                 data: 'mtime',
                 render: function(data, type, row) {
                     return type === 'display' ? formatDate(data) : data;
@@ -160,6 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
         searching: true,
         ordering: false,
         info: false,
+        autoWidth: false,
         language: {
             emptyTable: "No duplicate files found"
         },
