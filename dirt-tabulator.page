@@ -40,109 +40,111 @@ Title="Tabulator"
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    Split(['#left-pane', '#right-pane'], {
-        sizes: [70, 30],
-        minSize: [300, 150],
-        gutterSize: 10,
-        cursor: 'col-resize',
-    });
-
-    // --- WebSocket and Table Implementation ---
-    let socket;
-    let leftTable;
-    let rightTable;
-
-    function formatBytes(bytes, decimals = 2) {
-        if (!bytes || bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const dm = decimals < 0 ? 0 : decimals;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-    }
-
-    function connect() {
-        socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
-
-        socket.onopen = function() {
-            console.log("Tabulator Tab: WebSocket connection established.");
-            dirtySock('findDuplicates', null);
-        };
-
-        socket.onmessage = function(event) {
-            const parsedMessage = JSON.parse(event.data);
-            const { action, data } = parsedMessage;
-
-            if (action === 'duplicateFiles') {
-                console.log("Tabulator Tab: Received duplicateFiles data package.");
-                const { duplicates } = data; // We only need the duplicates for now
-
-                // Tabulator's groupBy expects a flat array. Let's transform the data.
-                const flatData = duplicates.flatMap(group =>
-                    group.files.map(file => ({
-                        ...file,
-                        hash: group.hash // Add the group hash to each file object
-                    }))
-                );
-
-                initializeTables(flatData);
-            }
-        };
-
-        socket.onclose = function(event) {
-            console.log("Tabulator Tab: WebSocket connection closed. Reconnecting...");
-            setTimeout(connect, 1000);
-        };
-
-        socket.onerror = function(error) {
-            console.error("Tabulator Tab: WebSocket error: ", error);
-            socket.close();
-        };
-    }
-
-    function initializeTables(data) {
-        // Left Table
-        leftTable = new Tabulator("#tabulator-table", {
-            height: "100%",
-            data: data,
-            placeholder: "No duplicate files found.",
-            layout: "fitColumns",
-            groupBy: "hash",
-            columns: [
-                { title: "Path", field: "path", widthGrow: 1 },
-                { title: "Size", field: "size", width: 120, formatter: (cell) => formatBytes(cell.getValue()) },
-                { title: "Modified", field: "mtime", width: 170, formatter: (cell) => cell.getValue() ? new Date(cell.getValue()).toLocaleString() : "" },
-            ],
+    if (document.getElementById('tabulator-table')) {
+        Split(['#left-pane', '#right-pane'], {
+            sizes: [70, 30],
+            minSize: [300, 150],
+            gutterSize: 10,
+            cursor: 'col-resize',
         });
 
-        // Right Table
-        rightTable = new Tabulator("#right-table", {
-            height: "100%",
-            data: [],
-            placeholder: "No actions selected.",
-            layout: "fitColumns",
-            columns: [
-                { title: "Action", field: "action", widthGrow: 1 },
-                { title: "Path", field: "path", widthGrow: 2 },
-            ],
-        });
-    }
+        // --- WebSocket and Table Implementation ---
+        let socket;
+        let leftTable;
+        let rightTable;
 
-    function dirtySock(action, data) {
-        const message = {
-            clientId: "dirt-tabulator.page",
-            action: action,
-            data: data
-        };
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify(message));
-        } else {
-            console.error("Tabulator Tab: WebSocket is not connected.");
+        function formatBytes(bytes, decimals = 2) {
+            if (!bytes || bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
-    }
 
-    // Initial setup on DOM ready, before WebSocket connects
-    initializeTables([]);
-    connect();
+        function connect() {
+            socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
+
+            socket.onopen = function() {
+                console.log("Tabulator Tab: WebSocket connection established.");
+                dirtySock('findDuplicates', null);
+            };
+
+            socket.onmessage = function(event) {
+                const parsedMessage = JSON.parse(event.data);
+                const { action, data } = parsedMessage;
+
+                if (action === 'duplicateFiles') {
+                    console.log("Tabulator Tab: Received duplicateFiles data package.");
+                    const { duplicates } = data; // We only need the duplicates for now
+
+                    // Tabulator's groupBy expects a flat array. Let's transform the data.
+                    const flatData = duplicates.flatMap(group =>
+                        group.files.map(file => ({
+                            ...file,
+                            hash: group.hash // Add the group hash to each file object
+                        }))
+                    );
+
+                    initializeTables(flatData);
+                }
+            };
+
+            socket.onclose = function(event) {
+                console.log("Tabulator Tab: WebSocket connection closed. Reconnecting...");
+                setTimeout(connect, 1000);
+            };
+
+            socket.onerror = function(error) {
+                console.error("Tabulator Tab: WebSocket error: ", error);
+                socket.close();
+            };
+        }
+
+        function initializeTables(data) {
+            // Left Table
+            leftTable = new Tabulator("#tabulator-table", {
+                height: "100%",
+                data: data,
+                placeholder: "No duplicate files found.",
+                layout: "fitColumns",
+                groupBy: "hash",
+                columns: [
+                    { title: "Path", field: "path", widthGrow: 1 },
+                    { title: "Size", field: "size", width: 120, formatter: (cell) => formatBytes(cell.getValue()) },
+                    { title: "Modified", field: "mtime", width: 170, formatter: (cell) => cell.getValue() ? new Date(cell.getValue()).toLocaleString() : "" },
+                ],
+            });
+
+            // Right Table
+            rightTable = new Tabulator("#right-table", {
+                height: "100%",
+                data: [],
+                placeholder: "No actions selected.",
+                layout: "fitColumns",
+                columns: [
+                    { title: "Action", field: "action", widthGrow: 1 },
+                    { title: "Path", field: "path", widthGrow: 2 },
+                ],
+            });
+        }
+
+        function dirtySock(action, data) {
+            const message = {
+                clientId: "dirt-tabulator.page",
+                action: action,
+                data: data
+            };
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(message));
+            } else {
+                console.error("Tabulator Tab: WebSocket is not connected.");
+            }
+        }
+
+        // Initial setup on DOM ready, before WebSocket connects
+        initializeTables([]);
+        connect();
+    }
 });
 </script>
