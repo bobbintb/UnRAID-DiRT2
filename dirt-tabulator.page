@@ -124,77 +124,32 @@ document.addEventListener('DOMContentLoaded', function() {
         layout: "fitColumns",
         groupBy: "hash",
         groupHeader: function(value, count, data, group) {
-            // value - the value all members of this group share (the hash)
-            // count - the number of rows in this group
-            // data - an array of all the row data objects in this group
-
             // Calculate total size
             const totalSize = data.reduce((acc, row) => acc + (row.size || 0), 0);
-
-            const strong = document.createElement('strong');
-            strong.textContent = `Group: ${value}`;
-
-            const span = document.createElement('span');
-            span.textContent = ` (${count} files, ${formatBytes(totalSize)})`;
-
-            // Main container to mimic column layout
-            const container = document.createElement('div');
-            container.style.display = 'flex';
-            container.style.alignItems = 'center';
-
-            // 1. Spacer for the 'isPrimary' column (width: 30px)
-            const primarySpacer = document.createElement('div');
-            primarySpacer.style.width = '30px';
-            primarySpacer.style.minWidth = '30px';
-            container.appendChild(primarySpacer);
-
-            // 2. Container for Action Buttons (width: 80px)
             const groupHash = value;
             const uniqueName = "action_group_" + groupHash;
-            const actionContainer = document.createElement("div");
-            actionContainer.className = 'group-action-container';
-            actionContainer.style.width = '80px';
-            actionContainer.style.minWidth = '80px';
-            actionContainer.style.display = 'flex';
-            actionContainer.style.justifyContent = 'center';
 
-            const delRadio = document.createElement("input");
-            delRadio.type = "radio";
-            delRadio.name = uniqueName;
-            delRadio.value = "delete";
-            delRadio.id = `del_${uniqueName}`;
-            delRadio.dataset.nullable = true;
+            // Create a container div to hold the HTML and attach events
+            const container = document.createElement('div');
+            container.className = 'group-header-flex-container';
 
-            const delLabel = document.createElement("label");
-            delLabel.htmlFor = `del_${uniqueName}`;
-            delLabel.title = "Delete All";
-            delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
+            // Use an HTML string for simplicity and readability
+            container.innerHTML = `
+                <div class="group-action-container">
+                    <input type="radio" name="${uniqueName}" value="delete" id="del_${uniqueName}" data-nullable="true">
+                    <label for="del_${uniqueName}" title="Delete All"><i class="fa fa-trash"></i></label>
+                    <input type="radio" name="${uniqueName}" value="link" id="link_${uniqueName}" data-nullable="true">
+                    <label for="link_${uniqueName}" title="Hardlink All"><i class="fa fa-link"></i></label>
+                </div>
+                <div class="group-info-container">
+                    <strong>Group: ${value}</strong>
+                    <span>(${count} files, ${formatBytes(totalSize)})</span>
+                </div>
+            `;
 
-            const linkRadio = document.createElement("input");
-            linkRadio.type = "radio";
-            linkRadio.name = uniqueName;
-            linkRadio.value = "link";
-            linkRadio.id = `link_${uniqueName}`;
-            linkRadio.dataset.nullable = true;
-
-            const linkLabel = document.createElement("label");
-            linkLabel.htmlFor = `link_${uniqueName}`;
-            linkLabel.title = "Hardlink All";
-            linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
-
-            actionContainer.appendChild(delRadio);
-            actionContainer.appendChild(delLabel);
-            actionContainer.appendChild(linkRadio);
-            actionContainer.appendChild(linkLabel);
-            container.appendChild(actionContainer);
-
-            // 3. Container for the group info text
-            const infoContainer = document.createElement('div');
-            infoContainer.style.paddingLeft = '4px';
-            infoContainer.appendChild(strong);
-            infoContainer.appendChild(span);
-            container.appendChild(infoContainer);
-
+            // Find the radio buttons within the newly created HTML
+            const delRadio = container.querySelector(`#del_${uniqueName}`);
+            const linkRadio = container.querySelector(`#link_${uniqueName}`);
 
             // Event Handling for Group Header Actions
             const groupActionChangeHandler = function(e) {
@@ -202,10 +157,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const target = e.target;
                 const action = target.value;
 
+                // Handle nullable radio logic
                 if (target.checked && target.getAttribute('data-waschecked') === 'true') {
                     target.checked = false;
                     target.setAttribute('data-waschecked', 'false');
                 } else {
+                    // Unset waschecked on both before setting it on the target
                     delRadio.setAttribute('data-waschecked', 'false');
                     linkRadio.setAttribute('data-waschecked', 'false');
                     target.setAttribute('data-waschecked', 'true');
@@ -214,14 +171,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 const effectiveCheckedState = target.checked;
                 const childRows = group.getRows();
 
+                // Apply the action to all non-disabled child rows
                 childRows.forEach(row => {
-                    const rowEl = row.getElement();
-                    if (rowEl.classList.contains('disabled-row')) {
-                        return;
+                    if (row.getElement().classList.contains('disabled-row')) {
+                        return; // Skip disabled rows
                     }
                     const actionCell = row.getCell('action').getElement();
                     const childRadio = actionCell.querySelector(`input[value="${action}"]`);
                     if (childRadio) {
+                        // Click the child radio only if its state is different from the header's state
                         if ((effectiveCheckedState && !childRadio.checked) || (!effectiveCheckedState && childRadio.checked)) {
                             childRadio.click();
                         }

@@ -75,7 +75,27 @@
     background-color: transparent !important;
 }
 
-/* Override default group header padding to allow for custom alignment */
+/* Override default group header padding and force horizontal alignment */
 .tabulator-group {
     padding-left: 4px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Flex container for group header content */
+.group-header-flex-container {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.group-action-container {
+    width: 80px;
+    min-width: 80px;
+    display: flex;
+    justify-content: center;
+}
+
+.group-info-container {
+    padding-left: 4px;
 }
