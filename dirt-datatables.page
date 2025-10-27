@@ -149,7 +149,7 @@ $(document).ready(function() {
             }
         });
 
-        $('#datatables-table').on('click', 'tbody tr.group', function () {
+        $('#datatables-table').on('click', 'tr.group', function () {
             const $this = $(this);
             const icon = $this.find('.toggle-icon');
             let nextUntil = $this.nextUntil('tr.group');
