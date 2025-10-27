@@ -245,7 +245,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 field: "action",
                 hozAlign: "center",
                 headerSort: false,
-                width: 80,
+                width: 65,
+                resizable: false,
                 titleFormatter: function(cell, formatterParams, onRendered){
                     const uniqueName = "action_group_table_header";
 
