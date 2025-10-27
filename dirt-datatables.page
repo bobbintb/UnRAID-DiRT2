@@ -37,7 +37,7 @@ Title="DataTables"
         <table id="datatables-table" style="width:100%"></table>
     </div>
     <div id="right-pane" class="split">
-        <table id="right-table" style="width:100%"></table>
+        <table id="right-table-datatables" class="display" style="width:100%"></table>
     </div>
 </div>
 
@@ -159,11 +159,11 @@ $(document).ready(function() {
         });
 
         // Right Table
-        if ($.fn.DataTable.isDataTable('#right-table')) {
-            $('#right-table').DataTable().destroy();
+        if ($.fn.DataTable.isDataTable('#right-table-datatables')) {
+            $('#right-table-datatables').DataTable().destroy();
         }
 
-        rightTable = new DataTable('#right-table', {
+        rightTable = new DataTable('#right-table-datatables', {
             data: [],
             paging: false,
             searching: false,

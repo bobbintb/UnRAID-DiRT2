@@ -34,7 +34,7 @@ Title="Tabulator"
         <div id="tabulator-table"></div>
     </div>
     <div id="right-pane" class="split">
-        <div id="right-table"></div>
+            <table id="right-table-tabulator"></table>
     </div>
 </div>
 
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             // Right Table
-            rightTable = new Tabulator("#right-table", {
+            rightTable = new Tabulator("#right-table-tabulator", {
                 height: "100%",
                 data: [],
                 placeholder: "No actions selected.",
