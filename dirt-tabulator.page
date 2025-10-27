@@ -139,6 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Main container to mimic column layout
             const container = document.createElement('div');
+            container.className = 'group-header-flex-container';
             container.style.display = 'flex';
             container.style.alignItems = 'center';
 
@@ -233,7 +234,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // We'll use it to move the toggle arrow into our custom container.
 
             const groupEl = group.getElement();
-            const container = groupEl.querySelector('.tabulator-group-header > div');
+            const container = groupEl.querySelector('.group-header-flex-container');
             const toggleEl = groupEl.querySelector('.tabulator-group-toggle');
 
             if (container && toggleEl) {
