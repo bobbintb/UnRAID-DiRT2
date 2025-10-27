@@ -35,14 +35,28 @@ document.addEventListener('DOMContentLoaded', function() {
         layout: "fitColumns",
         columns: [
             {
-                title: "",
-                field: "remove",
+                title: `<i class="fa fa-trash" style="cursor: pointer;" title="Remove All"></i>`,
+                field: "action",
                 hozAlign: "center",
                 width: 40,
+                minWidth: 40,
                 resizable: false,
                 headerSort: false,
+                headerHozAlign: "center",
+                headerClick: function(e, column) {
+                    const rows = actionQueueTable.getRows();
+                    rows.forEach(row => {
+                        const cell = row.getCell('action');
+                        const icon = cell.getElement().querySelector('i');
+                        if (icon) {
+                            icon.click();
+                        }
+                    });
+                },
                 formatter: function(cell, formatterParams, onRendered) {
-                    return `<i class="fa fa-trash" style="cursor: pointer;" title="Remove"></i>`;
+                    const action = cell.getValue();
+                    const iconClass = action === 'delete' ? 'fa-trash' : 'fa-link';
+                    return `<i class="fa ${iconClass}" style="cursor: pointer;" title="Remove"></i>`;
                 },
                 cellClick: function(e, cell) {
                     const rowData = cell.getRow().getData();
@@ -57,16 +71,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         const actionCell = matchingRows[0].getCell('action');
                         const radioInputs = actionCell.getElement().querySelectorAll('input[type="radio"]');
                         radioInputs.forEach(radio => {
-                            radio.checked = false;
-                            radio.setAttribute('data-waschecked', 'false');
+                            if (radio.checked) {
+                                radio.click(); // Simulate a click to uncheck and trigger logic
+                            }
                         });
                     }
                 }
             },
-            { title: "Action", field: "action", width: 80, hozAlign: "center", formatter: function(cell) {
-                const action = cell.getValue();
-                return action.charAt(0).toUpperCase() + action.slice(1); // Capitalize
-            }},
             { title: "File", field: "file", hozAlign: "left", tooltip: true },
         ],
     });
@@ -363,7 +374,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 bottomCalc: "count",
             },
             { title: "Size", field: "size", formatter: formatSize, width: 90, resizable: false },
-            { title: "Accessed", field: "atime", formatter: formatDate, width: 170, resizable: false },
             { title: "Modified", field: "mtime", formatter: formatDate, width: 170, resizable: false },
             { title: "Changed", field: "ctime", formatter: formatDate, width: 170, resizable: false }
         ],
