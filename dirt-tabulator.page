@@ -237,8 +237,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const flexContainer = groupEl.querySelector(".group-header-flex-container");
 
             if (toggleEl && flexContainer) {
-                // Prepending the toggle element to our custom flex container automatically moves it.
-                flexContainer.insertBefore(toggleEl, flexContainer.firstChild);
+                // Move the toggle element to be the first child of our flex container.
+                flexContainer.prepend(toggleEl);
             }
         },
         rowFormatter: function(row) {
