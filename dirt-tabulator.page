@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 minWidth: 40,
                 resizable: false,
                 headerSort: false,
+                headerHozAlign: "center",
                 headerClick: function(e, column) {
                     const rows = actionQueueTable.getRows();
                     rows.forEach(row => {

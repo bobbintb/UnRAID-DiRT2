@@ -59,6 +59,16 @@
     color: #007bff; /* Highlight the selected icon */
 }
 
+/* Remove default Tabulator styling from the labels in the group action container */
+.tabulator-group .group-action-container label {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 5px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
 /* Remove unwanted background on action column */
 .tabulator-cell[tabulator-field="action"] {
     background-color: transparent !important;
