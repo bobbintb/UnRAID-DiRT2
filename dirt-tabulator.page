@@ -11,7 +11,7 @@ Icon="fa-search-minus"
     .split-container {
         display: flex;
         flex-direction: row;
-        height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
+        height: calc(100vh - 245px); /* Adjust for Unraid header/footer */
         width: 100%;
     }
     .split {
@@ -27,6 +27,11 @@ Icon="fa-search-minus"
     .gutter.gutter-horizontal {
         cursor: col-resize;
         width: 10px;
+    }
+    .disabled-row {
+        pointer-events: none;
+        opacity: 0.5;
+        background-color: #f2f2f2;
     }
 </style>
 
@@ -77,15 +82,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (action === 'duplicateFiles') {
                     console.log("Tabulator Tab: Received duplicateFiles data package.");
-                    const { duplicates } = data; // We only need the duplicates for now
+                    const { duplicates, state } = data;
 
-                    // Tabulator's groupBy expects a flat array. Let's transform the data.
-                    const flatData = duplicates.flatMap(group =>
-                        group.files.map(file => ({
-                            ...file,
-                            hash: group.hash // Add the group hash to each file object
-                        }))
-                    );
+                    const flatData = duplicates.flatMap(group => {
+                        const originalFileInode = state ? state[group.hash] : null;
+
+                        return group.files.map((file, index) => {
+                            let isOriginal = false;
+                            if (originalFileInode) {
+                                isOriginal = file.ino.toString() === originalFileInode.toString();
+                            } else if (index === 0) {
+                                isOriginal = true;
+                            }
+
+                            return {
+                                ...file,
+                                hash: group.hash,
+                                isOriginal: isOriginal
+                            };
+                        });
+                    });
 
                     initializeTables(flatData);
                 }
@@ -110,11 +126,66 @@ document.addEventListener('DOMContentLoaded', function() {
                 placeholder: "No duplicate files found.",
                 layout: "fitColumns",
                 groupBy: "hash",
-                columns: [
-                    { title: "Path", field: "path", widthGrow: 1 },
-                    { title: "Size", field: "size", width: 120, formatter: (cell) => formatBytes(cell.getValue()) },
-                    { title: "Modified", field: "mtime", width: 170, formatter: (cell) => cell.getValue() ? new Date(cell.getValue()).toLocaleString() : "" },
-                ],
+                rowFormatter: function(row) {
+                    var data = row.getData();
+                    if (data.isOriginal) {
+                        row.getElement().classList.add('disabled-row');
+                    } else {
+                        row.getElement().classList.remove('disabled-row');
+                    }
+                },
+                columns: [{
+                    title: "",
+                    field: "isOriginal",
+                    width: 40,
+                    resizable: false,
+                    hozAlign: "center",
+                    formatter: function(cell, formatterParams, onRendered) {
+                        var data = cell.getRow().getData();
+                        var radio = document.createElement("input");
+                        radio.type = "radio";
+                        radio.name = data.hash;
+                        radio.value = data.ino;
+                        radio.checked = data.isOriginal;
+                        return radio;
+                    },
+                    cellClick: function(e, cell) {
+                        var clickedRow = cell.getRow();
+                        var clickedData = clickedRow.getData();
+
+                        if (clickedData.isOriginal) {
+                            return; // Don't do anything if the original is clicked
+                        }
+
+                        // Update the state in the backend
+                        dirtySock('setOriginalFile', {
+                            hash: clickedData.hash,
+                            ino: clickedData.ino
+                        });
+
+                        // Update the isOriginal flag for all rows in the group
+                        var group = clickedRow.getGroup();
+                        group.getRows().forEach(function(row) {
+                            var rowData = row.getData();
+                            var isOriginal = rowData.ino === clickedData.ino;
+                            row.update({ isOriginal: isOriginal });
+                        });
+                    }
+                }, {
+                    title: "Path",
+                    field: "path",
+                    widthGrow: 1
+                }, {
+                    title: "Size",
+                    field: "size",
+                    width: 120,
+                    formatter: (cell) => formatBytes(cell.getValue())
+                }, {
+                    title: "Modified",
+                    field: "mtime",
+                    width: 170,
+                    formatter: (cell) => cell.getValue() ? new Date(cell.getValue()).toLocaleString() : ""
+                }, ],
             });
 
             // Right Table
