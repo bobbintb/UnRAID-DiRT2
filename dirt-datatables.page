@@ -1,5 +1,6 @@
-Menu="dirtSettings:3"
-Title="DataTables"
+Menu="DiskUtilities"
+Title="Deduplication in Real-Time (DataTables)"
+Icon="fa-search-minus"
 ---
 <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css">
 <script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
@@ -140,22 +141,32 @@ $(document).ready(function() {
                 let last = null;
 
                 api.column(0, { page: 'current' }).data().each(function(group, i) {
+                    const currentRow = $(rows).eq(i);
+                    // Add class to data row for easy selection
+                    currentRow.addClass('group-item-' + group);
+
                     if (last !== group) {
-                        const groupRow = $('<tr class="group" style="background-color: #f0f0f0; font-weight: bold; color: black;"><td colspan="3"><span class="toggle-icon">▼</span> ' + group + '</td></tr>');
-                        $(rows).eq(i).before(groupRow);
+                        // Insert group row
+                        const groupRow = $('<tr class="group" data-group="' + group + '" style="background-color: #f0f0f0; font-weight: bold; color: black;"><td colspan="3"><span class="toggle-icon">▼</span> ' + group + '</td></tr>');
+                        currentRow.before(groupRow);
                         last = group;
                     }
                 });
             }
         });
 
-        $('#datatables-table').on('click', 'tr.group', function () {
-            const $this = $(this);
-            const icon = $this.find('.toggle-icon');
-            let nextUntil = $this.nextUntil('tr.group');
+        $('#datatables-table tbody').on('click', 'tr.group', function () {
+            const group = $(this).data('group');
+            const rows = $('.group-item-' + group);
+            const icon = $(this).find('.toggle-icon');
 
-            nextUntil.toggle();
-            icon.text(nextUntil.is(':visible') ? '▼' : '▶');
+            rows.toggle();
+
+            if (rows.is(':visible')) {
+                icon.text('▼'); // Expanded
+            } else {
+                icon.text('▶'); // Collapsed
+            }
         });
 
         // Right Table
