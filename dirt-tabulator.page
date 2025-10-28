@@ -30,6 +30,26 @@ document.addEventListener('DOMContentLoaded', function() {
     let actionQueueTable;
     let actionQueueData = {}; // To hold the initial queue state
 
+    function updateActionQueueTable() {
+        if (!table) return;
+        const tableRows = table.getRows();
+        const queuedActions = [];
+        tableRows.forEach(row => {
+            const rowData = row.getData();
+            const actionCell = row.getCell('action').getElement();
+            if (!actionCell) return;
+
+            const checkedRadio = actionCell.querySelector('input[type="radio"]:checked');
+            if (checkedRadio) {
+                queuedActions.push({
+                    action: checkedRadio.value,
+                    file: rowData.path
+                });
+            }
+        });
+        actionQueueTable.setData(queuedActions);
+    }
+
     // The Tabulator table definition for the Action Queue
     actionQueueTable = new Tabulator("#action-queue-table", {
         height: "100%",
@@ -60,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 cellClick: function(e, cell) {
                     const rowData = cell.getRow().getData();
                     const filePath = rowData.file;
-                    removeFileActionFromQueue(filePath, dirtySock, actionQueueTable);
+                    removeFileActionFromQueue(filePath, dirtySock);
                     const matchingRows = table.searchRows("path", "=", filePath);
                     if (matchingRows.length > 0) {
                         const actionCell = matchingRows[0].getCell('action');
@@ -95,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 30,
                 minWidth: 30,
                 resizable: false,
-                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQueueTable),
+                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, updateActionQueueTable),
             },
             {
                 field: "action",
@@ -135,7 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 },
-                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable),
+                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, updateActionQueueTable),
             },
             {
                 title: "File",
@@ -172,11 +192,6 @@ document.addEventListener('DOMContentLoaded', function() {
         function processAndRenderTable(duplicateFilesData, originalFileState, receivedActionQueueData) {
             console.log("Tabulator Tab: Processing and rendering tables.");
             actionQueueData = receivedActionQueueData;
-            const queueTableData = Object.entries(actionQueueData).map(([path, action]) => ({
-                action: action,
-                file: path,
-            }));
-            actionQueueTable.setData(queueTableData);
             const tableData = [];
             duplicateFilesData.forEach(group => {
                 const originalIno = originalFileState[group.hash];
@@ -189,7 +204,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
             });
-            table.setData(tableData);
+            table.setData(tableData).then(() => {
+                updateActionQueueTable();
+            });
         }
 
         socket.onclose = function(event) {
