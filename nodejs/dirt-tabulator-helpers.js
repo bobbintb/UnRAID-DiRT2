@@ -24,3 +24,24 @@ function formatSize(cell) {
     const value = cell.getValue();
     return formatBytes(value);
 }
+
+// Helper function to update the action queue table based on the main table's state
+function updateActionQueueTable(table, actionQueueTable) {
+    if (!table) return;
+    const tableRows = table.getRows();
+    const queuedActions = [];
+    tableRows.forEach(row => {
+        const rowData = row.getData();
+        const actionCell = row.getCell('action').getElement();
+        if (!actionCell) return;
+
+        const checkedRadio = actionCell.querySelector('input[type="radio"]:checked');
+        if (checkedRadio) {
+            queuedActions.push({
+                action: checkedRadio.value,
+                file: rowData.path
+            });
+        }
+    });
+    actionQueueTable.setData(queuedActions);
+}

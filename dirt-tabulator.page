@@ -30,26 +30,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let actionQueueTable;
     let actionQueueData = {}; // To hold the initial queue state
 
-    function updateActionQueueTable() {
-        if (!table) return;
-        const tableRows = table.getRows();
-        const queuedActions = [];
-        tableRows.forEach(row => {
-            const rowData = row.getData();
-            const actionCell = row.getCell('action').getElement();
-            if (!actionCell) return;
-
-            const checkedRadio = actionCell.querySelector('input[type="radio"]:checked');
-            if (checkedRadio) {
-                queuedActions.push({
-                    action: checkedRadio.value,
-                    file: rowData.path
-                });
-            }
-        });
-        actionQueueTable.setData(queuedActions);
-    }
-
     // The Tabulator table definition for the Action Queue
     actionQueueTable = new Tabulator("#action-queue-table", {
         height: "100%",
@@ -91,6 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         });
                     }
+                    updateActionQueueTable(table, actionQueueTable);
                 }
             },
             { title: "File", field: "file", hozAlign: "left", tooltip: true },
@@ -115,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 30,
                 minWidth: 30,
                 resizable: false,
-                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, updateActionQueueTable),
+                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, () => updateActionQueueTable(table, actionQueueTable)),
             },
             {
                 field: "action",
@@ -155,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 },
-                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, updateActionQueueTable),
+                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, () => updateActionQueueTable(table, actionQueueTable)),
             },
             {
                 title: "File",
@@ -205,7 +186,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
             table.setData(tableData).then(() => {
-                updateActionQueueTable();
+                updateActionQueueTable(table, actionQueueTable);
             });
         }
 
