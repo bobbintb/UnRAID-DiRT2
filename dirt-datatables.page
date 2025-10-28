@@ -11,7 +11,7 @@ Icon="fa-search-minus"
     .split-container {
         display: flex;
         flex-direction: row;
-        height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
+        height: calc(100vh - 245px); /* Adjust for Unraid header/footer */
         width: 100%;
     }
     .split {
@@ -30,6 +30,11 @@ Icon="fa-search-minus"
     }
     tr.group {
         cursor: pointer;
+    }
+    .disabled-row {
+        pointer-events: none;
+        opacity: 0.5;
+        background-color: #f2f2f2;
     }
 </style>
 
@@ -85,14 +90,26 @@ $(document).ready(function() {
 
             if (action === 'duplicateFiles') {
                 console.log("DataTables Tab: Received duplicateFiles data package.");
-                const { duplicates } = data;
+                const { duplicates, state } = data;
 
-                const flatData = duplicates.flatMap(group =>
-                    group.files.map(file => ({
-                        ...file,
-                        hash: group.hash // Add group hash to each file
-                    }))
-                );
+                const flatData = duplicates.flatMap(group => {
+                    const originalFileInode = state ? state[group.hash] : null;
+
+                    return group.files.map((file, index) => {
+                        let isOriginal = false;
+                        if (originalFileInode) {
+                            isOriginal = file.ino.toString() === originalFileInode.toString();
+                        } else if (index === 0) {
+                            isOriginal = true;
+                        }
+
+                        return {
+                            ...file,
+                            hash: group.hash,
+                            isOriginal: isOriginal
+                        };
+                    });
+                });
 
                 initializeTables(flatData);
             }
@@ -125,24 +142,54 @@ $(document).ready(function() {
             language: {
                 emptyTable: "No duplicate files found."
             },
-            columns: [
-                { data: 'hash' }, // The grouping column
-                { data: 'path', title: 'Path' },
-                { data: 'size', title: 'Size', render: (d, t, r) => t === 'display' ? formatBytes(d) : d },
-                { data: 'mtime', title: 'Modified', render: (d, t, r) => t === 'display' ? formatDate(d) : d }
+            columns: [{
+                data: 'hash'
+            }, {
+                data: 'isOriginal',
+                title: '',
+                width: '40px',
+                orderable: false,
+                render: function(data, type, row) {
+                    return '<input type="radio" name="' + row.hash + '" value="' + row.ino + '" ' + (data ? 'checked' : '') + '>';
+                }
+            }, {
+                data: 'path',
+                title: 'Path'
+            }, {
+                data: 'size',
+                title: 'Size',
+                render: (d, t, r) => t === 'display' ? formatBytes(d) : d
+            }, {
+                data: 'mtime',
+                title: 'Modified',
+                render: (d, t, r) => t === 'display' ? formatDate(d) : d
+            }],
+            columnDefs: [{
+                visible: false,
+                targets: 0
+            }],
+            order: [
+                [0, 'asc']
             ],
-            columnDefs: [
-                { visible: false, targets: 0 } // Hide the grouping column
-            ],
-            order: [[0, 'asc']], // Order by the grouping column
+            rowCallback: function(row, data, dataIndex) {
+                if (data.isOriginal) {
+                    $(row).addClass('disabled-row');
+                } else {
+                    $(row).removeClass('disabled-row');
+                }
+            },
             drawCallback: function(settings) {
                 const api = this.api();
-                const rows = api.rows({ page: 'current' }).nodes();
+                const rows = api.rows({
+                    page: 'current'
+                }).nodes();
                 let last = null;
 
-                api.column(0, { page: 'current' }).data().each(function(group, i) {
+                api.column(0, {
+                    page: 'current'
+                }).data().each(function(group, i) {
                     if (last !== group) {
-                        const groupRow = $('<tr class="group" style="background-color: #f0f0f0; font-weight: bold; color: black;"><td colspan="3"><span class="toggle-icon">▼</span> ' + group + '</td></tr>');
+                        const groupRow = $('<tr class="group" style="background-color: #f0f0f0; font-weight: bold; color: black;"><td colspan="4"><span class="toggle-icon">▼</span> ' + group + '</td></tr>');
                         $(rows).eq(i).before(groupRow);
                         last = group;
                     }
@@ -150,17 +197,46 @@ $(document).ready(function() {
             }
         });
 
-        $('#datatables-table tbody').off('click', 'tr.group').on('click', 'tr.group', function () {
+        $('#datatables-table tbody').off('click', 'tr.group').on('click', 'tr.group', function() {
             const $groupRow = $(this);
             const icon = $groupRow.find('.toggle-icon');
-            
-            // Find all rows until the next group row
+
             let $rows = $groupRow.nextUntil('tr.group');
-            
+
             if ($rows.length > 0) {
                 $rows.toggle();
                 icon.text($rows.first().is(':visible') ? '▼' : '▶');
             }
+        });
+
+        $('#datatables-table tbody').on('click', 'input[type="radio"]', function() {
+            const table = $('#datatables-table').DataTable();
+            const selectedRow = $(this).closest('tr');
+            const rowData = table.row(selectedRow).data();
+
+            if (rowData.isOriginal) {
+                return;
+            }
+
+            // Send WebSocket message to update state
+            dirtySock('setOriginalFile', {
+                hash: rowData.hash,
+                ino: rowData.ino
+            });
+
+            // Update UI for all rows in the same group
+            table.rows().every(function() {
+                const d = this.data();
+                if (d.hash === rowData.hash) {
+                    const isOriginal = d.ino === rowData.ino;
+                    if (d.isOriginal !== isOriginal) {
+                        d.isOriginal = isOriginal;
+                        this.invalidate();
+                    }
+                }
+            });
+
+            table.draw(false);
         });
 
         // Right Table
