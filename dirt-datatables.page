@@ -1,5 +1,6 @@
-Menu="dirtSettings:3"
-Title="DataTables"
+Menu="DiskUtilities"
+Title="Deduplication in Real-Time (DataTables)"
+Icon="fa-search-minus"
 ---
 <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css">
 <script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
@@ -149,13 +150,17 @@ $(document).ready(function() {
             }
         });
 
-        $('#datatables-table').on('click', 'tr.group', function () {
-            const $this = $(this);
-            const icon = $this.find('.toggle-icon');
-            let nextUntil = $this.nextUntil('tr.group');
-
-            nextUntil.toggle();
-            icon.text(nextUntil.is(':visible') ? '▼' : '▶');
+        $('#datatables-table tbody').off('click', 'tr.group').on('click', 'tr.group', function () {
+            const $groupRow = $(this);
+            const icon = $groupRow.find('.toggle-icon');
+            
+            // Find all rows until the next group row
+            let $rows = $groupRow.nextUntil('tr.group');
+            
+            if ($rows.length > 0) {
+                $rows.toggle();
+                icon.text($rows.first().is(':visible') ? '▼' : '▶');
+            }
         });
 
         // Right Table
