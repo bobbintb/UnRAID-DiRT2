@@ -174,6 +174,8 @@ $(document).ready(function() {
             createdRow: function(row, data, dataIndex) {
                 if (data.isOriginal) {
                     $(row).addClass('disabled-row');
+                } else {
+                    $(row).removeClass('disabled-row');
                 }
             },
             drawCallback: function(settings) {
