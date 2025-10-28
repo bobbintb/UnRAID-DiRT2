@@ -153,6 +153,18 @@ $(document).ready(function() {
                     return '<input type="radio" name="' + row.hash + '" value="' + row.ino + '" ' + (data ? 'checked' : '') + '>';
                 }
             }, {
+                data: null,
+                title: '',
+                orderable: false,
+                render: function(data, type, row) {
+                    return `
+                        <span class="action-radios">
+                            <input type="radio" name="action_${row.ino}">
+                            <input type="radio" name="action_${row.ino}">
+                        </span>
+                    `;
+                }
+            }, {
                 data: 'path',
                 title: 'Path'
             }, {
@@ -237,6 +249,19 @@ $(document).ready(function() {
             });
 
             table.draw(false);
+        });
+
+        $('#datatables-table tbody').on('mousedown', '.action-radios input[type="radio"]', function(e) {
+            if (this.checked) {
+                this.isDeselecting = true;
+            }
+        });
+
+        $('#datatables-table tbody').on('click', '.action-radios input[type="radio"]', function(e) {
+            if (this.isDeselecting) {
+                this.checked = false;
+                this.isDeselecting = false;
+            }
         });
 
         // Right Table
