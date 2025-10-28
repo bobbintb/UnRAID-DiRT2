@@ -173,6 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }, {
                     title: "",
+                    width: 80,
                     resizable: false,
                     hozAlign: "center",
                     formatter: function(cell, formatterParams, onRendered) {

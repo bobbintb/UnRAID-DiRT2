@@ -150,7 +150,7 @@ $(document).ready(function() {
                 width: '40px',
                 orderable: false,
                 render: function(data, type, row) {
-                    return '<input type="radio" name="' + row.hash + '" value="' + row.ino + '" ' + (data ? 'checked' : '') + '>';
+                    return '<input type="radio" class="original-file-radio" name="' + row.hash + '" value="' + row.ino + '" ' + (data ? 'checked' : '') + '>';
                 }
             }, {
                 data: null,
@@ -221,7 +221,7 @@ $(document).ready(function() {
             }
         });
 
-        $('#datatables-table tbody').on('click', 'input[type="radio"]', function() {
+        $('#datatables-table tbody').on('click', 'input.original-file-radio', function() {
             const table = $('#datatables-table').DataTable();
             const selectedRow = $(this).closest('tr');
             const rowData = table.row(selectedRow).data();
