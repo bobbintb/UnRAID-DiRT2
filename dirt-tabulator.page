@@ -172,6 +172,44 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     }
                 }, {
+                    title: "",
+                    width: 80,
+                    resizable: false,
+                    hozAlign: "center",
+                    formatter: function(cell, formatterParams, onRendered) {
+                        const rowData = cell.getRow().getData();
+                        const container = document.createElement("span");
+
+                        const radio1 = document.createElement("input");
+                        radio1.type = "radio";
+                        radio1.name = `action_${rowData.ino}`;
+
+                        const radio2 = document.createElement("input");
+                        radio2.type = "radio";
+                        radio2.name = `action_${rowData.ino}`;
+
+                        container.appendChild(radio1);
+                        container.appendChild(radio2);
+
+                        container.addEventListener('mousedown', function(e) {
+                            if (e.target.type === 'radio' && e.target.checked) {
+                                e.target.isDeselecting = true;
+                            }
+                        });
+
+                        container.addEventListener('click', function(e) {
+                            if (e.target.type !== 'radio') return;
+
+                            const radio = e.target;
+                            if (radio.isDeselecting) {
+                                radio.checked = false;
+                                radio.isDeselecting = false;
+                            }
+                        });
+
+                        return container;
+                    }
+                }, {
                     title: "Path",
                     field: "path",
                     widthGrow: 1

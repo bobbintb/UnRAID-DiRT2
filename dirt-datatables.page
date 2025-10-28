@@ -150,7 +150,19 @@ $(document).ready(function() {
                 width: '40px',
                 orderable: false,
                 render: function(data, type, row) {
-                    return '<input type="radio" name="' + row.hash + '" value="' + row.ino + '" ' + (data ? 'checked' : '') + '>';
+                    return '<input type="radio" class="original-file-radio" name="' + row.hash + '" value="' + row.ino + '" ' + (data ? 'checked' : '') + '>';
+                }
+            }, {
+                data: null,
+                title: '',
+                orderable: false,
+                render: function(data, type, row) {
+                    return `
+                        <span class="action-radios">
+                            <input type="radio" name="action_${row.ino}">
+                            <input type="radio" name="action_${row.ino}">
+                        </span>
+                    `;
                 }
             }, {
                 data: 'path',
@@ -209,7 +221,7 @@ $(document).ready(function() {
             }
         });
 
-        $('#datatables-table tbody').on('click', 'input[type="radio"]', function() {
+        $('#datatables-table tbody').on('click', 'input.original-file-radio', function() {
             const table = $('#datatables-table').DataTable();
             const selectedRow = $(this).closest('tr');
             const rowData = table.row(selectedRow).data();
@@ -237,6 +249,19 @@ $(document).ready(function() {
             });
 
             table.draw(false);
+        });
+
+        $('#datatables-table tbody').on('mousedown', '.action-radios input[type="radio"]', function(e) {
+            if (this.checked) {
+                this.isDeselecting = true;
+            }
+        });
+
+        $('#datatables-table tbody').on('click', '.action-radios input[type="radio"]', function(e) {
+            if (this.isDeselecting) {
+                this.checked = false;
+                this.isDeselecting = false;
+            }
         });
 
         // Right Table
