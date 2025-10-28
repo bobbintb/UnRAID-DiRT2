@@ -3,7 +3,9 @@ Title="Deduplication in Real-Time (DataTables)"
 Icon="fa-search-minus"
 ---
 <link rel="stylesheet" href="https://cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/select/2.0.3/css/select.dataTables.min.css">
 <script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/select/2.0.3/js/dataTables.select.min.js"></script>
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
 <style>
@@ -34,7 +36,6 @@ Icon="fa-search-minus"
     .disabled-row {
         pointer-events: none;
         opacity: 0.5;
-        background-color: #f2f2f2;
     }
 </style>
 
@@ -142,16 +143,17 @@ $(document).ready(function() {
             language: {
                 emptyTable: "No duplicate files found."
             },
+            select: {
+                style: 'single',
+                items: 'row'
+            },
             columns: [{
                 data: 'hash'
             }, {
-                data: 'isOriginal',
-                title: '',
-                width: '40px',
                 orderable: false,
-                render: function(data, type, row) {
-                    return '<input type="radio" name="' + row.hash + '" value="' + row.ino + '" ' + (data ? 'checked' : '') + '>';
-                }
+                className: 'select-checkbox',
+                targets: 0,
+                defaultContent: ''
             }, {
                 data: 'path',
                 title: 'Path'
@@ -171,25 +173,35 @@ $(document).ready(function() {
             order: [
                 [0, 'asc']
             ],
-            createdRow: function(row, data, dataIndex) {
-                if (data.isOriginal) {
-                    $(row).addClass('disabled-row');
-                }
-            },
             drawCallback: function(settings) {
                 const api = this.api();
                 const rows = api.rows({
                     page: 'current'
                 }).nodes();
                 let last = null;
+                let groupRecords = [];
 
                 api.column(0, {
                     page: 'current'
                 }).data().each(function(group, i) {
+                    const records = api.rows({
+                        page: 'current'
+                    }).data().filter(d => d.hash === group);
                     if (last !== group) {
                         const groupRow = $('<tr class="group" style="background-color: #f0f0f0; font-weight: bold; color: black;"><td colspan="4"><span class="toggle-icon">▼</span> ' + group + '</td></tr>');
                         $(rows).eq(i).before(groupRow);
                         last = group;
+
+                        // Select the original file for this group
+                        const originalFile = records.find(r => r.isOriginal);
+                        if (originalFile) {
+                            const originalRowIndex = api.rows({
+                                page: 'current'
+                            }).data().toArray().findIndex(r => r.ino === originalFile.ino);
+                            if (originalRowIndex > -1) {
+                                api.row(originalRowIndex).select();
+                            }
+                        }
                     }
                 });
             }
@@ -198,46 +210,36 @@ $(document).ready(function() {
         $('#datatables-table tbody').off('click', 'tr.group').on('click', 'tr.group', function() {
             const $groupRow = $(this);
             const icon = $groupRow.find('.toggle-icon');
-            
-            // Find all rows until the next group row
+
             let $rows = $groupRow.nextUntil('tr.group');
-            
+
             if ($rows.length > 0) {
                 $rows.toggle();
                 icon.text($rows.first().is(':visible') ? '▼' : '▶');
             }
         });
 
-        $('#datatables-table tbody').on('click', 'input[type="radio"]', function() {
-            const table = $('#datatables-table').DataTable();
-            const selectedRow = $(this).closest('tr');
-            const rowData = table.row(selectedRow).data();
+        leftTable.on('select', function(e, dt, type, indexes) {
+            if (type === 'row') {
+                const selectedRowData = dt.rows(indexes).data()[0];
+                dt.rows(indexes).nodes().to$().addClass('disabled-row');
 
-            if (rowData.isOriginal) {
-                return;
+                dirtySock('setOriginalFile', {
+                    hash: selectedRowData.hash,
+                    ino: selectedRowData.ino
+                });
+
+                // Deselect other rows in the same group
+                dt.rows((idx, data, node) => {
+                    return data.hash === selectedRowData.hash && data.ino !== selectedRowData.ino;
+                }).deselect();
             }
+        });
 
-            // Send WebSocket message to update state
-            dirtySock('setOriginalFile', {
-                hash: rowData.hash,
-                ino: rowData.ino
-            });
-
-            // Update UI for all rows in the same group
-            table.rows().every(function() {
-                const d = this.data();
-                if (d.hash === rowData.hash) {
-                    const isOriginal = d.ino === rowData.ino;
-                    if (d.isOriginal !== isOriginal) {
-                        d.isOriginal = isOriginal;
-                        // Invalidate to re-render the row
-                        this.invalidate();
-                    }
-                }
-            });
-
-            // Re-apply disabled classes after draw
-            table.draw(false);
+        leftTable.on('deselect', function(e, dt, type, indexes) {
+            if (type === 'row') {
+                dt.rows(indexes).nodes().to$().removeClass('disabled-row');
+            }
         });
 
         // Right Table
