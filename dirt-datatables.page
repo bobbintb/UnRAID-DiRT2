@@ -171,7 +171,7 @@ $(document).ready(function() {
             order: [
                 [0, 'asc']
             ],
-            createdRow: function(row, data, dataIndex) {
+            rowCallback: function(row, data, dataIndex) {
                 if (data.isOriginal) {
                     $(row).addClass('disabled-row');
                 } else {
