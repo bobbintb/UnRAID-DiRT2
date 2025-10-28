@@ -61,7 +61,7 @@ function createRowFormatter() {
     }
 }
 
-function createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQueueTable) {
+function createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, updateActionQueueTable) {
     return function(cell, formatterParams, onRendered) {
         const data = cell.getRow().getData();
         const radio = document.createElement("input");
@@ -77,11 +77,12 @@ function createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQu
                     rowEl.classList.add('disabled-row');
                     const actionRadios = rowEl.querySelectorAll('.tabulator-cell[tabulator-field="action"] input[type="radio"]');
                     actionRadios.forEach(r => r.checked = false);
-                    removeFileActionFromQueue(clickedRow.getData().path, dirtySock, actionQueueTable);
+                    removeFileActionFromQueue(clickedRow.getData().path, dirtySock);
                 } else {
                     rowEl.classList.remove('disabled-row');
                 }
             });
+            updateActionQueueTable();
             const groupHash = clickedRow.getData().hash;
             const fileIno = clickedRow.getData().ino;
             dirtySock('setOriginalFile', { hash: groupHash, ino: fileIno });
@@ -108,7 +109,7 @@ function createActionTitleFormatter() {
     }
 }
 
-function createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable) {
+function createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, updateActionQueueTable) {
     return function(cell, formatterParams, onRendered) {
         const data = cell.getRow().getData();
         const uniqueName = "action_" + data.ino;
@@ -147,19 +148,14 @@ function createActionFormatter(actionQueueData, removeFileActionFromQueue, dirty
             if (target.checked && target.getAttribute('data-waschecked') === 'true') {
                 target.checked = false;
                 target.setAttribute('data-waschecked', 'false');
-                removeFileActionFromQueue(filePath, dirtySock, actionQueueTable);
+                removeFileActionFromQueue(filePath, dirtySock);
             } else {
                 delRadio.setAttribute('data-waschecked', 'false');
                 linkRadio.setAttribute('data-waschecked', 'false');
                 target.setAttribute('data-waschecked', 'true');
                 dirtySock('setFileAction', { path: filePath, action: target.value });
-                actionQueueTable.getRows().forEach(row => {
-                    if (row.getData().file === filePath) {
-                        row.delete();
-                    }
-                });
-                actionQueueTable.addRow({ action: target.value, file: filePath });
             }
+            updateActionQueueTable();
         };
         delRadio.addEventListener('click', actionChangeHandler);
         linkRadio.addEventListener('click', actionChangeHandler);

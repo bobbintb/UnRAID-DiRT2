@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 cellClick: function(e, cell) {
                     const rowData = cell.getRow().getData();
                     const filePath = rowData.file;
-                    removeFileActionFromQueue(filePath, dirtySock, actionQueueTable);
+                    removeFileActionFromQueue(filePath, dirtySock);
                     const matchingRows = table.searchRows("path", "=", filePath);
                     if (matchingRows.length > 0) {
                         const actionCell = matchingRows[0].getCell('action');
@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         });
                     }
+                    updateActionQueueTable(table, actionQueueTable);
                 }
             },
             { title: "File", field: "file", hozAlign: "left", tooltip: true },
@@ -95,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 30,
                 minWidth: 30,
                 resizable: false,
-                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQueueTable),
+                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, () => updateActionQueueTable(table, actionQueueTable)),
             },
             {
                 field: "action",
@@ -135,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 },
-                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable),
+                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, () => updateActionQueueTable(table, actionQueueTable)),
             },
             {
                 title: "File",
@@ -172,11 +173,6 @@ document.addEventListener('DOMContentLoaded', function() {
         function processAndRenderTable(duplicateFilesData, originalFileState, receivedActionQueueData) {
             console.log("Tabulator Tab: Processing and rendering tables.");
             actionQueueData = receivedActionQueueData;
-            const queueTableData = Object.entries(actionQueueData).map(([path, action]) => ({
-                action: action,
-                file: path,
-            }));
-            actionQueueTable.setData(queueTableData);
             const tableData = [];
             duplicateFilesData.forEach(group => {
                 const originalIno = originalFileState[group.hash];
@@ -189,7 +185,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
             });
-            table.setData(tableData);
+            table.setData(tableData).then(() => {
+                updateActionQueueTable(table, actionQueueTable);
+            });
         }
 
         socket.onclose = function(event) {
