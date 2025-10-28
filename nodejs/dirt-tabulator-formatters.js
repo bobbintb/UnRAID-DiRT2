@@ -90,8 +90,8 @@ function createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQu
     }
 }
 
-function createActionTitleFormatter(table) {
-    return function(cell, formatterParams, onRendered) {
+function createActionTitleFormatter() {
+    return function(column, formatterParams, onRendered) {
         const uniqueName = "action_group_table_header";
         const container = document.createElement('div');
         container.className = 'group-header-flex-container';
@@ -104,33 +104,6 @@ function createActionTitleFormatter(table) {
                 <label for="link_${uniqueName}" title="Hardlink All"><i class="fa fa-link"></i></label>
             </div>
         `;
-        const delRadio = container.querySelector(`#del_${uniqueName}`);
-        const linkRadio = container.querySelector(`#link_${uniqueName}`);
-        const headerActionClickHandler = function(e) {
-            const target = e.target;
-            const action = target.value;
-            if (target.checked && target.getAttribute('data-waschecked') === 'true') {
-                target.checked = false;
-                target.setAttribute('data-waschecked', 'false');
-            } else {
-                delRadio.setAttribute('data-waschecked', 'false');
-                linkRadio.setAttribute('data-waschecked', 'false');
-                target.setAttribute('data-waschecked', 'true');
-            }
-            const effectiveCheckedState = target.checked;
-            const groups = table.getGroups();
-            groups.forEach(group => {
-                const groupEl = group.getElement();
-                const groupRadio = groupEl.querySelector(`input[value="${action}"]`);
-                if (groupRadio) {
-                    if ((effectiveCheckedState && !groupRadio.checked) || (!effectiveCheckedState && groupRadio.checked)) {
-                        groupRadio.click();
-                    }
-                }
-            });
-        };
-        delRadio.addEventListener('click', headerActionClickHandler);
-        linkRadio.addEventListener('click', headerActionClickHandler);
         return container;
     }
 }

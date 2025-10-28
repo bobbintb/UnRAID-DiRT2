@@ -103,7 +103,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerSort: false,
                 width: 65,
                 resizable: false,
-                titleFormatter: createActionTitleFormatter(table),
+                titleFormatter: createActionTitleFormatter(),
+                headerClick: function(e, column) {
+                    const target = e.target;
+                    if (target.tagName !== 'INPUT') return;
+
+                    const action = target.value;
+                    const headerEl = column.getElement();
+                    const delRadio = headerEl.querySelector('input[value="delete"]');
+                    const linkRadio = headerEl.querySelector('input[value="link"]');
+
+                    if (target.checked && target.getAttribute('data-waschecked') === 'true') {
+                        target.checked = false;
+                        target.setAttribute('data-waschecked', 'false');
+                    } else {
+                        delRadio.setAttribute('data-waschecked', 'false');
+                        linkRadio.setAttribute('data-waschecked', 'false');
+                        target.setAttribute('data-waschecked', 'true');
+                    }
+
+                    const effectiveCheckedState = target.checked;
+                    const groups = table.getGroups();
+
+                    groups.forEach(group => {
+                        const groupEl = group.getElement();
+                        const groupRadio = groupEl.querySelector(`input[value="${action}"]`);
+                        if (groupRadio) {
+                            if ((effectiveCheckedState && !groupRadio.checked) || (!effectiveCheckedState && groupRadio.checked)) {
+                                groupRadio.click();
+                            }
+                        }
+                    });
+                },
                 formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable),
             },
             {
