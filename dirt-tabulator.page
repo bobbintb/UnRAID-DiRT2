@@ -173,6 +173,11 @@ document.addEventListener('DOMContentLoaded', function() {
         function processAndRenderTable(duplicateFilesData, originalFileState, receivedActionQueueData) {
             console.log("Tabulator Tab: Processing and rendering tables.");
             actionQueueData = receivedActionQueueData;
+            const queueTableData = Object.entries(receivedActionQueueData).map(([path, action]) => ({
+                action: action,
+                file: path,
+            }));
+            actionQueueTable.setData(queueTableData);
             const tableData = [];
             duplicateFilesData.forEach(group => {
                 const originalIno = originalFileState[group.hash];
@@ -185,9 +190,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
             });
-            table.setData(tableData).then(() => {
-                updateActionQueueTable(table, actionQueueTable);
-            });
+            table.setData(tableData);
         }
 
         socket.onclose = function(event) {
