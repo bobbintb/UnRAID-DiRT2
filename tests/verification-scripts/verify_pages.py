@@ -16,11 +16,6 @@ def run(playwright):
     page.screenshot(path=os.path.join(base_path, "screenshot-tabulator.png"))
     print("Tabulator page screenshot captured.")
 
-    # Verify DataTables page
-    datatables_path = os.path.join(base_path, 'temp_datatables.html')
-    page.goto(f"file:///{datatables_path}")
-    page.screenshot(path=os.path.join(base_path, "screenshot-datatables.png"))
-    print("DataTables page screenshot captured.")
 
     browser.close()
 

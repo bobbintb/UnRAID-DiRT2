@@ -97,9 +97,6 @@ This project uses two different table libraries on separate pages for evaluation
 -   **`dirt-tabulator.page`**:
     -   **Library**: Tabulator v6.3.1
     -   **Documentation**: [https://tabulator.info/docs/6.3](https://tabulator.info/docs/6.3)
--   **`dirt-datatables.page`**:
-    -   **Library**: DataTables v2.3.4
-    -   **Documentation**: [https://datatables.net/](https://datatables.net/)
 
 
 ## Playwright Scripts
