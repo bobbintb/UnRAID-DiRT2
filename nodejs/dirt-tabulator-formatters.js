@@ -73,11 +73,12 @@ function createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQu
             const groupRows = clickedRow.getGroup().getRows();
             groupRows.forEach(row => {
                 const rowEl = row.getElement();
-                if (row.getData().ino === clickedRow.getData().ino) {
+                const rowData = row.getData();
+                if (rowData.ino === clickedRow.getData().ino) {
                     rowEl.classList.add('disabled-row');
                     const actionRadios = rowEl.querySelectorAll('.tabulator-cell[tabulator-field="action"] input[type="radio"]');
                     actionRadios.forEach(r => r.checked = false);
-                    removeFileActionFromQueue(clickedRow.getData().path, dirtySock, actionQueueTable);
+                    removeFileActionFromQueue(rowData.ino, rowData.path, dirtySock, actionQueueTable);
                 } else {
                     rowEl.classList.remove('disabled-row');
                 }
@@ -144,13 +145,14 @@ function createActionFormatter(actionQueueData, removeFileActionFromQueue, dirty
 
         const actionChangeHandler = function(e) {
             const target = e.target;
-            const filePath = cell.getRow().getData().path;
+            const rowData = cell.getRow().getData();
+            const { ino, path } = rowData;
 
             if (target.checked && target.getAttribute('data-waschecked') === 'true') {
                 // Handle DESELECT action
                 target.checked = false;
                 target.setAttribute('data-waschecked', 'false');
-                removeFileActionFromQueue(filePath, dirtySock, actionQueueTable);
+                removeFileActionFromQueue(ino, path, dirtySock, actionQueueTable);
             } else {
                 // Handle SELECT action
                 delRadio.setAttribute('data-waschecked', 'false');
@@ -159,14 +161,14 @@ function createActionFormatter(actionQueueData, removeFileActionFromQueue, dirty
 
                 // Proactively remove any existing row for this file from the queue UI to prevent duplicates
                 actionQueueTable.getRows().forEach(row => {
-                    if (row.getData().file === filePath) {
+                    if (row.getData().file === path) {
                         row.delete();
                     }
                 });
 
                 // Send the new action to the backend and add the new row to the UI
-                dirtySock('setFileAction', { path: filePath, action: target.value });
-                actionQueueTable.addRow({ file: filePath, action: target.value });
+                dirtySock('setFileAction', { ino, path, action: target.value });
+                actionQueueTable.addRow({ file: path, action: target.value });
             }
         };
 

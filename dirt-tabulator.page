@@ -60,9 +60,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 cellClick: function(e, cell) {
                     const rowData = cell.getRow().getData();
                     const filePath = rowData.file;
-                    removeFileActionFromQueue(filePath, dirtySock, actionQueueTable);
                     const matchingRows = table.searchRows("path", "=", filePath);
                     if (matchingRows.length > 0) {
+                        const mainTableRowData = matchingRows[0].getData();
+                        const ino = mainTableRowData.ino;
+                        removeFileActionFromQueue(ino, filePath, dirtySock, actionQueueTable);
                         const actionCell = matchingRows[0].getCell('action');
                         const radioInputs = actionCell.getElement().querySelectorAll('input[type="radio"]');
                         radioInputs.forEach(radio => {
@@ -77,16 +79,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ],
     });
 
-    // The Tabulator table definition
-    table = new Tabulator("#duplicatesTable", {
-        height: "100%",
-        data: [],
-        placeholder: "No duplicate files found",
-        layout: "fitColumns",
-        groupBy: "hash",
-        groupHeader: createGroupHeader(),
-        rowFormatter: createRowFormatter(),
-        columns: [
+    function getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable) {
+        return [
             {
                 title: "",
                 field: "isPrimary",
@@ -147,7 +141,19 @@ document.addEventListener('DOMContentLoaded', function() {
             { title: "Size", field: "size", formatter: formatSize, width: 90, resizable: false },
             { title: "Modified", field: "mtime", formatter: formatDate, width: 170, resizable: false },
             { title: "Changed", field: "ctime", formatter: formatDate, width: 170, resizable: false }
-        ],
+        ]
+    }
+
+    // The Tabulator table definition
+    table = new Tabulator("#duplicatesTable", {
+        height: "100%",
+        data: [],
+        placeholder: "No duplicate files found",
+        layout: "fitColumns",
+        groupBy: "hash",
+        groupHeader: createGroupHeader(),
+        rowFormatter: createRowFormatter(),
+        columns: getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable),
     });
 
     function connect() {
@@ -189,6 +195,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
             });
+            const newColumns = getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable);
+            table.setColumns(newColumns);
             table.setData(tableData);
         }
 

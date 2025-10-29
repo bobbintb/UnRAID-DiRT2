@@ -4,7 +4,7 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 const { scan } = require('./scan.js');
 const { createClient } = require('redis');
-const { connectToRedis, closeRedis, getRedisClient } = require('./redis.js');
+const { connectToRedis, closeRedis, getRedisClient, actionQueue } = require('./redis.js');
 const { fileProcessingQueue } = require('./redis.js');
 const { saveDbSnapshot } = require('./snapshot.js');
 const {
@@ -13,7 +13,7 @@ const {
   debugFindFilesWithNonUniqueHashes,
   debugFindFileByPath,
 } = require('./debug.js');
-const { getAllFiles, findDuplicates, getActionQueue } = require('./redis.js');
+const { getAllFiles, findDuplicates } = require('./redis.js');
 
 let inboxListenerClient;
 
@@ -244,34 +244,40 @@ async function main() {
               break;
             }
             case 'setFileAction': {
-              const { path, action } = data;
-              if (!path || !action) {
+              const { ino, path, action } = data;
+              if (!ino || !path || !action) {
                 console.error(`[DIRT] Invalid data for setFileAction:`, data);
                 break;
               }
-              const redisClient = getRedisClient();
-              await redisClient.hSet('queue', path, action);
-              console.log(`[DIRT] Action queue updated for path ${path} to action ${action}`);
+              // Remove-then-add strategy
+              await actionQueue.remove(ino);
+              await actionQueue.add(action, { path }, { jobId: ino });
+              console.log(`[DIRT] Action queue job SET for ino ${ino} to action '${action}'`);
               break;
             }
             case 'removeFileAction': {
-              const { path } = data;
-              if (!path) {
+              const { ino } = data;
+              if (!ino) {
                 console.error(`[DIRT] Invalid data for removeFileAction:`, data);
                 break;
               }
-              const redisClient = getRedisClient();
-              await redisClient.hDel('queue', path);
-              console.log(`[DIRT] Action queue updated for path ${path}, action removed`);
+              await actionQueue.remove(ino);
+              console.log(`[DIRT] Action queue job REMOVED for ino ${ino}`);
               break;
             }
             case 'findDuplicates': {
               const redisClient = getRedisClient();
-              const [duplicates, state, queue] = await Promise.all([
-                findDuplicates(),
-                redisClient.hGetAll('state'),
-                getActionQueue(),
+              const [duplicates, state, waitingJobs] = await Promise.all([
+                  findDuplicates(),
+                  redisClient.hGetAll('state'),
+                  actionQueue.getWaiting(),
               ]);
+
+              // Transform the BullMQ jobs into the simple { path: action } format the frontend expects
+              const queue = waitingJobs.reduce((acc, job) => {
+                  acc[job.data.path] = job.name; // job.name is the action, e.g., 'delete'
+                  return acc;
+              }, {});
 
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
