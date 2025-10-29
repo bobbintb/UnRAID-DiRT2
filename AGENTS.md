@@ -92,11 +92,8 @@ This single command will automatically:
 
 ### Frontend Libraries
 
-This project uses two different table libraries on separate pages for evaluation purposes. Before implementing new features or customizations, **you must** consult the official documentation for the relevant library to see if a built-in solution exists.
+This project uses the DataTables library. Before implementing new features or customizations, **you must** consult the official documentation to see if a built-in solution exists.
 
--   **`dirt-tabulator.page`**:
-    -   **Library**: Tabulator v6.3.1
-    -   **Documentation**: [https://tabulator.info/docs/6.3](https://tabulator.info/docs/6.3)
 -   **`dirt-datatables.page`**:
     -   **Library**: DataTables v2.3.4
     -   **Documentation**: [https://datatables.net/](https://datatables.net/)
