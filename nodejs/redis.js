@@ -38,6 +38,7 @@ const connection = {
 };
 
 const fileProcessingQueue = new Queue('file-processing', { connection });
+const actionQueue = new Queue('action-queue', { connection });
 
 async function connectToRedis() {
 	if (!redisClient) {
@@ -123,6 +124,9 @@ async function closeRedis() {
 	if (fileProcessingQueue) {
 		await fileProcessingQueue.close();
 	}
+	if (actionQueue) {
+		await actionQueue.close();
+	}
 }
 
 module.exports = {
@@ -133,6 +137,7 @@ module.exports = {
     closeRedis,
     fileMetadataSchema,
     fileProcessingQueue,
+    actionQueue,
     parseHGetAll: redisFunctions.parseHGetAll,
     findBySize: redisFunctions.findBySize,
     findByPath: redisFunctions.findByPath,

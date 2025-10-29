@@ -1,7 +1,7 @@
 // Helper function to remove an action from the queue (UI and backend)
-function removeFileActionFromQueue(filePath, dirtySock, actionQueueTable) {
+function removeFileActionFromQueue(ino, filePath, dirtySock, actionQueueTable) {
     // 1. Send message to backend to remove from Redis
-    dirtySock('removeFileAction', { path: filePath });
+    dirtySock('removeFileAction', { ino });
 
     // 2. Remove the row from the action queue table
     actionQueueTable.getRows().forEach(row => {

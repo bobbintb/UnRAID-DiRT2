@@ -60,9 +60,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 cellClick: function(e, cell) {
                     const rowData = cell.getRow().getData();
                     const filePath = rowData.file;
-                    removeFileActionFromQueue(filePath, dirtySock, actionQueueTable);
                     const matchingRows = table.searchRows("path", "=", filePath);
                     if (matchingRows.length > 0) {
+                        const mainTableRowData = matchingRows[0].getData();
+                        const ino = mainTableRowData.ino;
+                        removeFileActionFromQueue(ino, filePath, dirtySock, actionQueueTable);
                         const actionCell = matchingRows[0].getCell('action');
                         const radioInputs = actionCell.getElement().querySelectorAll('input[type="radio"]');
                         radioInputs.forEach(radio => {
