@@ -244,8 +244,8 @@ $(document).ready(function() {
             // When a file is selected as original, any pending action for it should be cleared.
             dirtySock('removeFileAction', { path: rowData.path });
 
-            // Also, uncheck the action radios in the UI for this row
-            $(selectedRow).find('.action-radios input[type="radio"]').prop('checked', false);
+            // Update the data source to clear the action, which will then be reflected on redraw.
+            rowData.queuedAction = null;
 
             // Update UI for all rows in the same group
             table.rows().every(function() {
