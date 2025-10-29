@@ -61,7 +61,7 @@ function createRowFormatter() {
     }
 }
 
-function createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, updateActionQueueTable) {
+function createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQueueTable) {
     return function(cell, formatterParams, onRendered) {
         const data = cell.getRow().getData();
         const radio = document.createElement("input");
@@ -77,12 +77,11 @@ function createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, updateAc
                     rowEl.classList.add('disabled-row');
                     const actionRadios = rowEl.querySelectorAll('.tabulator-cell[tabulator-field="action"] input[type="radio"]');
                     actionRadios.forEach(r => r.checked = false);
-                    removeFileActionFromQueue(clickedRow.getData().path, dirtySock);
+                    removeFileActionFromQueue(clickedRow.getData().path, dirtySock, actionQueueTable);
                 } else {
                     rowEl.classList.remove('disabled-row');
                 }
             });
-            updateActionQueueTable();
             const groupHash = clickedRow.getData().hash;
             const fileIno = clickedRow.getData().ino;
             dirtySock('setOriginalFile', { hash: groupHash, ino: fileIno });
@@ -109,7 +108,7 @@ function createActionTitleFormatter() {
     }
 }
 
-function createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, updateActionQueueTable) {
+function createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable) {
     return function(cell, formatterParams, onRendered) {
         const data = cell.getRow().getData();
         const uniqueName = "action_" + data.ino;
@@ -142,21 +141,35 @@ function createActionFormatter(actionQueueData, removeFileActionFromQueue, dirty
         linkLabel.htmlFor = `link_${uniqueName}`;
         linkLabel.title = "Hardlink";
         linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
+
         const actionChangeHandler = function(e) {
             const target = e.target;
             const filePath = cell.getRow().getData().path;
+
             if (target.checked && target.getAttribute('data-waschecked') === 'true') {
+                // Handle DESELECT action
                 target.checked = false;
                 target.setAttribute('data-waschecked', 'false');
-                removeFileActionFromQueue(filePath, dirtySock);
+                removeFileActionFromQueue(filePath, dirtySock, actionQueueTable);
             } else {
+                // Handle SELECT action
                 delRadio.setAttribute('data-waschecked', 'false');
                 linkRadio.setAttribute('data-waschecked', 'false');
                 target.setAttribute('data-waschecked', 'true');
+
+                // Proactively remove any existing row for this file from the queue UI to prevent duplicates
+                actionQueueTable.getRows().forEach(row => {
+                    if (row.getData().file === filePath) {
+                        row.delete();
+                    }
+                });
+
+                // Send the new action to the backend and add the new row to the UI
                 dirtySock('setFileAction', { path: filePath, action: target.value });
+                actionQueueTable.addRow({ file: filePath, action: target.value });
             }
-            updateActionQueueTable();
         };
+
         delRadio.addEventListener('click', actionChangeHandler);
         linkRadio.addEventListener('click', actionChangeHandler);
         container.appendChild(delRadio);

@@ -1,7 +1,14 @@
-// Helper function to remove an action from the queue (backend only)
-function removeFileActionFromQueue(filePath, dirtySock) {
-    // Send message to backend to remove from Redis
+// Helper function to remove an action from the queue (UI and backend)
+function removeFileActionFromQueue(filePath, dirtySock, actionQueueTable) {
+    // 1. Send message to backend to remove from Redis
     dirtySock('removeFileAction', { path: filePath });
+
+    // 2. Remove the row from the action queue table
+    actionQueueTable.getRows().forEach(row => {
+        if (row.getData().file === filePath) {
+            row.delete();
+        }
+    });
 }
 
 function formatBytes(bytes, decimals = 2) {
@@ -23,25 +30,4 @@ function formatDate(cell) {
 function formatSize(cell) {
     const value = cell.getValue();
     return formatBytes(value);
-}
-
-// Helper function to update the action queue table based on the main table's state
-function updateActionQueueTable(table, actionQueueTable) {
-    if (!table) return;
-    const tableRows = table.getRows();
-    const queuedActions = [];
-    tableRows.forEach(row => {
-        const rowData = row.getData();
-        const actionCell = row.getCell('action').getElement();
-        if (!actionCell) return;
-
-        const checkedRadio = actionCell.querySelector('input[type="radio"]:checked');
-        if (checkedRadio) {
-            queuedActions.push({
-                action: checkedRadio.value,
-                file: rowData.path
-            });
-        }
-    });
-    actionQueueTable.setData(queuedActions);
 }
