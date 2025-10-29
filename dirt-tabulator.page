@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (action === 'duplicateFiles') {
                     console.log("Tabulator Tab: Received duplicateFiles data package.");
-                    const { duplicates, state } = data;
+                    const { duplicates, state, queue } = data;
 
                     const flatData = duplicates.flatMap(group => {
                         const originalFileInode = state ? state[group.hash] : null;
@@ -95,10 +95,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 isOriginal = true;
                             }
 
+                            // Each file path can have one action, 'delete' or 'link'
+                            const queuedAction = queue ? queue[file.path] : null;
+
                             return {
                                 ...file,
                                 hash: group.hash,
-                                isOriginal: isOriginal
+                                isOriginal: isOriginal,
+                                queuedAction: queuedAction,
                             };
                         });
                     });
@@ -163,6 +167,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             ino: clickedData.ino
                         });
 
+                        // When a file is selected as original, any pending action for it should be cleared.
+                        dirtySock('removeFileAction', { path: clickedData.path });
+
+                        // Also, uncheck the action radios in the UI for this row
+                        const radios = cell.getRow().getElement().querySelectorAll(`input[type="radio"][name^="action_"]`);
+                        radios.forEach(radio => radio.checked = false);
+
                         // Update the isOriginal flag for all rows in the group
                         var group = clickedRow.getGroup();
                         group.getRows().forEach(function(row) {
@@ -180,16 +191,26 @@ document.addEventListener('DOMContentLoaded', function() {
                         const rowData = cell.getRow().getData();
                         const container = document.createElement("span");
 
-                        const radio1 = document.createElement("input");
-                        radio1.type = "radio";
-                        radio1.name = `action_${rowData.ino}`;
+                        const radioDelete = document.createElement("input");
+                        radioDelete.type = "radio";
+                        radioDelete.name = `action_${rowData.path}`;
+                        radioDelete.value = "delete";
+                        radioDelete.title = "Delete this file";
+                        if (rowData.queuedAction === 'delete') {
+                            radioDelete.checked = true;
+                        }
 
-                        const radio2 = document.createElement("input");
-                        radio2.type = "radio";
-                        radio2.name = `action_${rowData.ino}`;
+                        const radioLink = document.createElement("input");
+                        radioLink.type = "radio";
+                        radioLink.name = `action_${rowData.path}`;
+                        radioLink.value = "link";
+                        radioLink.title = "Hardlink this file";
+                        if (rowData.queuedAction === 'link') {
+                            radioLink.checked = true;
+                        }
 
-                        container.appendChild(radio1);
-                        container.appendChild(radio2);
+                        container.appendChild(radioDelete);
+                        container.appendChild(radioLink);
 
                         container.addEventListener('mousedown', function(e) {
                             if (e.target.type === 'radio' && e.target.checked) {
@@ -201,9 +222,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (e.target.type !== 'radio') return;
 
                             const radio = e.target;
+                            const rowData = cell.getRow().getData();
+
                             if (radio.isDeselecting) {
                                 radio.checked = false;
                                 radio.isDeselecting = false;
+                                dirtySock('removeFileAction', { path: rowData.path });
+                            } else {
+                                dirtySock('setFileAction', { path: rowData.path, action: radio.value });
                             }
                         });
 

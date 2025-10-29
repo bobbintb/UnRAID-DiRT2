@@ -90,7 +90,7 @@ $(document).ready(function() {
 
             if (action === 'duplicateFiles') {
                 console.log("DataTables Tab: Received duplicateFiles data package.");
-                const { duplicates, state } = data;
+                const { duplicates, state, queue } = data;
 
                 const flatData = duplicates.flatMap(group => {
                     const originalFileInode = state ? state[group.hash] : null;
@@ -103,10 +103,13 @@ $(document).ready(function() {
                             isOriginal = true;
                         }
 
+                        const queuedAction = queue ? queue[file.path] : null;
+
                         return {
                             ...file,
                             hash: group.hash,
-                            isOriginal: isOriginal
+                            isOriginal: isOriginal,
+                            queuedAction: queuedAction,
                         };
                     });
                 });
@@ -157,10 +160,12 @@ $(document).ready(function() {
                 title: '',
                 orderable: false,
                 render: function(data, type, row) {
+                    const isDelete = row.queuedAction === 'delete';
+                    const isLink = row.queuedAction === 'link';
                     return `
                         <span class="action-radios">
-                            <input type="radio" name="action_${row.ino}">
-                            <input type="radio" name="action_${row.ino}">
+                            <input type="radio" name="action_${row.path}" value="delete" title="Delete this file" ${isDelete ? 'checked' : ''}>
+                            <input type="radio" name="action_${row.path}" value="link" title="Hardlink this file" ${isLink ? 'checked' : ''}>
                         </span>
                     `;
                 }
@@ -236,6 +241,12 @@ $(document).ready(function() {
                 ino: rowData.ino
             });
 
+            // When a file is selected as original, any pending action for it should be cleared.
+            dirtySock('removeFileAction', { path: rowData.path });
+
+            // Also, uncheck the action radios in the UI for this row
+            $(selectedRow).find('.action-radios input[type="radio"]').prop('checked', false);
+
             // Update UI for all rows in the same group
             table.rows().every(function() {
                 const d = this.data();
@@ -258,9 +269,16 @@ $(document).ready(function() {
         });
 
         $('#datatables-table tbody').on('click', '.action-radios input[type="radio"]', function(e) {
+            const table = $('#datatables-table').DataTable();
+            const selectedRow = $(this).closest('tr');
+            const rowData = table.row(selectedRow).data();
+
             if (this.isDeselecting) {
                 this.checked = false;
                 this.isDeselecting = false;
+                dirtySock('removeFileAction', { path: rowData.path });
+            } else {
+                dirtySock('setFileAction', { path: rowData.path, action: this.value });
             }
         });
 
