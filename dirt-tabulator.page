@@ -77,16 +77,8 @@ document.addEventListener('DOMContentLoaded', function() {
         ],
     });
 
-    // The Tabulator table definition
-    table = new Tabulator("#duplicatesTable", {
-        height: "100%",
-        data: [],
-        placeholder: "No duplicate files found",
-        layout: "fitColumns",
-        groupBy: "hash",
-        groupHeader: createGroupHeader(),
-        rowFormatter: createRowFormatter(),
-        columns: [
+    function getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable) {
+        return [
             {
                 title: "",
                 field: "isPrimary",
@@ -147,7 +139,19 @@ document.addEventListener('DOMContentLoaded', function() {
             { title: "Size", field: "size", formatter: formatSize, width: 90, resizable: false },
             { title: "Modified", field: "mtime", formatter: formatDate, width: 170, resizable: false },
             { title: "Changed", field: "ctime", formatter: formatDate, width: 170, resizable: false }
-        ],
+        ]
+    }
+
+    // The Tabulator table definition
+    table = new Tabulator("#duplicatesTable", {
+        height: "100%",
+        data: [],
+        placeholder: "No duplicate files found",
+        layout: "fitColumns",
+        groupBy: "hash",
+        groupHeader: createGroupHeader(),
+        rowFormatter: createRowFormatter(),
+        columns: getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable),
     });
 
     function connect() {
@@ -189,6 +193,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
             });
+            const newColumns = getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable);
+            table.setColumns(newColumns);
             table.setData(tableData);
         }
 
