@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 cellClick: function(e, cell) {
                     const rowData = cell.getRow().getData();
                     const filePath = rowData.file;
-                    removeFileActionFromQueue(filePath, dirtySock);
+                    removeFileActionFromQueue(filePath, dirtySock, actionQueueTable);
                     const matchingRows = table.searchRows("path", "=", filePath);
                     if (matchingRows.length > 0) {
                         const actionCell = matchingRows[0].getCell('action');
@@ -71,7 +71,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                         });
                     }
-                    updateActionQueueTable(table, actionQueueTable);
                 }
             },
             { title: "File", field: "file", hozAlign: "left", tooltip: true },
@@ -96,7 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 30,
                 minWidth: 30,
                 resizable: false,
-                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, () => updateActionQueueTable(table, actionQueueTable)),
+                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQueueTable),
             },
             {
                 field: "action",
@@ -136,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 },
-                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, () => updateActionQueueTable(table, actionQueueTable)),
+                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable),
             },
             {
                 title: "File",
