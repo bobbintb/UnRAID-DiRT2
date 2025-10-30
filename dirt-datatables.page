@@ -62,13 +62,12 @@ $(document).ready(function() {
     let rightTable;
 
     // Custom filter for the right table: only show rows with a queued action.
-    DataTable.ext.search.push(function(settings, data, dataIndex) {
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex, rowData) {
         if (settings.nTable.id !== 'right-table-datatables') {
             return true; // Don't filter other tables
         }
-        const table = new DataTable('#' + settings.nTable.id);
-        const rowData = table.row(dataIndex).data();
-        return !!rowData.queuedAction; // Only show rows with a non-null/non-empty queuedAction
+        // For the right-table, only show rows where queuedAction is not null or undefined.
+        return !!rowData.queuedAction;
     });
 
 
@@ -320,8 +319,6 @@ $(document).ready(function() {
             ]
         });
 
-        // Initial draw of the right table to apply the filter
-        rightTable.draw();
     }
 
     function dirtySock(action, data) {
