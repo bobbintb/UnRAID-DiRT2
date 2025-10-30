@@ -314,11 +314,10 @@ $(document).ready(function() {
                 emptyTable: "No actions selected."
             },
             columns: [
-                { data: 'queuedAction', title: 'Action' },
+                { data: 'queuedAction', title: 'Action', defaultContent: "" },
                 { data: 'path', title: 'Path' }
             ]
         });
-
     }
 
     function dirtySock(action, data) {
