@@ -61,16 +61,6 @@ $(document).ready(function() {
     let leftTable;
     let rightTable;
 
-    // Custom filter for the right table: only show rows with a queued action.
-    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex, rowData) {
-        if (settings.nTable.id !== 'right-table-datatables') {
-            return true; // Don't filter other tables
-        }
-        // For the right-table, only show rows where queuedAction is not null or undefined.
-        return !!rowData.queuedAction;
-    });
-
-
     function formatBytes(bytes, decimals = 2) {
         if (!bytes || bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -254,7 +244,7 @@ $(document).ready(function() {
             // When a file is selected as original, any pending action for it should be cleared.
             dirtySock('removeFileAction', { path: rowData.path });
 
-            // Update the data source to clear the action, which will then be reflected on redraw.
+            // Update the data source to clear the action
             rowData.queuedAction = null;
 
             // Update UI for all rows in the same group
@@ -270,7 +260,7 @@ $(document).ready(function() {
             });
 
             table.draw(false);
-            rightTable.draw(false); // Redraw the right table to reflect the cleared action
+            updateRightTable(); // Update the right table with the new data
         });
 
         $('#datatables-table tbody').on('mousedown', '.action-radios input[type="radio"]', function(e) {
@@ -294,18 +284,26 @@ $(document).ready(function() {
                 dirtySock('setFileAction', { path: rowData.path, action: this.value });
             }
 
-            // Redraw both tables to reflect the change
+            // Redraw the left table and update the right table
             leftTable.draw(false);
-            rightTable.draw(false);
+            updateRightTable();
         });
+
+        function updateRightTable() {
+            const allData = leftTable.rows().data().toArray();
+            const queuedData = allData.filter(item => item.queuedAction);
+            rightTable.clear().rows.add(queuedData).draw();
+        }
 
         // Right Table
         if ($.fn.DataTable.isDataTable('#right-table-datatables')) {
             $('#right-table-datatables').DataTable().destroy();
         }
 
+        const queuedData = data.filter(item => item.queuedAction);
+
         rightTable = $('#right-table-datatables').DataTable({
-            data: data, // Use the same shared data source
+            data: queuedData, // Use the pre-filtered data
             paging: false,
             searching: false,
             info: false,
@@ -314,7 +312,7 @@ $(document).ready(function() {
                 emptyTable: "No actions selected."
             },
             columns: [
-                { data: 'queuedAction', title: 'Action', defaultContent: "" },
+                { data: 'queuedAction', title: 'Action' },
                 { data: 'path', title: 'Path' }
             ]
         });
