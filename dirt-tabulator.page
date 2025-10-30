@@ -259,37 +259,34 @@ document.addEventListener('DOMContentLoaded', function() {
             // Send message to backend to clear state
             dirtySock('resetState', {});
 
-            // Clear the action queue table in the UI
+            // Clear the action queue table in the UI and its underlying data object
             actionQueueTable.clearData();
+            actionQueueData = {};
             updateQueueFooter(actionQueueTable, table);
 
-            // Reset original file selections and actions in the main table UI
-            table.getGroups().forEach(group => {
-                const rows = group.getRows();
-                if (rows.length > 0) {
-                    // Click the "isPrimary" radio of the first row to reset the group
-                    const firstRow = rows[0];
-                    const firstRowPrimaryCell = firstRow.getCell('isPrimary');
-                    const firstRowPrimaryRadio = firstRowPrimaryCell.getElement().querySelector('input[type="radio"]');
-                    if (firstRowPrimaryRadio && !firstRowPrimaryRadio.checked) {
-                        firstRowPrimaryRadio.click();
-                    } else {
-                        // If the first one is already the primary, we still need to clear actions
-                        // for the other rows in this group
-                        rows.forEach((row, index) => {
-                            if (index > 0) {
-                                const actionCell = row.getCell('action').getElement();
-                                const actionRadios = actionCell.querySelectorAll('input[type="radio"]');
-                                actionRadios.forEach(radio => {
-                                    if (radio.checked) {
-                                        radio.click(); // Deselect
-                                    }
-                                });
-                            }
-                        });
-                    }
-                }
+            // Get all data from the table
+            const tableData = table.getData();
+
+            // Group data by hash
+            const groupedData = tableData.reduce((acc, row) => {
+                acc[row.hash] = acc[row.hash] || [];
+                acc[row.hash].push(row);
+                return acc;
+            }, {});
+
+            // Reset isOriginal flag for each group
+            Object.values(groupedData).forEach(group => {
+                group.forEach((row, index) => {
+                    row.isOriginal = (index === 0);
+                });
             });
+
+            // Re-set the columns to ensure formatters close over the new empty actionQueueData
+            const newColumns = getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable, table, updateQueueFooter);
+            table.setColumns(newColumns);
+
+            // Set the updated data back to the table, forcing a re-render
+            table.setData(tableData);
         }
     });
 
