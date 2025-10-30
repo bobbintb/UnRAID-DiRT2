@@ -260,45 +260,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('reset-button').addEventListener('click', function() {
         if (confirm("Are you sure you want to reset all actions and original file selections?")) {
-            // Send message to backend to clear state
+            // 1. Send message to backend to clear the state in Redis.
             dirtySock('resetState', {});
 
-            // Clear the action queue table in the UI
-            actionQueueTable.clearData();
-            // Mutate the actionQueueData object to clear it
-            for (const key in actionQueueData) {
-                delete actionQueueData[key];
-            }
-            updateQueueFooter(actionQueueTable, table);
-
-            // Get all data from the table
-            const tableData = table.getData();
-
-            // Destroy the old table instance
-            table.destroy();
-
-            // Re-create the table
-            table = new Tabulator("#duplicatesTable", getDuplicatesTableConfig());
-
-            // Reset the 'isOriginal' flag in the data
-            const groupedData = tableData.reduce((acc, row) => {
-                acc[row.hash] = acc[row.hash] || [];
-                acc[row.hash].push(row);
-                return acc;
-            }, {});
-
-            Object.values(groupedData).forEach(group => {
-                group.forEach((row, index) => {
-                    row.isOriginal = (index === 0);
-                });
-            });
-
-            // Set the updated data back to the table to ensure the data model is correct.
-            table.setData(tableData).then(() => {
-                // Force a full redraw of the table to ensure all formatters are re-run
-                // with the cleared actionQueueData state. This is the definitive fix.
-                table.redraw(true);
-            });
+            // 2. Immediately request the fresh, reset data from the server.
+            // The existing onmessage handler for 'duplicateFiles' will receive this
+            // and redraw the tables correctly, just like on the initial page load.
+            dirtySock('findDuplicates', null);
         }
     });
 
