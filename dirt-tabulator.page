@@ -153,17 +153,21 @@ document.addEventListener('DOMContentLoaded', function() {
         ]
     }
 
+    function getDuplicatesTableConfig() {
+        return {
+            height: "100%",
+            data: [],
+            placeholder: "No duplicate files found",
+            layout: "fitColumns",
+            groupBy: "hash",
+            groupHeader: createGroupHeader(),
+            rowFormatter: createRowFormatter(),
+            columns: [], // Columns are set dynamically when data is received
+        };
+    }
+
     // The Tabulator table definition
-    table = new Tabulator("#duplicatesTable", {
-        height: "100%",
-        data: [],
-        placeholder: "No duplicate files found",
-        layout: "fitColumns",
-        groupBy: "hash",
-        groupHeader: createGroupHeader(),
-        rowFormatter: createRowFormatter(),
-        columns: [], // Columns are set dynamically when data is received
-    });
+    table = new Tabulator("#duplicatesTable", getDuplicatesTableConfig());
 
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
@@ -261,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Clear the action queue table in the UI
             actionQueueTable.clearData();
-            // Mutate the actionQueueData object to clear it, ensuring all references see the change
+            // Mutate the actionQueueData object to clear it
             for (const key in actionQueueData) {
                 delete actionQueueData[key];
             }
@@ -270,7 +274,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get all data from the table
             const tableData = table.getData();
 
-            // Group data by hash to reset the isOriginal flag
+            // Destroy the old table instance
+            table.destroy();
+
+            // Re-create the table
+            table = new Tabulator("#duplicatesTable", getDuplicatesTableConfig());
+
+            // Reset the 'isOriginal' flag in the data
             const groupedData = tableData.reduce((acc, row) => {
                 acc[row.hash] = acc[row.hash] || [];
                 acc[row.hash].push(row);
