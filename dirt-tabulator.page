@@ -259,34 +259,36 @@ document.addEventListener('DOMContentLoaded', function() {
             // Send message to backend to clear state
             dirtySock('resetState', {});
 
-            // Clear the action queue table in the UI and its underlying data object
+            // Clear the action queue table in the UI
             actionQueueTable.clearData();
-            actionQueueData = {};
+            // Mutate the actionQueueData object to clear it, ensuring all references see the change
+            for (const key in actionQueueData) {
+                delete actionQueueData[key];
+            }
             updateQueueFooter(actionQueueTable, table);
 
             // Get all data from the table
             const tableData = table.getData();
 
-            // Group data by hash
+            // Group data by hash to reset the isOriginal flag
             const groupedData = tableData.reduce((acc, row) => {
                 acc[row.hash] = acc[row.hash] || [];
                 acc[row.hash].push(row);
                 return acc;
             }, {});
 
-            // Reset isOriginal flag for each group
             Object.values(groupedData).forEach(group => {
                 group.forEach((row, index) => {
                     row.isOriginal = (index === 0);
                 });
             });
 
-            // Re-set the columns to ensure formatters close over the new empty actionQueueData
-            const newColumns = getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable, table, updateQueueFooter);
-            table.setColumns(newColumns);
-
-            // Set the updated data back to the table, forcing a re-render
-            table.setData(tableData);
+            // Set the updated data back to the table to ensure the data model is correct.
+            table.setData(tableData).then(() => {
+                // Force a full redraw of the table to ensure all formatters are re-run
+                // with the cleared actionQueueData state. This is the definitive fix.
+                table.redraw(true);
+            });
         }
     });
 
