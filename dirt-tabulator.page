@@ -185,6 +185,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
                 const { duplicates, state, queue } = data;
                 processAndRenderTable(duplicates, state, queue);
+            } else if (action === 'resetComplete') {
+                console.log("Tabulator Tab: Received resetComplete confirmation. Fetching fresh data.");
+                dirtySock('findDuplicates', null);
             }
         };
 
@@ -260,13 +263,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('reset-button').addEventListener('click', function() {
         if (confirm("Are you sure you want to reset all actions and original file selections?")) {
-            // 1. Send message to backend to clear the state in Redis.
+            // Send message to backend to clear the state. The `resetComplete`
+            // message handler will then trigger the data refresh.
             dirtySock('resetState', {});
-
-            // 2. Immediately request the fresh, reset data from the server.
-            // The existing onmessage handler for 'duplicateFiles' will receive this
-            // and redraw the tables correctly, just like on the initial page load.
-            dirtySock('findDuplicates', null);
         }
     });
 
