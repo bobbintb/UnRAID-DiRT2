@@ -146,7 +146,7 @@ $(document).ready(function() {
             $('#datatables-table tbody').empty();
         }
 
-        leftTable = new DataTable('#datatables-table', {
+        leftTable = $('#datatables-table').DataTable({
             data: data,
             paging: false,
             searching: false,
@@ -304,7 +304,7 @@ $(document).ready(function() {
             $('#right-table-datatables').DataTable().destroy();
         }
 
-        rightTable = new DataTable('#right-table-datatables', {
+        rightTable = $('#right-table-datatables').DataTable({
             data: data, // Use the same shared data source
             paging: false,
             searching: false,
