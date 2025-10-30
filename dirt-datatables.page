@@ -61,6 +61,17 @@ $(document).ready(function() {
     let leftTable;
     let rightTable;
 
+    // Custom filter for the right table: only show rows with a queued action.
+    DataTable.ext.search.push(function(settings, data, dataIndex) {
+        if (settings.nTable.id !== 'right-table-datatables') {
+            return true; // Don't filter other tables
+        }
+        const table = new DataTable('#' + settings.nTable.id);
+        const rowData = table.row(dataIndex).data();
+        return !!rowData.queuedAction; // Only show rows with a non-null/non-empty queuedAction
+    });
+
+
     function formatBytes(bytes, decimals = 2) {
         if (!bytes || bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -260,6 +271,7 @@ $(document).ready(function() {
             });
 
             table.draw(false);
+            rightTable.draw(false); // Redraw the right table to reflect the cleared action
         });
 
         $('#datatables-table tbody').on('mousedown', '.action-radios input[type="radio"]', function(e) {
@@ -276,10 +288,16 @@ $(document).ready(function() {
             if (this.isDeselecting) {
                 this.checked = false;
                 this.isDeselecting = false;
+                rowData.queuedAction = null; // Update the data source
                 dirtySock('removeFileAction', { path: rowData.path });
             } else {
+                rowData.queuedAction = this.value; // Update the data source
                 dirtySock('setFileAction', { path: rowData.path, action: this.value });
             }
+
+            // Redraw both tables to reflect the change
+            leftTable.draw(false);
+            rightTable.draw(false);
         });
 
         // Right Table
@@ -288,18 +306,22 @@ $(document).ready(function() {
         }
 
         rightTable = new DataTable('#right-table-datatables', {
-            data: [],
+            data: data, // Use the same shared data source
             paging: false,
             searching: false,
             info: false,
+            autoWidth: false,
             language: {
                 emptyTable: "No actions selected."
             },
             columns: [
-                { title: 'Action' },
-                { title: 'Path' }
+                { data: 'queuedAction', title: 'Action' },
+                { data: 'path', title: 'Path' }
             ]
         });
+
+        // Initial draw of the right table to apply the filter
+        rightTable.draw();
     }
 
     function dirtySock(action, data) {
