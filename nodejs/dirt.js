@@ -265,6 +265,13 @@ async function main() {
               console.log(`[DIRT] Action queue job REMOVED for ino ${ino}`);
               break;
             }
+            case 'resetState': {
+              const redisClient = getRedisClient();
+              await redisClient.del('state');
+              await actionQueue.obliterate({ force: true });
+              console.log(`[DIRT] State and action queue have been reset.`);
+              break;
+            }
             case 'findDuplicates': {
               const redisClient = getRedisClient();
               const [duplicates, state, waitingJobs] = await Promise.all([
