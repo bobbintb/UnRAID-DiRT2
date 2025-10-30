@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
         groupBy: "hash",
         groupHeader: createGroupHeader(),
         rowFormatter: createRowFormatter(),
-        columns: getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable),
+        columns: [], // Columns are set dynamically when data is received
     });
 
     function connect() {
