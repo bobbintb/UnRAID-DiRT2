@@ -18,8 +18,19 @@
 #duplicatesTable-container, #action-queue-container {
     overflow: hidden; /* Prevent content from spilling out during resize */
 }
-#duplicatesTable, #action-queue-table {
+
+#action-queue-container {
+    display: flex;
+    flex-direction: column;
+}
+
+#duplicatesTable {
     height: 100%;
+}
+
+#action-queue-table {
+    flex-grow: 1; /* Allow the table to fill the available space */
+    min-height: 0; /* Prevent the table from overflowing its container */
 }
 /* Hide the tree branch element in the radio button column */
 .tabulator-cell[tabulator-field="isPrimary"] .tabulator-data-tree-branch {

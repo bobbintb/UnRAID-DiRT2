@@ -14,6 +14,15 @@ Icon="fa-search-minus"
     </div>
     <div id="action-queue-container">
         <div id="action-queue-table"></div>
+        <div id="action-queue-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 5px; border-top: 1px solid #ccc;">
+            <div id="action-queue-summary">
+                <span>Items: 0</span> | <span>Total Size: 0 Bytes</span>
+            </div>
+            <div>
+                <button id="reset-button">Reset</button>
+                <button id="process-button">Process</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -64,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (matchingRows.length > 0) {
                         const mainTableRowData = matchingRows[0].getData();
                         const ino = mainTableRowData.ino;
-                        removeFileActionFromQueue(ino, filePath, dirtySock, actionQueueTable);
+                        removeFileActionFromQueue(ino, filePath, dirtySock, actionQueueTable, table, updateQueueFooter);
                         const actionCell = matchingRows[0].getCell('action');
                         const radioInputs = actionCell.getElement().querySelectorAll('input[type="radio"]');
                         radioInputs.forEach(radio => {
@@ -79,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ],
     });
 
-    function getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable) {
+    function getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable, mainTable, updateQueueFooter) {
         return [
             {
                 title: "",
@@ -89,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 30,
                 minWidth: 30,
                 resizable: false,
-                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQueueTable),
+                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQueueTable, mainTable, updateQueueFooter),
             },
             {
                 field: "action",
@@ -129,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 },
-                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable),
+                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable, mainTable, updateQueueFooter),
             },
             {
                 title: "File",
@@ -144,17 +153,21 @@ document.addEventListener('DOMContentLoaded', function() {
         ]
     }
 
+    function getDuplicatesTableConfig() {
+        return {
+            height: "100%",
+            data: [],
+            placeholder: "No duplicate files found",
+            layout: "fitColumns",
+            groupBy: "hash",
+            groupHeader: createGroupHeader(),
+            rowFormatter: createRowFormatter(),
+            columns: [], // Columns are set dynamically when data is received
+        };
+    }
+
     // The Tabulator table definition
-    table = new Tabulator("#duplicatesTable", {
-        height: "100%",
-        data: [],
-        placeholder: "No duplicate files found",
-        layout: "fitColumns",
-        groupBy: "hash",
-        groupHeader: createGroupHeader(),
-        rowFormatter: createRowFormatter(),
-        columns: getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable),
-    });
+    table = new Tabulator("#duplicatesTable", getDuplicatesTableConfig());
 
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
@@ -172,8 +185,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
                 const { duplicates, state, queue } = data;
                 processAndRenderTable(duplicates, state, queue);
+            } else if (action === 'resetComplete') {
+                console.log("Tabulator Tab: Received resetComplete confirmation. Fetching fresh data.");
+                dirtySock('findDuplicates', null);
             }
         };
+
+        function updateQueueFooter(actionQueueTable, mainTable) {
+            const rows = actionQueueTable.getRows();
+            const itemCount = rows.length;
+            let totalSize = 0;
+            rows.forEach(row => {
+                const rowData = row.getData();
+                const mainTableRow = mainTable.searchRows("path", "=", rowData.file)[0];
+                if (mainTableRow) {
+                    totalSize += mainTableRow.getData().size;
+                }
+            });
+
+            const summaryEl = document.getElementById('action-queue-summary');
+            summaryEl.innerHTML = `<span>Items: ${itemCount}</span> | <span>Total Size: ${formatBytes(totalSize)}</span>`;
+        }
 
         function processAndRenderTable(duplicateFilesData, originalFileState, receivedActionQueueData) {
             console.log("Tabulator Tab: Processing and rendering tables.");
@@ -183,6 +215,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 file: path,
             }));
             actionQueueTable.setData(queueTableData);
+
             const tableData = [];
             duplicateFilesData.forEach(group => {
                 const originalIno = originalFileState[group.hash];
@@ -195,9 +228,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 });
             });
-            const newColumns = getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable);
+            const newColumns = getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable, table, updateQueueFooter);
             table.setColumns(newColumns);
-            table.setData(tableData);
+            table.setData(tableData).then(() => {
+                updateQueueFooter(actionQueueTable, table);
+            });
         }
 
         socket.onclose = function(event) {
@@ -225,5 +260,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     connect();
+
+    document.getElementById('reset-button').addEventListener('click', function() {
+        if (confirm("Are you sure you want to reset all actions and original file selections?")) {
+            // Send message to backend to clear the state. The `resetComplete`
+            // message handler will then trigger the data refresh.
+            dirtySock('resetState', {});
+        }
+    });
+
+    document.getElementById('process-button').addEventListener('click', function() {
+        const rows = actionQueueTable.getRows();
+        if (rows.length === 0) {
+            alert("The action queue is empty.");
+            return;
+        }
+
+        let confirmationMessage = "Are you sure you want to perform the following actions?\n\n";
+        rows.forEach(row => {
+            const data = row.getData();
+            const action = data.action.charAt(0).toUpperCase() + data.action.slice(1); // Capitalize
+            confirmationMessage += `${action}: ${data.file}\n`;
+        });
+
+        confirm(confirmationMessage);
+    });
 });
 </script>
