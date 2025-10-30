@@ -265,6 +265,17 @@ async function main() {
               console.log(`[DIRT] Action queue job REMOVED for ino ${ino}`);
               break;
             }
+            case 'clearQueue': {
+              await actionQueue.obliterate({ force: true });
+              console.log(`[DIRT] Action queue has been cleared.`);
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                  action: 'queueCleared',
+                  data: {},
+                }));
+              }
+              break;
+            }
             case 'resetState': {
               const redisClient = getRedisClient();
               await redisClient.del('state');

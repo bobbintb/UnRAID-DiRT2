@@ -56,31 +56,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerSort: false,
                 headerHozAlign: "center",
                 headerClick: function(e, column) {
-                    const rows = actionQueueTable.getRows();
-                    rows.forEach(row => {
-                        const cell = row.getCell('action');
-                        const icon = cell.getElement().querySelector('i');
-                        if (icon) {
-                            icon.click();
-                        }
-                    });
+                    dirtySock('clearQueue', {});
                 },
                 formatter: createActionQueueActionFormatter(),
                 cellClick: function(e, cell) {
                     const rowData = cell.getRow().getData();
                     const filePath = rowData.file;
-                    const matchingRows = table.searchRows("path", "=", filePath);
-                    if (matchingRows.length > 0) {
-                        const mainTableRowData = matchingRows[0].getData();
-                        const ino = mainTableRowData.ino;
-                        removeFileActionFromQueue(ino, filePath, dirtySock, actionQueueTable, table, updateQueueFooter);
-                        const actionCell = matchingRows[0].getCell('action');
-                        const radioInputs = actionCell.getElement().querySelectorAll('input[type="radio"]');
-                        radioInputs.forEach(radio => {
-                            if (radio.checked) {
-                                radio.click();
-                            }
-                        });
+                    const mainTableRow = table.searchRows("path", "=", filePath)[0];
+
+                    if (mainTableRow) {
+                        const actionCell = mainTableRow.getCell('action');
+                        const checkedRadio = actionCell.getElement().querySelector('input[type="radio"]:checked');
+                        if (checkedRadio) {
+                            checkedRadio.click(); // This will trigger the existing deselection logic
+                        }
                     }
                 }
             },
@@ -188,6 +177,23 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (action === 'resetComplete') {
                 console.log("Tabulator Tab: Received resetComplete confirmation. Fetching fresh data.");
                 dirtySock('findDuplicates', null);
+            } else if (action === 'queueCleared') {
+                console.log("Tabulator Tab: Received queueCleared confirmation.");
+                actionQueueTable.clearData();
+                const allRows = table.getRows();
+                allRows.forEach(row => {
+                    const actionCell = row.getCell('action');
+                    if (actionCell) {
+                        const radios = actionCell.getElement().querySelectorAll('input[type="radio"]');
+                        radios.forEach(radio => {
+                            if (radio.checked) {
+                                radio.checked = false;
+                                radio.setAttribute('data-waschecked', 'false');
+                            }
+                        });
+                    }
+                });
+                updateQueueFooter(actionQueueTable, table);
             }
         };
 
