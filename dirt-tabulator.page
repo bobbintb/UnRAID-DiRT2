@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerSort: false,
                 headerHozAlign: "center",
                 headerClick: function(e, column) {
-                    handleClearQueueClick(tableData, dirtySock, table);
+                    handleClearQueueClick(table, dirtySock, actionQueueTable);
                 },
                 formatter: createActionQueueActionFormatter(),
                 cellClick: function(e, cell) {

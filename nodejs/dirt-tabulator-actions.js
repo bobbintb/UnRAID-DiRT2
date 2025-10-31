@@ -1,4 +1,4 @@
-function handleIsPrimaryClick(cell, dirtySock) {
+function handleIsPrimaryClick(cell, dirtySock, actionQueueTable) {
     const clickedRow = cell.getRow();
     const clickedRowData = clickedRow.getData();
     const groupRows = clickedRow.getGroup().getRows();
@@ -20,9 +20,10 @@ function handleIsPrimaryClick(cell, dirtySock) {
     });
 
     dirtySock('setOriginalFile', { hash: clickedRowData.hash, ino: clickedRowData.ino });
+    actionQueueTable.setFilter('queuedAction', '!=', null); // Re-apply filter
 }
 
-function handleActionClick(e, cell, dirtySock) {
+function handleActionClick(e, cell, dirtySock, actionQueueTable) {
     const row = cell.getRow();
     const rowData = row.getData();
     const action = e.target.value;
@@ -34,9 +35,10 @@ function handleActionClick(e, cell, dirtySock) {
         row.update({ queuedAction: action });
         dirtySock('setFileAction', { ino: rowData.ino, path: rowData.path, action: action });
     }
+    actionQueueTable.setFilter('queuedAction', '!=', null); // Re-apply filter
 }
 
-function handleGroupActionClick(e, group, dirtySock) {
+function handleGroupActionClick(e, group, dirtySock, actionQueueTable) {
     const action = e.target.value;
     const childRows = group.getRows();
 
@@ -63,9 +65,10 @@ function handleGroupActionClick(e, group, dirtySock) {
             }
         }
     });
+    actionQueueTable.setFilter('queuedAction', '!=', null); // Re-apply filter
 }
 
-function handleHeaderActionClick(e, table, dirtySock) {
+function handleHeaderActionClick(e, table, dirtySock, actionQueueTable) {
     const action = e.target.value;
     const allRows = table.getRows();
 
@@ -92,17 +95,19 @@ function handleHeaderActionClick(e, table, dirtySock) {
             }
         }
     });
+    actionQueueTable.setFilter('queuedAction', '!=', null); // Re-apply filter
 }
 
 
-function handleActionQueueRowClick(cell, dirtySock) {
+function handleActionQueueRowClick(cell, dirtySock, actionQueueTable) {
     const row = cell.getRow();
     const rowData = row.getData();
     dirtySock('removeFileAction', { ino: rowData.ino, path: rowData.path });
     row.update({ queuedAction: null });
+    actionQueueTable.setFilter('queuedAction', '!=', null); // Re-apply filter
 }
 
-function handleClearQueueClick(tableData, dirtySock, table) {
+function handleClearQueueClick(table, dirtySock, actionQueueTable) {
     const rows = table.getRows();
     rows.forEach(row => {
         if (row.getData().queuedAction) {
@@ -110,4 +115,5 @@ function handleClearQueueClick(tableData, dirtySock, table) {
         }
     });
     dirtySock('clearQueue', {});
+    actionQueueTable.setFilter('queuedAction', '!=', null); // Re-apply filter
 }
