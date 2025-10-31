@@ -60,11 +60,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerSort: false,
                 headerHozAlign: "center",
                 headerClick: function(e, column) {
-                    handleClearQueueClick(tableData, dirtySock);
+                    handleClearQueueClick(tableData, dirtySock, table);
                 },
                 formatter: createActionQueueActionFormatter(),
                 cellClick: function(e, cell) {
-                    handleActionQueueRowClick(cell, dirtySock);
+                    handleActionQueueRowClick(cell, dirtySock, actionQueueTable);
                 }
             },
             { title: "Action", field: "queuedAction", width: 80, hozAlign: "center" },
@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ],
     });
 
-    function getDuplicatesTableColumnDefinitions(dirtySock) {
+    function getDuplicatesTableColumnDefinitions(dirtySock, actionQueueTable) {
         return [
             {
                 title: "",
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 width: 30,
                 minWidth: 30,
                 resizable: false,
-                formatter: createIsPrimaryFormatter(dirtySock),
+                formatter: createIsPrimaryFormatter(dirtySock, actionQueueTable),
                 // Event handling is now in the formatter, calling the centralized action handler
             },
             {
@@ -94,10 +94,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 titleFormatter: createActionTitleFormatter(),
                 headerClick: function(e, column) {
                     if (e.target.tagName === 'INPUT') {
-                        handleHeaderActionClick(e, table, dirtySock);
+                        handleHeaderActionClick(e, table, dirtySock, actionQueueTable);
                     }
                 },
-                formatter: createActionFormatter(dirtySock),
+                formatter: createActionFormatter(dirtySock, actionQueueTable),
                 // Event handling is now in the formatter, calling the centralized action handler
             },
             {
@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ]
     }
 
-    function getDuplicatesTableConfig(dirtySock) {
+    function getDuplicatesTableConfig(dirtySock, actionQueueTable) {
         return {
             height: "100%",
             reactiveData: true,
@@ -121,14 +121,14 @@ document.addEventListener('DOMContentLoaded', function() {
             placeholder: "No duplicate files found",
             layout: "fitColumns",
             groupBy: "hash",
-            groupHeader: createGroupHeader(dirtySock),
+            groupHeader: createGroupHeader(dirtySock, actionQueueTable),
             rowFormatter: createRowFormatter(),
-            columns: getDuplicatesTableColumnDefinitions(dirtySock),
+            columns: getDuplicatesTableColumnDefinitions(dirtySock, actionQueueTable),
         };
     }
 
     // The Tabulator table definition
-    table = new Tabulator("#duplicatesTable", getDuplicatesTableConfig(dirtySock));
+    table = new Tabulator("#duplicatesTable", getDuplicatesTableConfig(dirtySock, actionQueueTable));
 
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);

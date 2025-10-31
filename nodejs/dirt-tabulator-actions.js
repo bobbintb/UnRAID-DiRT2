@@ -1,17 +1,19 @@
 function handleIsPrimaryClick(cell, dirtySock) {
-    const clickedRowData = cell.getRow().getData();
-    const groupRows = cell.getRow().getGroup().getRows();
+    const clickedRow = cell.getRow();
+    const clickedRowData = clickedRow.getData();
+    const groupRows = clickedRow.getGroup().getRows();
 
     groupRows.forEach(row => {
         const rowData = row.getData();
         const isClickedRow = rowData.ino === clickedRowData.ino;
 
-        rowData.isOriginal = isClickedRow;
+        if (rowData.isOriginal !== isClickedRow) {
+            row.update({ isOriginal: isClickedRow });
+        }
 
         if (isClickedRow) {
-            // If a file is marked as original, it cannot have a queued action.
             if (rowData.queuedAction) {
-                rowData.queuedAction = null;
+                row.update({ queuedAction: null });
                 dirtySock('removeFileAction', { ino: rowData.ino, path: rowData.path });
             }
         }
@@ -21,15 +23,15 @@ function handleIsPrimaryClick(cell, dirtySock) {
 }
 
 function handleActionClick(e, cell, dirtySock) {
-    const rowData = cell.getRow().getData();
+    const row = cell.getRow();
+    const rowData = row.getData();
     const action = e.target.value;
 
-    // The 'nullable' radio button logic
     if (rowData.queuedAction === action) {
-        rowData.queuedAction = null; // Deselect
+        row.update({ queuedAction: null });
         dirtySock('removeFileAction', { ino: rowData.ino, path: rowData.path });
     } else {
-        rowData.queuedAction = action; // Select
+        row.update({ queuedAction: action });
         dirtySock('setFileAction', { ino: rowData.ino, path: rowData.path, action: action });
     }
 }
@@ -52,7 +54,7 @@ function handleGroupActionClick(e, group, dirtySock) {
         if (!rowData.isOriginal) {
             const newAction = isDeselecting ? null : action;
             if (rowData.queuedAction !== newAction) {
-                rowData.queuedAction = newAction;
+                row.update({ queuedAction: newAction });
                 if (newAction) {
                     dirtySock('setFileAction', { ino: rowData.ino, path: rowData.path, action: newAction });
                 } else {
@@ -81,7 +83,7 @@ function handleHeaderActionClick(e, table, dirtySock) {
         if (!rowData.isOriginal) {
             const newAction = isDeselecting ? null : action;
             if (rowData.queuedAction !== newAction) {
-                rowData.queuedAction = newAction;
+                row.update({ queuedAction: newAction });
                 if (newAction) {
                     dirtySock('setFileAction', { ino: rowData.ino, path: rowData.path, action: newAction });
                 } else {
@@ -94,15 +96,17 @@ function handleHeaderActionClick(e, table, dirtySock) {
 
 
 function handleActionQueueRowClick(cell, dirtySock) {
-    const rowData = cell.getRow().getData();
+    const row = cell.getRow();
+    const rowData = row.getData();
     dirtySock('removeFileAction', { ino: rowData.ino, path: rowData.path });
-    rowData.queuedAction = null;
+    row.update({ queuedAction: null });
 }
 
-function handleClearQueueClick(tableData, dirtySock) {
-    tableData.forEach(rowData => {
-        if (rowData.queuedAction) {
-            rowData.queuedAction = null;
+function handleClearQueueClick(tableData, dirtySock, table) {
+    const rows = table.getRows();
+    rows.forEach(row => {
+        if (row.getData().queuedAction) {
+            row.update({ queuedAction: null });
         }
     });
     dirtySock('clearQueue', {});

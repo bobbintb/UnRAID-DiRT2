@@ -1,4 +1,4 @@
-function createGroupHeader(dirtySock) {
+function createGroupHeader(dirtySock, actionQueueTable) {
     return function(value, count, data, group) {
         const totalSize = data.reduce((acc, row) => acc + (row.size || 0), 0);
         const groupHash = value;
@@ -19,10 +19,8 @@ function createGroupHeader(dirtySock) {
             </div>
         `;
 
-        // The event listeners are now attached in the main .page file,
-        // but the radios need to be wired up to call the action handler.
-        container.querySelector(`#del_${uniqueName}`).addEventListener('click', (e) => handleGroupActionClick(e, group, dirtySock));
-        container.querySelector(`#link_${uniqueName}`).addEventListener('click', (e) => handleGroupActionClick(e, group, dirtySock));
+        container.querySelector(`#del_${uniqueName}`).addEventListener('click', (e) => handleGroupActionClick(e, group, dirtySock, actionQueueTable));
+        container.querySelector(`#link_${uniqueName}`).addEventListener('click', (e) => handleGroupActionClick(e, group, dirtySock, actionQueueTable));
 
         return container;
     }
@@ -30,8 +28,6 @@ function createGroupHeader(dirtySock) {
 
 
 function createRowFormatter() {
-    // This function now simply adds or removes a class based on the data.
-    // Tabulator's reactivity will call this whenever the row's data changes.
     return function(row) {
         const element = row.getElement();
         if (row.getData().isOriginal) {
@@ -42,22 +38,19 @@ function createRowFormatter() {
     }
 }
 
-function createIsPrimaryFormatter(dirtySock) {
-    // This formatter is now purely declarative. It renders based on the
-    // `isOriginal` flag and has no event handling logic itself.
+function createIsPrimaryFormatter(dirtySock, actionQueueTable) {
     return function(cell, formatterParams, onRendered) {
         const data = cell.getRow().getData();
         const radio = document.createElement("input");
         radio.type = "radio";
         radio.name = "primary_group_" + data.hash;
         radio.checked = data.isOriginal;
-        radio.addEventListener('click', () => handleIsPrimaryClick(cell, dirtySock));
+        radio.addEventListener('click', () => handleIsPrimaryClick(cell, dirtySock, actionQueueTable));
         return radio;
     }
 }
 
 function createActionTitleFormatter() {
-    // This formatter remains the same as it was purely presentational.
     return function(column, formatterParams, onRendered) {
         const uniqueName = "action_group_table_header";
         const container = document.createElement('div');
@@ -75,9 +68,7 @@ function createActionTitleFormatter() {
     }
 }
 
-function createActionFormatter(dirtySock) {
-    // This formatter is now drastically simplified. It just renders the
-    // radio buttons and their state based on the `queuedAction` property.
+function createActionFormatter(dirtySock, actionQueueTable) {
     return function(cell, formatterParams, onRendered) {
         const data = cell.getRow().getData();
         const uniqueName = "action_" + data.ino;
@@ -90,15 +81,14 @@ function createActionFormatter(dirtySock) {
             <label for="link_${uniqueName}" title="Hardlink"><i class="fa fa-link"></i></label>
         `;
 
-        container.querySelector(`#del_${uniqueName}`).addEventListener('click', (e) => handleActionClick(e, cell, dirtySock));
-        container.querySelector(`#link_${uniqueName}`).addEventListener('click', (e) => handleActionClick(e, cell, dirtySock));
+        container.querySelector(`#del_${uniqueName}`).addEventListener('click', (e) => handleActionClick(e, cell, dirtySock, actionQueueTable));
+        container.querySelector(`#link_${uniqueName}`).addEventListener('click', (e) => handleActionClick(e, cell, dirtySock, actionQueueTable));
 
         return container;
     }
 }
 
 function createActionQueueActionFormatter() {
-    // The value of this cell is now the queuedAction property itself.
     return function(cell, formatterParams, onRendered) {
         const action = cell.getData().queuedAction;
         const iconClass = action === 'delete' ? 'fa-trash' : 'fa-link';
