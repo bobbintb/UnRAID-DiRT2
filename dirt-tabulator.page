@@ -8,6 +8,7 @@ Icon="fa-search-minus"
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 <script src="/plugins/bobbintb.system.dirt/nodejs/dirt-tabulator-helpers.js"></script>
 <script src="/plugins/bobbintb.system.dirt/nodejs/dirt-tabulator-formatters.js"></script>
+<script src="/plugins/bobbintb.system.dirt/nodejs/dirt-tabulator-actions.js"></script>
 <div id="split">
     <div id="duplicatesTable-container">
         <div id="duplicatesTable"></div>
@@ -39,16 +40,18 @@ document.addEventListener('DOMContentLoaded', function() {
     let actionQueueTable;
     let actionQueueData = {}; // To hold the initial queue state
 
-    // The Tabulator table definition for the Action Queue
     actionQueueTable = new Tabulator("#action-queue-table", {
         height: "100%",
-        data: [],
+        reactiveData: true,
+        data: tableData, // Point to the main reactive data array
         placeholder: "No actions queued",
         layout: "fitColumns",
+        initialFilter: [
+            { field: "queuedAction", type: "!=", value: null }
+        ],
         columns: [
             {
                 title: `<i class="fa fa-trash" style="cursor: pointer;" title="Remove All"></i>`,
-                field: "action",
                 hozAlign: "center",
                 width: 40,
                 minWidth: 40,
@@ -56,78 +59,45 @@ document.addEventListener('DOMContentLoaded', function() {
                 headerSort: false,
                 headerHozAlign: "center",
                 headerClick: function(e, column) {
-                    dirtySock('clearQueue', {});
+                    handleClearQueueClick(tableData, dirtySock);
                 },
                 formatter: createActionQueueActionFormatter(),
                 cellClick: function(e, cell) {
-                    const rowData = cell.getRow().getData();
-                    const filePath = rowData.file;
-                    const mainTableRow = table.searchRows("path", "=", filePath)[0];
-
-                    if (mainTableRow) {
-                        const actionCell = mainTableRow.getCell('action');
-                        const checkedRadio = actionCell.getElement().querySelector('input[type="radio"]:checked');
-                        if (checkedRadio) {
-                            checkedRadio.click(); // This will trigger the existing deselection logic
-                        }
-                    }
+                    handleActionQueueRowClick(cell);
                 }
             },
-            { title: "File", field: "file", hozAlign: "left", tooltip: true },
+            { title: "Action", field: "queuedAction", width: 80, hozAlign: "center" },
+            { title: "File", field: "path", hozAlign: "left", tooltip: true },
         ],
     });
 
-    function getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable, mainTable, updateQueueFooter) {
+    function getDuplicatesTableColumnDefinitions(dirtySock) {
         return [
             {
                 title: "",
-                field: "isPrimary",
+                field: "isOriginal", // The field is now boolean `isOriginal`
                 hozAlign: "center",
                 headerSort: false,
                 width: 30,
                 minWidth: 30,
                 resizable: false,
-                formatter: createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQueueTable, mainTable, updateQueueFooter),
+                formatter: createIsPrimaryFormatter(dirtySock),
+                // Event handling is now in the formatter, calling the centralized action handler
             },
             {
-                field: "action",
+                field: "queuedAction", // The field is now the string `queuedAction`
                 hozAlign: "center",
                 headerSort: false,
                 width: 65,
                 resizable: false,
                 titleFormatter: createActionTitleFormatter(),
                 headerClick: function(e, column) {
-                    const target = e.target;
-                    if (target.tagName !== 'INPUT') return;
-
-                    const action = target.value;
-                    const headerEl = column.getElement();
-                    const delRadio = headerEl.querySelector('input[value="delete"]');
-                    const linkRadio = headerEl.querySelector('input[value="link"]');
-
-                    if (target.checked && target.getAttribute('data-waschecked') === 'true') {
-                        target.checked = false;
-                        target.setAttribute('data-waschecked', 'false');
-                    } else {
-                        delRadio.setAttribute('data-waschecked', 'false');
-                        linkRadio.setAttribute('data-waschecked', 'false');
-                        target.setAttribute('data-waschecked', 'true');
+                    if (e.target.tagName === 'INPUT') {
+                        handleHeaderActionClick(e, table);
                     }
-
-                    const effectiveCheckedState = target.checked;
-                    const groups = table.getGroups();
-
-                    groups.forEach(group => {
-                        const groupEl = group.getElement();
-                        const groupRadio = groupEl.querySelector(`input[value="${action}"]`);
-                        if (groupRadio) {
-                            if ((effectiveCheckedState && !groupRadio.checked) || (!effectiveCheckedState && groupRadio.checked)) {
-                                groupRadio.click();
-                            }
-                        }
-                    });
                 },
-                formatter: createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable, mainTable, updateQueueFooter),
+                formatter: createActionFormatter(dirtySock),
+                // Event handling is now in the formatter, calling the centralized action handler
             },
             {
                 title: "File",
@@ -142,21 +112,23 @@ document.addEventListener('DOMContentLoaded', function() {
         ]
     }
 
-    function getDuplicatesTableConfig() {
+    function getDuplicatesTableConfig(dirtySock) {
         return {
             height: "100%",
-            data: [],
+            reactiveData: true,
+            data: tableData,
             placeholder: "No duplicate files found",
             layout: "fitColumns",
             groupBy: "hash",
-            groupHeader: createGroupHeader(),
+            groupHeader: createGroupHeader(dirtySock),
             rowFormatter: createRowFormatter(),
-            columns: [], // Columns are set dynamically when data is received
+            columns: getDuplicatesTableColumnDefinitions(dirtySock),
         };
     }
 
     // The Tabulator table definition
-    table = new Tabulator("#duplicatesTable", getDuplicatesTableConfig());
+    let tableData = []; // This will be our reactive data array
+    table = new Tabulator("#duplicatesTable", getDuplicatesTableConfig(dirtySock));
 
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
@@ -177,67 +149,42 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (action === 'resetComplete') {
                 console.log("Tabulator Tab: Received resetComplete confirmation. Fetching fresh data.");
                 dirtySock('findDuplicates', null);
-            } else if (action === 'queueCleared') {
-                console.log("Tabulator Tab: Received queueCleared confirmation.");
-                actionQueueTable.clearData();
-                const allRows = table.getRows();
-                allRows.forEach(row => {
-                    const actionCell = row.getCell('action');
-                    if (actionCell) {
-                        const radios = actionCell.getElement().querySelectorAll('input[type="radio"]');
-                        radios.forEach(radio => {
-                            if (radio.checked) {
-                                radio.checked = false;
-                                radio.setAttribute('data-waschecked', 'false');
-                            }
-                        });
-                    }
-                });
-                updateQueueFooter(actionQueueTable, table);
             }
         };
 
-        function updateQueueFooter(actionQueueTable, mainTable) {
-            const rows = actionQueueTable.getRows();
+        function updateQueueFooter() {
+            const rows = actionQueueTable.getRows('active'); // Get active (filtered) rows
             const itemCount = rows.length;
-            let totalSize = 0;
-            rows.forEach(row => {
-                const rowData = row.getData();
-                const mainTableRow = mainTable.searchRows("path", "=", rowData.file)[0];
-                if (mainTableRow) {
-                    totalSize += mainTableRow.getData().size;
-                }
-            });
-
+            const totalSize = rows.reduce((acc, row) => acc + row.getData().size, 0);
             const summaryEl = document.getElementById('action-queue-summary');
             summaryEl.innerHTML = `<span>Items: ${itemCount}</span> | <span>Total Size: ${formatBytes(totalSize)}</span>`;
         }
 
         function processAndRenderTable(duplicateFilesData, originalFileState, receivedActionQueueData) {
             console.log("Tabulator Tab: Processing and rendering tables.");
-            actionQueueData = receivedActionQueueData;
-            const queueTableData = Object.entries(receivedActionQueueData).map(([path, action]) => ({
-                action: action,
-                file: path,
-            }));
-            actionQueueTable.setData(queueTableData);
+            actionQueueData = receivedActionQueueData; // Keep for legacy formatters for now
 
-            const tableData = [];
+            // Clear out the old data by replacing the array contents
+            tableData.length = 0;
+
             duplicateFilesData.forEach(group => {
                 const originalIno = originalFileState[group.hash];
                 group.files.forEach((file, index) => {
                     const isOriginal = originalIno ? (file.ino === originalIno) : (index === 0);
+                    const queuedAction = receivedActionQueueData[file.path] || null;
                     tableData.push({
                         ...file,
                         hash: group.hash,
-                        isOriginal: isOriginal
+                        isOriginal: isOriginal,
+                        queuedAction: queuedAction,
                     });
                 });
             });
-            const newColumns = getDuplicatesTableColumnDefinitions(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable, table, updateQueueFooter);
-            table.setColumns(newColumns);
-            table.setData(tableData).then(() => {
-                updateQueueFooter(actionQueueTable, table);
+
+            // Because the table is reactive, we don't need to call setData.
+            // We just modified the array, and Tabulator will update automatically.
+            table.replaceData(tableData).then(() => {
+                updateQueueFooter();
             });
         }
 

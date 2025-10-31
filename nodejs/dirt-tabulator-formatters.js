@@ -1,15 +1,16 @@
-function createGroupHeader() {
+function createGroupHeader(dirtySock) {
     return function(value, count, data, group) {
         const totalSize = data.reduce((acc, row) => acc + (row.size || 0), 0);
         const groupHash = value;
         const uniqueName = "action_group_" + groupHash;
+
         const container = document.createElement('div');
         container.className = 'group-header-flex-container';
         container.innerHTML = `
             <div class="group-action-container">
-                <input type="radio" name="${uniqueName}" value="delete" id="del_${uniqueName}" data-nullable="true">
+                <input type="radio" name="${uniqueName}" value="delete" id="del_${uniqueName}">
                 <label for="del_${uniqueName}" title="Delete All"><i class="fa fa-trash"></i></label>
-                <input type="radio" name="${uniqueName}" value="link" id="link_${uniqueName}" data-nullable="true">
+                <input type="radio" name="${uniqueName}" value="link" id="link_${uniqueName}">
                 <label for="link_${uniqueName}" title="Hardlink All"><i class="fa fa-link"></i></label>
             </div>
             <div class="group-info-container">
@@ -17,81 +18,46 @@ function createGroupHeader() {
                 <span>(${count} files, ${formatBytes(totalSize)})</span>
             </div>
         `;
-        const delRadio = container.querySelector(`#del_${uniqueName}`);
-        const linkRadio = container.querySelector(`#link_${uniqueName}`);
-        const groupActionChangeHandler = function(e) {
-            e.stopPropagation();
-            const target = e.target;
-            const action = target.value;
-            if (target.checked && target.getAttribute('data-waschecked') === 'true') {
-                target.checked = false;
-                target.setAttribute('data-waschecked', 'false');
-            } else {
-                delRadio.setAttribute('data-waschecked', 'false');
-                linkRadio.setAttribute('data-waschecked', 'false');
-                target.setAttribute('data-waschecked', 'true');
-            }
-            const effectiveCheckedState = target.checked;
-            const childRows = group.getRows();
-            childRows.forEach(row => {
-                if (row.getElement().classList.contains('disabled-row')) {
-                    return;
-                }
-                const actionCell = row.getCell('action').getElement();
-                const childRadio = actionCell.querySelector(`input[value="${action}"]`);
-                if (childRadio) {
-                    if ((effectiveCheckedState && !childRadio.checked) || (!effectiveCheckedState && childRadio.checked)) {
-                        childRadio.click();
-                    }
-                }
-            });
-        };
-        delRadio.addEventListener('click', groupActionChangeHandler);
-        linkRadio.addEventListener('click', groupActionChangeHandler);
+
+        // The event listeners are now attached in the main .page file,
+        // but the radios need to be wired up to call the action handler.
+        container.querySelector(`#del_${uniqueName}`).addEventListener('click', (e) => handleGroupActionClick(e, group));
+        container.querySelector(`#link_${uniqueName}`).addEventListener('click', (e) => handleGroupActionClick(e, group));
+
         return container;
     }
 }
 
+
 function createRowFormatter() {
+    // This function now simply adds or removes a class based on the data.
+    // Tabulator's reactivity will call this whenever the row's data changes.
     return function(row) {
-        const data = row.getData();
-        if (data.isOriginal) {
-            row.getElement().classList.add('disabled-row');
+        const element = row.getElement();
+        if (row.getData().isOriginal) {
+            element.classList.add('disabled-row');
+        } else {
+            element.classList.remove('disabled-row');
         }
     }
 }
 
-function createIsPrimaryFormatter(removeFileActionFromQueue, dirtySock, actionQueueTable, mainTable, updateQueueFooter) {
+function createIsPrimaryFormatter() {
+    // This formatter is now purely declarative. It renders based on the
+    // `isOriginal` flag and has no event handling logic itself.
     return function(cell, formatterParams, onRendered) {
         const data = cell.getRow().getData();
         const radio = document.createElement("input");
         radio.type = "radio";
         radio.name = "primary_group_" + data.hash;
         radio.checked = data.isOriginal;
-        radio.addEventListener('click', function() {
-            const clickedRow = cell.getRow();
-            const groupRows = clickedRow.getGroup().getRows();
-            groupRows.forEach(row => {
-                const rowEl = row.getElement();
-                const rowData = row.getData();
-                if (rowData.ino === clickedRow.getData().ino) {
-                    rowEl.classList.add('disabled-row');
-                    const actionRadios = rowEl.querySelectorAll('.tabulator-cell[tabulator-field="action"] input[type="radio"]');
-                    actionRadios.forEach(r => r.checked = false);
-                    removeFileActionFromQueue(rowData.ino, rowData.path, dirtySock, actionQueueTable, mainTable, updateQueueFooter);
-                } else {
-                    rowEl.classList.remove('disabled-row');
-                }
-            });
-            const groupHash = clickedRow.getData().hash;
-            const fileIno = clickedRow.getData().ino;
-            dirtySock('setOriginalFile', { hash: groupHash, ino: fileIno });
-        });
+        radio.addEventListener('click', () => handleIsPrimaryClick(cell, dirtySock));
         return radio;
     }
 }
 
 function createActionTitleFormatter() {
+    // This formatter remains the same as it was purely presentational.
     return function(column, formatterParams, onRendered) {
         const uniqueName = "action_group_table_header";
         const container = document.createElement('div');
@@ -99,9 +65,9 @@ function createActionTitleFormatter() {
         container.style.justifyContent = 'center';
         container.innerHTML = `
             <div class="group-action-container">
-                <input type="radio" name="${uniqueName}" value="delete" id="del_${uniqueName}" data-nullable="true">
+                <input type="radio" name="${uniqueName}" value="delete" id="del_${uniqueName}">
                 <label for="del_${uniqueName}" title="Delete All"><i class="fa fa-trash"></i></label>
-                <input type="radio" name="${uniqueName}" value="link" id="link_${uniqueName}" data-nullable="true">
+                <input type="radio" name="${uniqueName}" value="link" id="link_${uniqueName}">
                 <label for="link_${uniqueName}" title="Hardlink All"><i class="fa fa-link"></i></label>
             </div>
         `;
@@ -109,84 +75,32 @@ function createActionTitleFormatter() {
     }
 }
 
-function createActionFormatter(actionQueueData, removeFileActionFromQueue, dirtySock, actionQueueTable, mainTable, updateQueueFooter) {
+function createActionFormatter(dirtySock) {
+    // This formatter is now drastically simplified. It just renders the
+    // radio buttons and their state based on the `queuedAction` property.
     return function(cell, formatterParams, onRendered) {
         const data = cell.getRow().getData();
         const uniqueName = "action_" + data.ino;
         const container = document.createElement("div");
-        const delRadio = document.createElement("input");
-        delRadio.type = "radio";
-        delRadio.name = uniqueName;
-        delRadio.value = "delete";
-        delRadio.id = `del_${uniqueName}`;
-        delRadio.dataset.nullable = true;
-        if (actionQueueData[data.path] === 'delete') {
-            delRadio.checked = true;
-            delRadio.setAttribute('data-waschecked', 'true');
-        }
-        const delLabel = document.createElement("label");
-        delLabel.htmlFor = `del_${uniqueName}`;
-        delLabel.title = "Delete";
-        delLabel.innerHTML = `<i class="fa fa-trash"></i>`;
-        const linkRadio = document.createElement("input");
-        linkRadio.type = "radio";
-        linkRadio.name = uniqueName;
-        linkRadio.value = "link";
-        linkRadio.id = `link_${uniqueName}`;
-        linkRadio.dataset.nullable = true;
-        if (actionQueueData[data.path] === 'link') {
-            linkRadio.checked = true;
-            linkRadio.setAttribute('data-waschecked', 'true');
-        }
-        const linkLabel = document.createElement("label");
-        linkLabel.htmlFor = `link_${uniqueName}`;
-        linkLabel.title = "Hardlink";
-        linkLabel.innerHTML = `<i class="fa fa-link"></i>`;
 
-        const actionChangeHandler = function(e) {
-            const target = e.target;
-            const rowData = cell.getRow().getData();
-            const { ino, path } = rowData;
+        container.innerHTML = `
+            <input type="radio" name="${uniqueName}" value="delete" id="del_${uniqueName}" ${data.queuedAction === 'delete' ? 'checked' : ''}>
+            <label for="del_${uniqueName}" title="Delete"><i class="fa fa-trash"></i></label>
+            <input type="radio" name="${uniqueName}" value="link" id="link_${uniqueName}" ${data.queuedAction === 'link' ? 'checked' : ''}>
+            <label for="link_${uniqueName}" title="Hardlink"><i class="fa fa-link"></i></label>
+        `;
 
-            if (target.checked && target.getAttribute('data-waschecked') === 'true') {
-                // Handle DESELECT action
-                target.checked = false;
-                target.setAttribute('data-waschecked', 'false');
-                removeFileActionFromQueue(ino, path, dirtySock, actionQueueTable, mainTable, updateQueueFooter);
-            } else {
-                // Handle SELECT action
-                delRadio.setAttribute('data-waschecked', 'false');
-                linkRadio.setAttribute('data-waschecked', 'false');
-                target.setAttribute('data-waschecked', 'true');
+        container.querySelector(`#del_${uniqueName}`).addEventListener('click', (e) => handleActionClick(e, cell, dirtySock));
+        container.querySelector(`#link_${uniqueName}`).addEventListener('click', (e) => handleActionClick(e, cell, dirtySock));
 
-                // Proactively remove any existing row for this file from the queue UI to prevent duplicates
-                const rows = actionQueueTable.getRows();
-                const existingRow = rows.find(row => row.getData().file === path);
-                if (existingRow) {
-                    existingRow.delete();
-                }
-
-                // Send the new action to the backend and add the new row to the UI
-                dirtySock('setFileAction', { ino, path, action: target.value });
-                actionQueueTable.addRow({ file: path, action: target.value }).then(() => {
-                    updateQueueFooter(actionQueueTable, mainTable);
-                });
-            }
-        };
-
-        delRadio.addEventListener('click', actionChangeHandler);
-        linkRadio.addEventListener('click', actionChangeHandler);
-        container.appendChild(delRadio);
-        container.appendChild(delLabel);
-        container.appendChild(linkRadio);
-        container.appendChild(linkLabel);
         return container;
     }
 }
 
 function createActionQueueActionFormatter() {
+    // The value of this cell is now the queuedAction property itself.
     return function(cell, formatterParams, onRendered) {
-        const action = cell.getValue();
+        const action = cell.getData().queuedAction;
         const iconClass = action === 'delete' ? 'fa-trash' : 'fa-link';
         return `<i class="fa ${iconClass}" style="cursor: pointer;" title="Remove"></i>`;
     }
