@@ -34,35 +34,39 @@ function handleActionClick(e, cell, dirtySock) {
     }
 }
 
-function handleGroupActionClick(e, group) {
+function handleGroupActionClick(e, group, dirtySock) {
     const action = e.target.value;
     const childRows = group.getRows();
 
-    // Determine if we are selecting or deselecting all
     const isDeselecting = e.target.getAttribute('data-waschecked') === 'true';
-
     e.target.setAttribute('data-waschecked', isDeselecting ? 'false' : 'true');
-    // Ensure the other radio is not in a 'waschecked' state
+
     const parent = e.target.parentElement;
     const otherRadio = parent.querySelector(`input[type="radio"]:not([value="${action}"])`);
     if (otherRadio) {
         otherRadio.setAttribute('data-waschecked', 'false');
     }
 
-
     childRows.forEach(row => {
         const rowData = row.getData();
-        if (!rowData.isOriginal) { // Ignore original files
-            rowData.queuedAction = isDeselecting ? null : action;
+        if (!rowData.isOriginal) {
+            const newAction = isDeselecting ? null : action;
+            if (rowData.queuedAction !== newAction) {
+                rowData.queuedAction = newAction;
+                if (newAction) {
+                    dirtySock('setFileAction', { ino: rowData.ino, path: rowData.path, action: newAction });
+                } else {
+                    dirtySock('removeFileAction', { ino: rowData.ino, path: rowData.path });
+                }
+            }
         }
     });
 }
 
-function handleHeaderActionClick(e, table) {
+function handleHeaderActionClick(e, table, dirtySock) {
     const action = e.target.value;
     const allRows = table.getRows();
 
-    // Nullable radio logic for the header
     const isDeselecting = e.target.getAttribute('data-waschecked') === 'true';
     e.target.setAttribute('data-waschecked', isDeselecting ? 'false' : 'true');
 
@@ -71,19 +75,27 @@ function handleHeaderActionClick(e, table) {
     if (otherRadio) {
         otherRadio.setAttribute('data-waschecked', 'false');
     }
-
 
     allRows.forEach(row => {
         const rowData = row.getData();
         if (!rowData.isOriginal) {
-            rowData.queuedAction = isDeselecting ? null : action;
+            const newAction = isDeselecting ? null : action;
+            if (rowData.queuedAction !== newAction) {
+                rowData.queuedAction = newAction;
+                if (newAction) {
+                    dirtySock('setFileAction', { ino: rowData.ino, path: rowData.path, action: newAction });
+                } else {
+                    dirtySock('removeFileAction', { ino: rowData.ino, path: rowData.path });
+                }
+            }
         }
     });
 }
 
-function handleActionQueueRowClick(cell) {
+
+function handleActionQueueRowClick(cell, dirtySock) {
     const rowData = cell.getRow().getData();
-    // Simply set the action to null, reactivity will handle the rest.
+    dirtySock('removeFileAction', { ino: rowData.ino, path: rowData.path });
     rowData.queuedAction = null;
 }
 

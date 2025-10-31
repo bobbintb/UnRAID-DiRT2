@@ -16,9 +16,12 @@ test.describe('Reactive Tabulator Functionality', () => {
 
         // Wait for the table to be populated
         await expect(page.locator('#duplicatesTable .tabulator-row')).toHaveCount(10);
+
+        // Verify the action queue is initially empty
+        await expect(page.locator('#action-queue-table .tabulator-row')).toHaveCount(0);
     });
 
-    test('should load the page without console errors', async ({ page }) => {
+    test('should load the page without console errors and with an empty action queue', async ({ page }) => {
         // This test is implicitly passed by the beforeEach hook.
         // If there were errors, the hook would have thrown an exception.
         expect(true).toBe(true);

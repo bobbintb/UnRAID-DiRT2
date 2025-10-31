@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 formatter: createActionQueueActionFormatter(),
                 cellClick: function(e, cell) {
-                    handleActionQueueRowClick(cell);
+                    handleActionQueueRowClick(cell, dirtySock);
                 }
             },
             { title: "Action", field: "queuedAction", width: 80, hozAlign: "center" },
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 titleFormatter: createActionTitleFormatter(),
                 headerClick: function(e, column) {
                     if (e.target.tagName === 'INPUT') {
-                        handleHeaderActionClick(e, table);
+                        handleHeaderActionClick(e, table, dirtySock);
                     }
                 },
                 formatter: createActionFormatter(dirtySock),
@@ -181,9 +181,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
 
-            // Because the table is reactive, we don't need to call setData.
-            // We just modified the array, and Tabulator will update automatically.
-            table.replaceData(tableData).then(() => {
+            // Both tables are reactive and point to the same data.
+            // We must explicitly tell both to replace the data to ensure they
+            // re-render and re-apply filters correctly.
+            Promise.all([
+                table.replaceData(tableData),
+                actionQueueTable.replaceData(tableData)
+            ]).then(() => {
                 updateQueueFooter();
             });
         }

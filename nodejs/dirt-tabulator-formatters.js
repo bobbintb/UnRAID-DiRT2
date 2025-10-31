@@ -21,8 +21,8 @@ function createGroupHeader(dirtySock) {
 
         // The event listeners are now attached in the main .page file,
         // but the radios need to be wired up to call the action handler.
-        container.querySelector(`#del_${uniqueName}`).addEventListener('click', (e) => handleGroupActionClick(e, group));
-        container.querySelector(`#link_${uniqueName}`).addEventListener('click', (e) => handleGroupActionClick(e, group));
+        container.querySelector(`#del_${uniqueName}`).addEventListener('click', (e) => handleGroupActionClick(e, group, dirtySock));
+        container.querySelector(`#link_${uniqueName}`).addEventListener('click', (e) => handleGroupActionClick(e, group, dirtySock));
 
         return container;
     }
@@ -42,7 +42,7 @@ function createRowFormatter() {
     }
 }
 
-function createIsPrimaryFormatter() {
+function createIsPrimaryFormatter(dirtySock) {
     // This formatter is now purely declarative. It renders based on the
     // `isOriginal` flag and has no event handling logic itself.
     return function(cell, formatterParams, onRendered) {
