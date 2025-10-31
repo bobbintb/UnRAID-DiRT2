@@ -2,9 +2,26 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('Reactive Tabulator Functionality', () => {
     test.beforeEach(async ({ page }) => {
+        const errors = [];
+        page.on('pageerror', (error) => {
+            errors.push(error.message);
+        });
+
         await page.goto('file:///app/jules-scratch/verification/temp_tabulator.html');
+
+        // Fail the test if there were any console errors during page load
+        if (errors.length > 0) {
+            throw new Error(`Page loaded with errors: ${errors.join('\n')}`);
+        }
+
         // Wait for the table to be populated
         await expect(page.locator('#duplicatesTable .tabulator-row')).toHaveCount(10);
+    });
+
+    test('should load the page without console errors', async ({ page }) => {
+        // This test is implicitly passed by the beforeEach hook.
+        // If there were errors, the hook would have thrown an exception.
+        expect(true).toBe(true);
     });
 
     test('should update action queue when an action is selected', async ({ page }) => {

@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let table;
     let actionQueueTable;
     let actionQueueData = {}; // To hold the initial queue state
+    let tableData = []; // This will be our reactive data array
 
     actionQueueTable = new Tabulator("#action-queue-table", {
         height: "100%",
@@ -127,7 +128,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // The Tabulator table definition
-    let tableData = []; // This will be our reactive data array
     table = new Tabulator("#duplicatesTable", getDuplicatesTableConfig(dirtySock));
 
     function connect() {
