@@ -183,8 +183,8 @@ Icon="fa-search-minus"
                 // Columns 3-6: Metadata
                 { title: "Path", field: "path", resizable: true, widthGrow: 1, tooltip: true },
                 { title: "Size", field: "size", width: 100, hozAlign: "right", resizable: false, formatter: (cell) => formatBytes(cell.getValue()) },
-                { title: "Modified", field: "mtime", width: 150, hozAlign: "center", resizable: false, formatter: "datetime", formatterParams: { outputFormat: "YYYY-MM-DD HH:mm:ss" } },
-                { title: "Created", field: "ctime", width: 150, hozAlign: "center", resizable: false, formatter: "datetime", formatterParams: { outputFormat: "YYYY-MM-DD HH:mm:ss" } },
+                { title: "Modified", field: "mtime", width: 150, hozAlign: "center", resizable: false },
+                { title: "Created", field: "ctime", width: 150, hozAlign: "center", resizable: false },
             ];
 
             function handleActionClick(cell, actionType) {
