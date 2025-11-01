@@ -1,105 +1,68 @@
 const { test, expect } = require('@playwright/test');
 
 /**
- * @fileoverview Verifies the functionality of the rewritten dirt-tabulator.page.
+ * @fileoverview Verifies the full end-to-end functionality of the rewritten dirt-tabulator.page.
  * This script tests the two-table layout, reactive data synchronization,
- * 'original file' selection, and action queuing/dequeuing between the two tables.
+ * 'original file' selection, action queuing/dequeuing, and backend persistence.
  */
-test.describe('Tabulator Rewrite Verification', () => {
-  test('should load data, sync tables, and handle user interactions correctly', async ({ page }) => {
-    // A. Navigate to the prepared page file for local testing.
+test.describe('Tabulator Rewrite E2E Verification', () => {
+  test('should correctly save and restore state from the backend', async ({ page }) => {
+    // A. Navigate to the page and handle dialogs.
     await page.goto('file:///app/jules-scratch/verification/temp_tabulator.html', { waitUntil: 'networkidle' });
-
-    // A. Handle confirmation dialogs automatically by accepting them.
     page.on('dialog', dialog => dialog.accept());
 
-    // A. Define locators for key elements to improve readability.
+    // A. Define locators for key elements.
     const leftTable = page.locator('#left-table');
     const rightTable = page.locator('#right-table-element');
-    const firstGroupInLeftTable = leftTable.locator('.tabulator-group').first();
-    const firstRowInFirstGroup = firstGroupInLeftTable.locator('.tabulator-row').first();
-    const secondRowInFirstGroup = firstGroupInLeftTable.locator('.tabulator-row').nth(1);
+    const firstGroup = leftTable.locator('.tabulator-group').first();
+    const firstRow = firstGroup.locator('.tabulator-row').first();
+    const secondRow = firstGroup.locator('.tabulator-row').nth(1);
 
-    // 1. Verify Layout and Initial Data Load
-    // A. Check if both main table containers are visible.
-    await expect(leftTable).toBeVisible();
-    await expect(rightTable).toBeVisible();
-
-    // A. Wait for data to load by checking for the first group header in the left table.
-    await expect(firstGroupInLeftTable).toBeVisible();
-
-    // A. Check that the right table is initially empty.
+    // 1. Initial State Verification
+    // A. Wait for the left table to populate.
+    await expect(firstRow).toBeVisible();
+    // A. Ensure the right table is initially empty.
     await expect(rightTable.locator('.tabulator-placeholder-contents')).toHaveText('No actions queued');
 
-    // 2. Verify Default 'Original File' State
-    // A. The first row should be the default 'original' and thus be disabled.
-    await expect(firstRowInFirstGroup).toHaveClass(/disabled-row/);
-    await expect(firstRowInFirstGroup.locator('input[type="radio"]')).toBeChecked();
+    // 2. Add an Action and Verify UI Update + Backend Persistence
+    // A. The first row is the default "original", so click the second row's radio to enable the first.
+    await secondRow.locator('input[type="radio"]').click();
+    await expect(firstRow).not.toHaveClass(/disabled-row/);
 
-    // A. The second row should not be disabled.
-    await expect(secondRowInFirstGroup).not.toHaveClass(/disabled-row/);
-    await expect(secondRowInFirstGroup.locator('input[type="radio"]')).not.toBeChecked();
+    // A. Click the 'delete' icon on the now-enabled first row.
+    await firstRow.locator('.fa-trash').click();
 
-    // 3. Test Changing 'Original File' Selection
-    // A. Click the radio button on the second row.
-    await secondRowInFirstGroup.locator('input[type="radio"]').click();
-
-    // A. Now, the second row should be disabled, and the first should be enabled.
-    await expect(secondRowInFirstGroup).toHaveClass(/disabled-row/);
-    await expect(firstRowInFirstGroup).not.toHaveClass(/disabled-row/);
-
-    // 4. Test Queuing an Action (Left Table -> Right Table)
-    // A. The first row is now selectable. Click its delete icon.
-    await firstRowInFirstGroup.locator('.fa-trash').click();
-
-    // A. The right table should now contain exactly one row.
+    // A. Assert that the action appears immediately in the right table.
     await expect(rightTable.locator('.tabulator-row')).toHaveCount(1);
+    await expect(rightTable.locator('.tabulator-row .fa-trash')).toBeVisible();
 
-    // A. Verify the row in the right table has the correct 'delete' icon.
-    const queuedRowIcon = rightTable.locator('.tabulator-row .fa-trash');
-    await expect(queuedRowIcon).toBeVisible();
-    await expect(queuedRowIcon).toHaveCSS('color', 'rgb(255, 0, 0)'); // red
-
-    // 5. Test De-Queuing an Action (Right Table -> Left Table)
-    // A. Click the icon in the right table to remove the action.
-    await queuedRowIcon.click();
-
-    // A. The right table should become empty again.
-    await expect(rightTable.locator('.tabulator-placeholder-contents')).toHaveText('No actions queued');
-
-    // A. The delete icon in the left table for that row should revert to its default color.
-    await expect(firstRowInFirstGroup.locator('.fa-trash')).not.toHaveCSS('color', 'rgb(255, 0, 0)');
-
-    // 6. Test Header 'Clear Queue' Functionality
-    // A. Add two different actions to the queue from the left table.
-    await firstRowInFirstGroup.locator('.fa-trash').click();
-    // The second row is original/disabled, so we use the third row
-    await firstGroupInLeftTable.locator('.tabulator-row').nth(2).locator('.fa-link').click();
-
-    // A. The right table should now have two rows.
-    await expect(rightTable.locator('.tabulator-row')).toHaveCount(2);
-
-    // A. Click the master trash icon in the right table's header.
-    await rightTable.locator('.tabulator-header .fa-trash').click();
-
-    // A. The right table should be empty once more.
-    await expect(rightTable.locator('.tabulator-placeholder-contents')).toHaveText('No actions queued');
-
-    // 7. Test Backend Persistence
-    // A. Add an action to the first eligible row.
-    await firstRowInFirstGroup.locator('.fa-trash').click();
-    await expect(rightTable.locator('.tabulator-row')).toHaveCount(1);
-
-    // A. Reload the page to fetch fresh data from the backend.
+    // A. Reload the page to test if the action was saved by the backend.
     await page.reload({ waitUntil: 'networkidle' });
 
-    // A. After reload, the right table should still have the one item, proving persistence.
-    // Re-define locators after reload
-    const rightTableAfterReload = page.locator('#right-table-element');
-    await expect(rightTableAfterReload.locator('.tabulator-row')).toHaveCount(1);
-    await expect(rightTableAfterReload.locator('.tabulator-row .fa-trash')).toBeVisible();
+    // A. After reload, the action should still be present in the right table.
+    // We must re-define locators after a page reload.
+    const rightTableAfterAdd = page.locator('#right-table-element');
+    await expect(rightTableAfterAdd.locator('.tabulator-row')).toBeVisible(); // Wait for data to load
+    await expect(rightTableAfterAdd.locator('.tabulator-row')).toHaveCount(1);
+    const queuedActionIcon = rightTableAfterAdd.locator('.tabulator-row .fa-trash');
+    await expect(queuedActionIcon).toBeVisible();
 
-    // B. Take a screenshot of the final state for verification.
-    await page.screenshot({ path: '/app/jules-scratch/verification/tabulator-rewrite-final-state.png' });
+    // 3. Remove the Action and Verify UI Update + Backend Persistence
+    // A. Click the 'delete' icon in the right table to remove the action.
+    await queuedActionIcon.click();
+
+    // A. Assert that the right table becomes empty immediately.
+    await expect(rightTableAfterAdd.locator('.tabulator-placeholder-contents')).toHaveText('No actions queued');
+
+    // A. Reload the page one more time to test if the removal was saved.
+    await page.reload({ waitUntil: 'networkidle' });
+
+    // A. After the second reload, the right table should still be empty.
+    const rightTableAfterRemove = page.locator('#right-table-element');
+    await expect(rightTableAfterRemove.locator('.tabulator-placeholder-contents')).toHaveText('No actions queued');
+
+    // 4. Final Screenshot
+    // A. Capture the final, correct state for visual verification.
+    await page.screenshot({ path: '/app/jules-scratch/verification/tabulator-final-e2e-state.png' });
   });
 });

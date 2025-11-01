@@ -184,20 +184,19 @@ Icon="fa-search-minus"
                 const row = cell.getRow();
                 const rowData = row.getData();
 
-                // If the row is disabled (is an original file), do nothing
                 if (rowData.isOriginal) return;
 
                 const currentAction = rowData.action;
                 const newAction = currentAction === actionType ? null : actionType;
 
-                // Update reactive data
+                // This reactive update will flow to both tables
                 row.update({ action: newAction });
 
-                // Persist change
+                // Persist change using the correct identifier (ino)
                 if (newAction) {
-                    dirtySock('setFileAction', { path: rowData.path, action: newAction });
+                    dirtySock('setFileAction', { ino: rowData.ino, path: rowData.path, action: newAction });
                 } else {
-                    dirtySock('removeFileAction', { path: rowData.path });
+                    dirtySock('removeFileAction', { ino: rowData.ino });
                 }
             }
 
@@ -292,10 +291,10 @@ Icon="fa-search-minus"
                     cellClick: function(e, cell) {
                         const row = cell.getRow();
                         const rowData = row.getData();
-                        // Set action to null to remove it from the queue
+                        // Setting action to null will reactively remove it from this table's view
                         row.update({ action: null });
-                        // Persist change
-                        dirtySock('removeFileAction', { path: rowData.path });
+                        // Persist change using the correct identifier
+                        dirtySock('removeFileAction', { ino: rowData.ino });
                     }
                 },
                 { title: "Path", field: "path", resizable: false, tooltip: true }
@@ -310,7 +309,7 @@ Icon="fa-search-minus"
                 columns: rightTableColumns,
             });
 
-            // Set the persistent filter for the right table after initialization
+            // Apply the filter after the table is initialized
             rightTable.setFilter("action", "!=", null);
         }
 
