@@ -1,0 +1,68 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevent body scrolling */
+    height: 100%;
+    width: 100%;
+    font-family: sans-serif;
+}
+
+.split-container {
+    display: flex;
+    height: calc(100vh - 160px); /* Adjust for Unraid header/footer */
+}
+
+.split {
+    height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+#left-table {
+    padding-right: 5px;
+}
+
+#right-table {
+    padding-left: 5px;
+}
+
+#right-table-element {
+    flex-grow: 1;
+    height: 0; /* Let flexbox control the height */
+}
+
+#right-table-footer {
+    padding: 10px;
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid #ddd;
+    background-color: #f5f5f5;
+}
+
+#right-table-footer button {
+    margin-left: 10px;
+}
+
+.gutter {
+    background-color: #eee;
+    background-repeat: no-repeat;
+    background-position: 50%;
+}
+
+.gutter.gutter-horizontal {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxl7M2M2M5rB5wAl3ACdFMQ4zABpAAMAi215f7s2PUcAAAAASUVORK5CYII=');
+    cursor: col-resize;
+}
+
+/* Tabulator specific styling */
+.tabulator {
+    height: 100% !important; /* Override inline style to fill container */
+}
+
+/* Custom styles for disabled rows */
+.disabled-row {
+    pointer-events: none;
+    background-color: #e0e0e0 !important;
+    color: #a0a0a0;
+}
