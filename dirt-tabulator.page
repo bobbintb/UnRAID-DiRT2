@@ -338,18 +338,17 @@ Icon="fa-search-minus"
             }
         }
 
-            // Footer Button Listeners
-            document.getElementById('reset-button').addEventListener('click', () => {
-                if(confirm("This will clear all pending actions and reset all 'original file' selections. Are you sure?")) {
-                    dirtySock('resetState', {});
-                }
-            });
+        // Footer Button Listeners
+        document.getElementById('reset-button').addEventListener('click', () => {
+            if(confirm("This will clear all pending actions and reset all 'original file' selections. Are you sure?")) {
+                dirtySock('resetState', {});
+            }
+        });
 
-            document.getElementById('process-button').addEventListener('click', () => {
-                // No functionality yet, as per instructions
-                alert("Processing functionality is not yet implemented.");
-            });
-        }
+        document.getElementById('process-button').addEventListener('click', () => {
+            // No functionality yet, as per instructions
+            alert("Processing functionality is not yet implemented.");
+        });
 
         connect();
     });
