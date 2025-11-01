@@ -39,42 +39,48 @@ document.addEventListener('DOMContentLoaded', function() {
     // Global shared data array for reactivity
     let duplicateFilesData = [];
 
-    // The Tabulator table definition for the Action Queue
+    function getQueueData() {
+        return duplicateFilesData.filter(file => file.action !== null);
+    }
+
     actionQueueTable = new Tabulator("#action-queue-table", {
         height: "100%",
-        data: [],
+        reactiveData: true,
+        data: getQueueData(), // Initial data from computed view
         placeholder: "No actions queued",
         layout: "fitColumns",
         columns: [
             {
-                title: `<i class="fa fa-trash" style="cursor: pointer;" title="Remove All"></i>`,
+                title: '<i class="fa fa-trash" title="Clear All Actions"></i>',
                 field: "action",
-                hozAlign: "center",
                 width: 40,
-                minWidth: 40,
-                resizable: false,
-                headerSort: false,
-                headerHozAlign: "center",
-                headerClick: function(e, column) {
-                    dirtySock('clearQueue', {});
+                headerHozAlign: 'center',
+                hozAlign: 'center',
+                headerClick: function() {
+                    // Clear all actions in the main data source
+                    duplicateFilesData.forEach(file => {
+                        if (file.action) { // Only update if there's an action to clear
+                           file.action = null;
+                        }
+                    });
+                    // The mutator on the main table will handle backend sync
                 },
-                formatter: createActionQueueActionFormatter(),
+                formatter: function(cell) {
+                    const action = cell.getValue();
+                    const icon = action === 'delete' ? 'fa-trash' : 'fa-link';
+                    return `<i class="fa ${icon}" title="Remove this action"></i>`;
+                },
                 cellClick: function(e, cell) {
                     const rowData = cell.getRow().getData();
-                    const filePath = rowData.file;
-                    const mainTableRow = table.searchRows("path", "=", filePath)[0];
-
-                    if (mainTableRow) {
-                        const actionCell = mainTableRow.getCell('action');
-                        const checkedRadio = actionCell.getElement().querySelector('input[type="radio"]:checked');
-                        if (checkedRadio) {
-                            checkedRadio.click(); // This will trigger the existing deselection logic
-                        }
+                    // Find the corresponding file in the main data array and clear its action
+                    const mainFile = duplicateFilesData.find(f => f.ino === rowData.ino);
+                    if (mainFile) {
+                        mainFile.action = null; // This will trigger reactivity
                     }
-                }
+                },
             },
-            { title: "File", field: "file", hozAlign: "left", tooltip: true },
-        ],
+            { title: "File", field: "path", tooltip: true, formatter: "html" }
+        ]
     });
 
     // --- Utility Functions (formerly in helpers.js) ---
@@ -99,8 +105,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getReactiveColumnDefinitions() {
         return [
-            // { title: "isOriginal", field: "isOriginal" },
-            // { title: "Action", field: "action" },
+            {
+                title: "",
+                field: "isOriginal",
+                hozAlign: "center",
+                headerSort: false,
+                width: 30,
+                formatter: "tickCross", // Built-in formatter!
+                cellClick: function(e, cell) {
+                    const row = cell.getRow();
+                    const data = row.getData();
+
+                    if (data.isOriginal) return; // Already original, ignore
+
+                    // Find all files in same group and update in the main data array
+                    const groupFiles = duplicateFilesData.filter(f => f.groupHash === data.groupHash);
+                    groupFiles.forEach(file => {
+                        const isNowOriginal = file.ino === data.ino;
+                        if (file.isOriginal !== isNowOriginal) {
+                           file.isOriginal = isNowOriginal;
+                           if (isNowOriginal) {
+                               file.action = null; // Clear action for new original
+                           }
+                        }
+                    });
+
+                    // Backend sync
+                    dirtySock('setOriginalFile', { hash: data.groupHash, ino: data.ino });
+
+                    // No manual UI update needed - reactivity handles it!
+                },
+                cssClass: function(cell) {
+                    // This function is called reactively when data changes
+                    return cell.getData().isOriginal ? "disabled-row" : "";
+                }
+            },
             {
                 title: "Action",
                 field: "action",
@@ -176,6 +215,26 @@ document.addEventListener('DOMContentLoaded', function() {
         ];
     }
 
+    function createGroupHeader() {
+        return function(value, count, data, group) {
+            const totalSize = data.reduce((acc, row) => acc + row.size, 0);
+            const groupHash = value;
+
+            return `
+                <div class="group-header-flex-container">
+                    <div class="group-header-main-content">
+                        <strong>Group:</strong> ${groupHash}
+                        <span class="group-stats">(${count} files, ${formatBytes(totalSize)})</span>
+                    </div>
+                    <div class="group-action-container">
+                        <i class="fa fa-trash" data-action="delete" title="Mark all non-originals for deletion"></i>
+                        <i class="fa fa-link" data-action="link" title="Mark all non-originals for hardlinking"></i>
+                    </div>
+                </div>
+            `;
+        };
+    }
+
     table = new Tabulator("#duplicatesTable", {
         height: "100%",
         reactiveData: true, // ENABLE REACTIVITY!
@@ -183,8 +242,43 @@ document.addEventListener('DOMContentLoaded', function() {
         placeholder: "No duplicate files found",
         layout: "fitColumns",
         groupBy: "groupHash",
-        groupHeader: function() { return "temp";}, // Will be replaced in phase 4
+        groupHeader: createGroupHeader(),
         columns: getReactiveColumnDefinitions()
+    });
+
+    // Use Tabulator's built-in group event system for group-level actions
+    table.on("groupClick", function(e, group) {
+        if (e.target.tagName !== 'I') return;
+
+        const action = e.target.dataset.action;
+        const groupHash = group.getKey();
+        const groupFiles = duplicateFilesData.filter(f => f.groupHash === groupHash && !f.isOriginal);
+
+        if (groupFiles.length === 0) return;
+
+        // Toggle logic: if all non-original files already have this action, clear it from them.
+        // Otherwise, set this action for all of them.
+        const allHaveAction = groupFiles.every(f => f.action === action);
+
+        groupFiles.forEach(file => {
+            file.action = allHaveAction ? null : action;
+        });
+        // Reactivity will automatically update the UI and trigger the mutator for backend sync.
+    });
+
+    function updateQueueFooter() {
+        const queueItems = getQueueData(); // Use the same computed view
+        const totalSize = queueItems.reduce((sum, f) => sum + f.size, 0);
+
+        document.getElementById('action-queue-summary').innerHTML =
+            `Items: ${queueItems.length} |
+Total Size: ${formatBytes(totalSize)}`;
+    }
+
+    // Key: Subscribe to main table changes to update queue and footer
+    table.on("dataChanged", function() {
+        actionQueueTable.setData(getQueueData());
+        updateQueueFooter();
     });
 
     function connect() {

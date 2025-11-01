@@ -50,39 +50,21 @@
     font-weight: bold;
 }
 
-/* Style for the Del/Link icons */
-.tabulator-cell[tabulator-field="action"] input[type="radio"],
-.tabulator-group .group-action-container input[type="radio"],
-.tabulator-col[tabulator-field="action"] .group-action-container input[type="radio"] {
-    display: none; /* Hide the actual radio button */
-}
-
-.tabulator-cell[tabulator-field="action"] label,
-.tabulator-group .group-action-container label,
-.tabulator-col[tabulator-field="action"] .group-action-container label {
+.group-header-flex-container .group-action-container i,
+.action-icons i {
     cursor: pointer;
-    padding: 0 5px; /* Add some space around the icons */
+    padding: 0 5px;
     font-size: 1.2em;
-    background-color: transparent;
-    border: none;
+    color: #aaa; /* Default color for inactive icons */
 }
 
-.tabulator-cell[tabulator-field="action"] input[type="radio"]:checked + label,
-.tabulator-group .group-action-container input[type="radio"]:checked + label,
-.tabulator-col[tabulator-field="action"] .group-action-container input[type="radio"]:checked + label {
-    color: #007bff; /* Highlight the selected icon */
+.group-header-flex-container .group-action-container i:hover,
+.action-icons i:hover {
+    color: #555; /* Darken on hover */
 }
 
-/* Remove default Tabulator styling from the labels in the group action container and action cells */
-.tabulator-group .group-action-container label,
-.tabulator-cell[tabulator-field="action"] label,
-.tabulator-col[tabulator-field="action"] .group-action-container label {
-    background-color: transparent !important;
-    border: none !important;
-    padding: 0 5px !important;
-    margin: 0 !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
+.action-icons i.active {
+    color: #007bff; /* Active color for selected action */
 }
 
 /* Remove unwanted background on action column */
