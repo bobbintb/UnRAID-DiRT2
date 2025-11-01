@@ -196,6 +196,7 @@ Icon="fa-search-minus"
                 if (newAction) {
                     dirtySock('setFileAction', { ino: rowData.ino, path: rowData.path, action: newAction });
                 } else {
+                    // The backend expects an object with the ino property
                     dirtySock('removeFileAction', { ino: rowData.ino });
                 }
             }
@@ -256,12 +257,13 @@ Icon="fa-search-minus"
                 const newAction = allSet ? null : actionType;
 
                 eligibleRows.forEach(row => {
+                    const rowData = row.getData();
                     row.update({ action: newAction });
                     // Persist change
                     if (newAction) {
-                        dirtySock('setFileAction', { path: row.getData().path, action: newAction });
+                        dirtySock('setFileAction', { ino: rowData.ino, path: rowData.path, action: newAction });
                     } else {
-                        dirtySock('removeFileAction', { path: row.getData().path });
+                        dirtySock('removeFileAction', { ino: rowData.ino });
                     }
                 });
             }
