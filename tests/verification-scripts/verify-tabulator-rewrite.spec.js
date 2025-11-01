@@ -85,6 +85,20 @@ test.describe('Tabulator Rewrite Verification', () => {
     // A. The right table should be empty once more.
     await expect(rightTable.locator('.tabulator-placeholder-contents')).toHaveText('No actions queued');
 
+    // 7. Test Backend Persistence
+    // A. Add an action to the first eligible row.
+    await firstRowInFirstGroup.locator('.fa-trash').click();
+    await expect(rightTable.locator('.tabulator-row')).toHaveCount(1);
+
+    // A. Reload the page to fetch fresh data from the backend.
+    await page.reload({ waitUntil: 'networkidle' });
+
+    // A. After reload, the right table should still have the one item, proving persistence.
+    // Re-define locators after reload
+    const rightTableAfterReload = page.locator('#right-table-element');
+    await expect(rightTableAfterReload.locator('.tabulator-row')).toHaveCount(1);
+    await expect(rightTableAfterReload.locator('.tabulator-row .fa-trash')).toBeVisible();
+
     // B. Take a screenshot of the final state for verification.
     await page.screenshot({ path: '/app/jules-scratch/verification/tabulator-rewrite-final-state.png' });
   });

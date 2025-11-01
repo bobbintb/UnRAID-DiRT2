@@ -2,7 +2,7 @@
     margin: 0;
     padding: 0;
     overflow: hidden; /* Prevent body scrolling */
-    height: calc(100vh - 160px); /* Adjust for Unraid header/footer */
+    height: calc(100vh - 200px); /* Adjust for Unraid header/footer */
     width: 100%;
     font-family: sans-serif;
     display: flex;

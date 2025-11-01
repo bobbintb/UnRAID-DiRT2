@@ -46,16 +46,7 @@ Icon="fa-search-minus"
                 dirtySock('findDuplicates', null);
             };
 
-            socket.onmessage = function(event) {
-                const parsedMessage = JSON.parse(event.data);
-                const { action, data } = parsedMessage;
-
-                if (action === 'duplicateFiles') {
-                    console.log("Tabulator Rewrite: Received duplicateFiles data package.");
-                    const { duplicates, state, queue } = data;
-                    initializeTables(duplicates, state, queue);
-                }
-            };
+            socket.onmessage = handleWebSocketMessage;
 
             socket.onclose = function(event) {
                 console.log("Tabulator Rewrite: WebSocket connection closed. Reconnecting...");
@@ -316,36 +307,36 @@ Icon="fa-search-minus"
                 reactiveData: true,
                 layout: "fitColumns",
                 placeholder: "No actions queued",
-                dataFiltered: function(filters, rows) {
-                    // Custom filter to show only rows with a pending action
-                    return rows.filter(row => row.getData().action);
-                },
                 columns: rightTableColumns,
             });
 
-            // Re-register WebSocket message handler to include table references
-            socket.onmessage = function(event) {
-                const parsedMessage = JSON.parse(event.data);
-                const { action, data } = parsedMessage;
+            // Set the persistent filter for the right table after initialization
+            rightTable.setFilter("action", "!=", null);
+        }
 
-                if (action === 'duplicateFiles') {
-                    console.log("Tabulator Rewrite: Received duplicateFiles data package.");
-                    const { duplicates, state, queue } = data;
-                    initializeTables(duplicates, state, queue);
-                } else if (action === 'queueCleared') {
-                    console.log("Tabulator Rewrite: Queue cleared by another client or backend.");
-                    tableData.forEach(row => {
-                        if (row.action) {
-                            row.action = null;
-                        }
-                    });
-                    // Manually trigger a redraw on the right table to ensure it empties
-                    rightTable.setData(tableData);
-                } else if (action === 'resetComplete') {
-                    console.log("Tabulator Rewrite: Reset complete. Fetching fresh data.");
-                    dirtySock('findDuplicates', null);
-                }
-            };
+        function handleWebSocketMessage(event) {
+            const parsedMessage = JSON.parse(event.data);
+            const { action, data } = parsedMessage;
+
+            if (action === 'duplicateFiles') {
+                console.log("Tabulator Rewrite: Received duplicateFiles data package.");
+                const { duplicates, state, queue } = data;
+                initializeTables(duplicates, state, queue);
+            } else if (action === 'queueCleared') {
+                console.log("Tabulator Rewrite: Queue cleared. Clearing local state.");
+                // Update the shared reactive data source
+                tableData.forEach(row => {
+                    if (row.action) {
+                        // This reactive update will automatically propagate to both tables
+                        row.action = null;
+                    }
+                });
+            } else if (action === 'resetComplete') {
+                console.log("Tabulator Rewrite: Reset complete. Fetching fresh data.");
+                // Request new data, which will re-initialize the tables
+                dirtySock('findDuplicates', null);
+            }
+        }
 
             // Footer Button Listeners
             document.getElementById('reset-button').addEventListener('click', () => {
