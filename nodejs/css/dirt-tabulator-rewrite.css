@@ -1,15 +1,18 @@
-html, body {
+#tabulator-page-wrapper {
     margin: 0;
     padding: 0;
     overflow: hidden; /* Prevent body scrolling */
-    height: 100%;
+    height: calc(100vh - 160px); /* Adjust for Unraid header/footer */
     width: 100%;
     font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
 }
 
 .split-container {
     display: flex;
-    height: calc(100vh - 160px); /* Adjust for Unraid header/footer */
+    flex-grow: 1; /* Allow flex container to fill the wrapper */
+    height: 100%;
 }
 
 .split {

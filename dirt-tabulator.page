@@ -8,13 +8,15 @@ Icon="fa-search-minus"
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
-<div class="split-container">
-    <div id="left-table" class="split"></div>
-    <div id="right-table" class="split">
-        <div id="right-table-element"></div>
-         <div id="right-table-footer">
-            <button id="reset-button">Reset</button>
-            <button id="process-button">Process</button>
+<div id="tabulator-page-wrapper">
+    <div class="split-container">
+        <div id="left-table" class="split"></div>
+        <div id="right-table" class="split">
+            <div id="right-table-element"></div>
+            <div id="right-table-footer">
+                <button id="reset-button">Reset</button>
+                <button id="process-button">Process</button>
+            </div>
         </div>
     </div>
 </div>
