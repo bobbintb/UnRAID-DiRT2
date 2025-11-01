@@ -292,25 +292,38 @@ async function main() {
             case 'findDuplicates': {
               const redisClient = getRedisClient();
               const [duplicates, state, waitingJobs] = await Promise.all([
-                  findDuplicates(),
-                  redisClient.hGetAll('state'),
-                  actionQueue.getWaiting(),
+                findDuplicates(),
+                redisClient.hGetAll('state'),
+                actionQueue.getWaiting(),
               ]);
 
-              // Transform the BullMQ jobs into the simple { path: action } format the frontend expects
+              // Transform the BullMQ jobs into a simple { path: action } lookup object
               const queue = waitingJobs.reduce((acc, job) => {
-                  acc[job.data.path] = job.name; // job.name is the action, e.g., 'delete'
-                  return acc;
+                // job.name is the action ('delete' or 'link'), job.data.path is the key
+                if (job.data.path) {
+                  acc[job.data.path] = job.name;
+                }
+                return acc;
               }, {});
+
+              // Transform the nested duplicate data into a flat, reactive-friendly structure
+              const flatFiles = duplicates.flatMap(group =>
+                group.files.map(file => ({
+                  ...file, // Spread the original file properties (ino, path, size, etc.)
+                  groupHash: group.hash,
+                  groupCount: group.files.length,
+                  groupTotalSize: group.totalSize,
+                  // Look up the action from the transformed queue object
+                  action: file.path.split('<br>').find(p => queue[p]) ? queue[file.path.split('<br>').find(p => queue[p])] : null,
+                  // Determine if this file is the designated "original" for its group
+                  isOriginal: state[group.hash] === file.ino,
+                }))
+              );
 
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
                   action: 'duplicateFiles',
-                  data: {
-                    duplicates,
-                    state,
-                    queue,
-                  },
+                  data: flatFiles, // Send the single flat array
                 }));
               }
               break;
