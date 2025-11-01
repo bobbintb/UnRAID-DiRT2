@@ -135,10 +135,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // No manual UI update needed - reactivity handles it!
                 },
-                cssClass: function(cell) {
-                    // This function is called reactively when data changes
-                    return cell.getData().isOriginal ? "disabled-row" : "";
-                }
             },
             {
                 title: "Action",
@@ -243,6 +239,14 @@ document.addEventListener('DOMContentLoaded', function() {
         layout: "fitColumns",
         groupBy: "groupHash",
         groupHeader: createGroupHeader(),
+        rowFormatter: function(row) {
+            // reactively style the row based on its data
+            if (row.getData().isOriginal) {
+                row.getElement().classList.add("disabled-row");
+            } else {
+                row.getElement().classList.remove("disabled-row");
+            }
+        },
         columns: getReactiveColumnDefinitions()
     });
 
