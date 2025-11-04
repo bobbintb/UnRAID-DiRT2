@@ -11,14 +11,19 @@ Before starting any development task, you **must** set up the Node.js environmen
     sudo systemctl start redis-stack-server
     ```
 
-2.  **Install Node.js Dependencies**: Navigate to the `nodejs` directory and install the dependencies.
+2.  **Install Node.js Dependencies**: All dependencies are managed in the root `package.json` file.
     ```bash
-    cd nodejs
     npm install
     ```
-    *Note*: This project uses an override for the `blake3` package due to a dependency issue in v3.0.0. The necessary configuration is already in `package.json`.
 
-3.  **Prerequisite: Playwright**: The frontend verification process uses Playwright. It should already be installed in your environment. The `postinstall` script in `nodejs/package.json` will attempt to install the necessary browsers.
+3.  **Prerequisite: Playwright**: The frontend verification process uses Playwright.
+    *   The `@playwright/test` package is included as a `devDependency`.
+    *   The environment should have the necessary system dependencies pre-installed.
+    *   If browser binaries are missing, run the following command to install them:
+        ```bash
+        npx playwright install
+        ```
+    *   If you encounter a browser executable error pointing to a `/home/jules/.cache` directory, it means the necessary browser binaries are missing. Run `npx playwright install` to download them.
 
 ## Running the Application
 
@@ -26,31 +31,24 @@ Before starting any development task, you **must** set up the Node.js environmen
 
 The Node.js server is the backend for the Unraid plugin.
 
--   **To start the server for development (with logging):**
+-   **To start the server for development:**
+    Run this command from the project root. It's recommended to run it in the background (`&`) and redirect output to a log file.
     ```bash
-    (cd nodejs && node dirt.js > ../dirt_server.log 2>&1 &)
+    npm start > dirt_server.log &
     ```
 
 -   **To kill a running server process:**
-    The server can become a zombie process if it crashes. Use the following command to find and kill any running instances before restarting.
+    A dedicated script is provided to find and kill any running instances of the server.
     ```bash
-    ps aux | grep 'node dirt.js' | grep -v grep | awk '{print $2}' | xargs kill -9 || true
-    ```
-
--   **Recommended combined command for restarting the server:**
-    This command ensures any old server process is killed before starting a new one.
-    ```bash
-    ps aux | grep 'node dirt.js' | grep -v grep | awk '{print $2}' | xargs kill -9 || true; (cd nodejs && npm install && npm run start > ../dirt_server.log 2>&1 &)
+    npm run kill-dirt
     ```
 
 ### Seeding the Database
 
-To populate the Redis database with test data for development, use the seed script located at `tests/seed-redis.js`.
-
+To populate the Redis database with test data for development, use the seed script.
 ```bash
-cd nodejs && npm run seed
+npm run seed
 ```
-*Note*: The seed script can be prone to timeouts. If it fails, it may be an intermittent environmental issue.
 
 ## Frontend Verification
 
@@ -60,35 +58,45 @@ The frontend for this Unraid plugin consists of `.page` files, which are essenti
 
 ### Page File Frontmatter
 
-The frontmatter is a block at the very top of the file that must be stripped for local testing with tools like Playwright. The preparation script described below handles this automatically. It looks like this:
+The frontmatter is a block at the very top of the file that must be stripped for local testing. The `unraid-workaround` script handles this automatically. It looks like this:
 ```
 Menu="pluginSettings:2"
 Title="DataTables"
 ---
 ```
--   **Structure**: It consists of one or more key-value pairs, followed by a line with exactly three dashes (`---`).
--   **Key Explanations**:
-    -   `Menu`: Defines the parent page and the tab order. For example, `pluginSettings:2` means it's the second tab under the `pluginSettings` page.
-    -   `Title`: Sets the text that appears on the tab in the Unraid UI (e.g., "Tabulator", "DataTables"). This is how you identify which page uses which library.
 
-### Verification Process
+### Manual Verification Process
 
-The entire frontend verification process has been automated into a single command. For any given UI task, you must first create a new Playwright test file for your change and save it to `tests/verification-scripts/`.
+For any given UI task, you must follow this manual process:
 
-Then, run the orchestrator script from the `nodejs/` directory, passing the path to your new test file as an argument:
+1.  **Ensure a clean state**: Stop any running server processes.
+    ```bash
+    npm run kill-dirt
+    ```
+2.  **Start the server**: Run the server in the background.
+    ```bash
+    npm start > dirt_server.log &
+    ```
+3.  **Seed the database**: Populate Redis with test data.
+    ```bash
+    npm run seed
+    ```
+4.  **Prepare UI files**: Run the workaround script to convert the Unraid `.page` files into testable `.html` files.
+    ```bash
+    npm run unraid-workaround
+    ```
+5.  **Run Playwright tests**: Execute the Playwright test runner. You can run all tests or specify a single file.
+    ```bash
+    # Run all tests
+    npx playwright test
 
-```bash
-# Example:
-npm run test:ui -- tests/verification-scripts/my-new-test.spec.js
-```
-
-This single command will automatically:
-1.  Kill any running server instances.
-2.  Start the application server.
-3.  Wait for the server to initialize.
-4.  Seed the database with test data.
-5.  Prepare the `.page` files by stripping frontmatter and saving them as temporary `.php` files.
-6.  Run the specified Playwright test against the prepared files.
+    # Run a specific test
+    npx playwright test tests/verification-scripts/simple-screenshot.spec.js
+    ```
+6.  **Stop the server**: Once testing is complete, kill the server process.
+    ```bash
+    npm run kill-dirt
+    ```
 
 ### Frontend Libraries
 
@@ -98,60 +106,24 @@ This project uses two different table libraries on separate pages for evaluation
     -   **Library**: Tabulator v6.3.1
     -   **Documentation**: [https://tabulator.info/docs/6.3](https://tabulator.info/docs/6.3)
 
-
 ## Playwright Scripts
 
 This section outlines the standards and best practices for creating, managing, and maintaining Playwright verification scripts in this repository.
 
 ### Storage Location
 
-All Playwright scripts must be stored in the following directory:
-`tests/verification-scripts/`
-
-All helper scripts, reusable code, and modules for testing should be stored in the following directory:
-`tests/helpers/`
+-   **Test Scripts**: `tests/verification-scripts/`
+-   **Helper Modules**: `tests/helpers/`
 
 ### Naming Conventions
 
--   **Tests**: Test files must match Playwright's default test patterns (e.g., `*.test.js`, `*.spec.ts`).
+-   **Tests**: Test files must match Playwright's default test patterns (e.g., `*.spec.js`).
 -   **Helpers**: To prevent the test runner from accidentally executing helper files, all helper scripts must use the `.helper` suffix (e.g., `my-helper.helper.js`).
 
-### Scripting Standards and Best Practices
+### Scripting Standards
 
-1.  **Documentation**: All scripts must be thoroughly documented in accordance with industry standards. Each script file should include:
-    *   A file-level docstring explaining the script's overall purpose and what feature it verifies.
-    *   Clear comments for each logical step within the script (e.g., Arrange, Act, Assert).
-    *   Explanations for any complex locators or workarounds.
-
-2.  **Reusability and Core Library**: To avoid code duplication and improve maintainability, a core library of reusable functions should be established.
-    *   Common tasks, such as logging in, navigating to a specific page, or performing a common setup action, should be abstracted into functions.
-    *   These reusable functions should be stored in one or more core files in the `tests/helpers` directory (e.g., `tests/helpers/core.helper.js`).
-
-3.  **Script Structure**:
-    *   **Verification Scripts**: Simple, single-purpose scripts (like `verify_pages.py`) should be self-contained but are encouraged to use functions from the core library where applicable.
-    *   **Complex Tests**: More complex end-to-end or integration tests must also be self-contained. They should be structured as a series of logical steps that call functions from the core library to perform actions and assertions.
-
-4.  **Maintenance**:
-    *   Scripts must be kept up-to-date. If a UI change breaks a test, the script must be updated alongside the feature change.
-    *   Outdated or irrelevant scripts should be removed.
-
-## Mandatory Verification Workflow
-
-**Submitting code that has not been tested or that fails its own verification tests is a critical failure.**
-
-The testing process is cyclical and non-negotiable. It must be followed for any change that could impact the user interface.
-
-1.  **Implement the Change**: Write the code for the new feature or bug fix.
-2.  **Create a Test**: Write a new Playwright script dedicated to verifying your change. Save it in `tests/verification-scripts/`.
-3.  **Execute Verification**: Run the automated test orchestrator with your new script.
-    ```bash
-    cd nodejs
-    npm run test:ui -- ../tests/verification-scripts/your-new-test.spec.js
-    ```
-4.  **Analyze and Fix**:
-    *   **If the test passes**, your verification is complete. Proceed to the pre-commit checklist.
-    *   **If the test fails**, analyze the error logs and screenshots. Do not submit the code. Return to step 1 to fix the underlying issue in the application code or the test script itself.
-5.  **Repeat**: Continue this cycle of implementation, testing, and fixing until the verification test for your change passes successfully.
+1.  **Documentation**: Scripts should be well-documented with comments explaining their purpose and key steps.
+2.  **Reusability**: Common tasks should be abstracted into reusable functions and stored in the `tests/helpers` directory.
 
 ## Pre-commit Checklist
 
@@ -160,13 +132,9 @@ Before using the `submit` tool, you **must** clean the workspace.
 1.  **Save Verification Scripts**:
     -   Ensure any new or modified Playwright verification scripts are permanently saved in the `tests/verification-scripts/` directory.
 2.  **Clean the Workspace**:
-    -   Run the automated cleanup script from the `nodejs/` directory to remove all temporary artifacts.
+    -   Run the automated cleanup script to remove temporary artifacts. The screenshot and log file are now considered artifacts and should be submitted.
     ```bash
     npm run clean
     ```
 3.  **Revert Unintentional Changes**:
-    -   Ensure `nodejs/package-lock.json` has not been unintentionally modified. If it has, restore it.
-
-## Known Issues & Environment
-
--   **Lua Scripts**: Redis Lua scripts are located in `nodejs/lua/`.
+    -   Ensure `package-lock.json` has not been unintentionally modified. If it has, restore it.
