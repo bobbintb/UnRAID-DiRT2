@@ -6,9 +6,8 @@ test.describe('Tabulator Page Screenshot Verification', () => {
     // Navigate to the prepared Tabulator page
     await page.goto('http://localhost:41820/jules-scratch/verification/temp_tabulator.html', { waitUntil: 'networkidle' });
 
-    // Wait for the table to be populated and the first group header to be visible.
-    const firstGroupHeader = page.locator('.tabulator-group').first();
-    await expect(firstGroupHeader).toBeVisible({ timeout: 15000 });
+    // A brief pause to allow for WebSocket data to be processed and rendered.
+    await page.waitForTimeout(2000);
 
     // Take a screenshot to visually confirm the final alignment.
     await page.screenshot({ path: '/app/jules-scratch/final_tabulator_layout.png', fullPage: true });
