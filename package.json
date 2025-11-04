@@ -4,7 +4,7 @@
   "description": "Backend WebSocket server for the DIRT Unraid plugin.",
   "main": "dirt.js",
   "scripts": {
-    "start": "cd nodejs && node dirt.js",
+    "start": "cd nodejs && node dirt.js >> ../dirt_server.log 2>&1 &",
     "seed": "cd nodejs && node ../tests/helpers/seed-redis.helper.js",
     "unraid-workaround": "mkdir -p jules-scratch/verification && tail -n +4 dirt-tabulator.page | sed 's/window.location.hostname/\"localhost\"/' > jules-scratch/verification/temp_tabulator.html",
     "clean": "rm -rf dirt_server.log jules-scratch",
