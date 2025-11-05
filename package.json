@@ -6,7 +6,7 @@
   "scripts": {
     "start": "cd nodejs && node dirt.js >> ../dirt_server.log 2>&1 &",
     "seed": "cd nodejs && node ../tests/helpers/seed-redis.helper.js",
-    "unraid-workaround": "mkdir -p jules-scratch/verification && tail -n +4 dirt-tabulator.page | sed 's/window.location.hostname/\"localhost\"/' > jules-scratch/verification/temp_tabulator.html",
+    "unraid-workaround": "mkdir -p jules-scratch/verification && tail -n +4 dirt-tabulator.page | sed 's/window.location.hostname/\"localhost\"/' > jules-scratch/verification/temp_tabulator.php",
     "clean": "rm -rf dirt_server.log jules-scratch",
     "kill-dirt": "ps aux | grep 'dirt.js' | grep -v grep | awk '{print $2}' | xargs kill -9"
   },
