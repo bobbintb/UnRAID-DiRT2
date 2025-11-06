@@ -8,7 +8,7 @@
     "stop": "ps aux | grep 'dirt.js' | grep -v grep | awk '{print $2}' | xargs kill -9",
     "restart": "npm run stop && npm run start",
     "seed": "node tests/helpers/seed-redis.helper.js",
-    "unraid-workaround": "tail -n +5 dirt-tabulator.page > dirt-tabulator.php && sed -i '1i\\<script src=\"https://code.jquery.com/jquery-3.7.1.min.js\"></script>' dirt-tabulator.php"
+    "unraid-workaround": "tail -n +5 dirt-tabulator.page > dirt-tabulator.php && sed -i '1i\\<script src=\"https://code.jquery.com/jquery-3.7.1.min.js\"></script>' dirt-tabulator.php",
     "clean": "rm -rf dirt_server.log jules-scratch"
   },
   "author": "",
