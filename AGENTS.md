@@ -11,19 +11,10 @@ Before starting any development task, you **must** set up the Node.js environmen
     sudo systemctl start redis-stack-server
     ```
 
-2.  **Install Node.js Dependencies**: All dependencies are managed in the root `package.json` file.
+2.  **Prepare the environment**: Run the `prep` script to install all dependencies and seed the database. This only needs to be run once per session.
     ```bash
-    npm install
+    npm run prep
     ```
-
-3.  **Prerequisite: Playwright**: The frontend verification process uses Playwright.
-    *   The `@playwright/test` package is included as a `devDependency`.
-    *   The environment should have the necessary system dependencies pre-installed.
-    *   If browser binaries are missing, run the following command to install them:
-        ```bash
-        npx playwright install
-        ```
-    *   If you encounter a browser executable error pointing to a `/home/jules/.cache` directory, it means the necessary browser binaries are missing. Run `npx playwright install` to download them.
 
 ## Running the Application
 
@@ -40,7 +31,7 @@ The Node.js server is the backend for the Unraid plugin.
 -   **To kill a running server process:**
     A dedicated script is provided to find and kill any running instances of the server.
     ```bash
-    npm run kill-dirt
+    npm run stop
     ```
 
 ### Seeding the Database
@@ -49,6 +40,19 @@ To populate the Redis database with test data for development, use the seed scri
 ```bash
 npm run seed
 ```
+
+## Individual Scripts
+
+The following scripts are available in `package.json` and can be run individually as needed.
+
+-   `npm start`: Starts the Node.js server and logs output to `dirt_server.log`.
+-   `npm run stop`: Stops any running Node.js server processes.
+-   `npm run restart`: A convenience script that stops and then restarts the server.
+-   `npm run seed`: Populates the Redis database with test data.
+-   `npm run unraid-workaround`: Removes the Unraid-specific frontmatter from the `.page` files, creating testable `index.php` files.
+-   `npm run clean`: Removes temporary files like `dirt_server.log` and `index.php`.
+-   `npm run prep`: Installs all necessary dependencies (`npm install` and `playwright install`) and seeds the database. This should be run once before starting development.
+-   `npm test`: Runs the entire test suite, which includes cleaning, preparing UI files, starting the server, running tests, and stopping the server.
 
 ## Frontend Verification
 
@@ -65,39 +69,6 @@ Title="DataTables"
 ---
 ```
 
-### Manual Verification Process
-
-For any given UI task, you must follow this manual process:
-
-1.  **Ensure a clean state**: Stop any running server processes.
-    ```bash
-    npm run kill-dirt
-    ```
-2.  **Start the server**: Run the server in the background.
-    ```bash
-    npm start > dirt_server.log &
-    ```
-3.  **Seed the database**: Populate Redis with test data.
-    ```bash
-    npm run seed
-    ```
-4.  **Prepare UI files**: Run the workaround script to convert the Unraid `.page` files into testable `.html` files.
-    ```bash
-    npm run unraid-workaround
-    ```
-5.  **Run Playwright tests**: Execute the Playwright test runner. You can run all tests or specify a single file.
-    ```bash
-    # Run all tests
-    npx playwright test
-
-    # Run a specific test
-    npx playwright test tests/verification-scripts/simple-screenshot.spec.js
-    ```
-6.  **Stop the server**: Once testing is complete, kill the server process.
-    ```bash
-    npm run kill-dirt
-    ```
-
 ### Frontend Libraries
 
 This project uses two different table libraries on separate pages for evaluation purposes. Before implementing new features or customizations, **you must** consult the official documentation for the relevant library to see if a built-in solution exists.
@@ -106,19 +77,29 @@ This project uses two different table libraries on separate pages for evaluation
     -   **Library**: Tabulator v6.3.1
     -   **Documentation**: [https://tabulator.info/docs/6.3](https://tabulator.info/docs/6.3)
 
-## Playwright Scripts
+## Testing
 
-This section outlines the standards and best practices for creating, managing, and maintaining Playwright verification scripts in this repository.
+This project uses Playwright for Python for frontend testing.
 
-### Storage Location
+### Running Tests
 
--   **Test Scripts**: `tests/verification-scripts/`
--   **Helper Modules**: `tests/helpers/`
+Tests should be run on request. The `npm test` command will run the entire test suite. This includes cleaning the workspace, preparing UI files, starting the server, running the tests, and stopping the server.
 
-### Naming Conventions
+```bash
+npm test
+```
 
--   **Tests**: Test files must match Playwright's default test patterns (e.g., `*.spec.js`).
--   **Helpers**: To prevent the test runner from accidentally executing helper files, all helper scripts must use the `.helper` suffix (e.g., `my-helper.helper.js`).
+To run a specific test file, you can use the `pytest` command directly:
+
+```bash
+pytest tests/your_test_file_test.py
+```
+
+### Test File Location and Naming
+
+-   **Test Scripts**: All test scripts are located in the `tests/` directory.
+-   **File Naming**: Test files must end with `_test.py` for the test runner to discover them.
+-   **Helper Modules**: Reusable test functions and helpers are stored in `tests/helpers/`.
 
 ### Scripting Standards
 
@@ -127,14 +108,4 @@ This section outlines the standards and best practices for creating, managing, a
 
 ## Pre-commit Checklist
 
-Before using the `submit` tool, you **must** clean the workspace.
-
-1.  **Save Verification Scripts**:
-    -   Ensure any new or modified Playwright verification scripts are permanently saved in the `tests/verification-scripts/` directory.
-2.  **Clean the Workspace**:
-    -   Run the automated cleanup script to remove temporary artifacts. The screenshot and log file are now considered artifacts and should be submitted.
-    ```bash
-    npm run clean
-    ```
-3.  **Revert Unintentional Changes**:
-    -   Ensure `package-lock.json` has not been unintentionally modified. If it has, restore it.
+Before using the `submit` tool, ensure that any requested tests have been run and have passed.
