@@ -1,0 +1,22 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+.table-container {
+    display: flex;
+    height: 100vh;
+}
+
+.table-wrapper {
+    flex: 1;
+}
+
+#left-table {
+    margin-right: 5px;
+}
+
+#right-table {
+    margin-left: 5px;
+}

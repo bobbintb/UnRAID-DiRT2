@@ -8,9 +8,9 @@ Icon="fa-search-minus"
 <script src="/plugins/bobbintb.system.dirt/nodejs/left-table.js"></script>
 <script src="/plugins/bobbintb.system.dirt/nodejs/right-table.js"></script>
 
-<div style="display: flex; height: 100vh;">
-    <div id="left-table" style="flex: 1; margin-right: 5px;"></div>
-    <div id="right-table" style="flex: 1; margin-left: 5px;"></div>
+<div class="table-container">
+    <div id="left-table" class="table-wrapper"></div>
+    <div id="right-table" class="table-wrapper"></div>
 </div>
 
 <script>
