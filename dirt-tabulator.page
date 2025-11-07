@@ -17,6 +17,9 @@ Icon="fa-search-minus"
 document.addEventListener('DOMContentLoaded', function() {
     let socket;
 
+    const leftTable = new Tabulator("#left-table", leftTableConfig);
+    const rightTable = new Tabulator("#right-table", rightTableConfig);
+
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
 
@@ -33,18 +36,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
                 const { duplicates } = data;
 
-                const leftTableData = [];
+                const tableData = [];
                 duplicates.forEach(group => {
                     group.files.forEach(file => {
-                        leftTableData.push({
+                        tableData.push({
                             ...file,
                             hash: group.hash,
                         });
                     });
                 });
 
-                leftTable.setData(leftTableData);
-                rightTable.setData(leftTableData);
+                leftTable.replaceData(tableData);
+                rightTable.replaceData(tableData);
             }
         };
 

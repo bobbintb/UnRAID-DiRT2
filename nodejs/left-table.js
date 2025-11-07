@@ -1,4 +1,4 @@
-const leftTable = new Tabulator("#left-table", {
+const leftTableConfig = {
     height:"100%",
     reactiveData:true,
     groupBy:"hash",
@@ -8,4 +8,4 @@ const leftTable = new Tabulator("#left-table", {
         {title:"Modified", field:"mtime"},
         {title:"Created", field:"ctime"},
     ],
-});
+};
