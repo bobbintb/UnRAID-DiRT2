@@ -1,120 +1,22 @@
-#split {
-    display: flex;
-    flex-direction: row;
-    height: calc(100vh - 245px); /* Adjust for Unraid header/footer */
-}
-
-.gutter {
-    background-color: #eee;
-    background-repeat: no-repeat;
-    background-position: 50%;
-}
-
-.gutter.gutter-horizontal {
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
-    cursor: col-resize;
-}
-
-#duplicatesTable-container, #action-queue-container {
-    overflow: hidden; /* Prevent content from spilling out during resize */
-}
-
-#action-queue-container {
-    display: flex;
-    flex-direction: column;
-}
-
-#duplicatesTable {
+body, html {
     height: 100%;
+    margin: 0;
+    overflow: hidden;
 }
 
-#action-queue-table {
-    flex-grow: 1; /* Allow the table to fill the available space */
-    min-height: 0; /* Prevent the table from overflowing its container */
-}
-/* Hide the tree branch element in the radio button column */
-.tabulator-cell[tabulator-field="isPrimary"] .tabulator-data-tree-branch {
-    display: none;
-}
-
-.disabled-row {
-    background-color: #f2f2f2 !important;
-    color: #999 !important;
-    pointer-events: none;
-}
-.disabled-row .tabulator-cell {
-    pointer-events: none;
-}
-.group-footer {
-    background-color: #e0e0e0 !important;
-    font-weight: bold;
-}
-
-/* Style for the Del/Link icons */
-.tabulator-cell[tabulator-field="action"] input[type="radio"],
-.tabulator-group .group-action-container input[type="radio"],
-.tabulator-col[tabulator-field="action"] .group-action-container input[type="radio"] {
-    display: none; /* Hide the actual radio button */
-}
-
-.tabulator-cell[tabulator-field="action"] label,
-.tabulator-group .group-action-container label,
-.tabulator-col[tabulator-field="action"] .group-action-container label {
-    cursor: pointer;
-    padding: 0 5px; /* Add some space around the icons */
-    font-size: 1.2em;
-    background-color: transparent;
-    border: none;
-}
-
-.tabulator-cell[tabulator-field="action"] input[type="radio"]:checked + label,
-.tabulator-group .group-action-container input[type="radio"]:checked + label,
-.tabulator-col[tabulator-field="action"] .group-action-container input[type="radio"]:checked + label {
-    color: #007bff; /* Highlight the selected icon */
-}
-
-/* Remove default Tabulator styling from the labels in the group action container and action cells */
-.tabulator-group .group-action-container label,
-.tabulator-cell[tabulator-field="action"] label,
-.tabulator-col[tabulator-field="action"] .group-action-container label {
-    background-color: transparent !important;
-    border: none !important;
-    padding: 0 5px !important;
-    margin: 0 !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-}
-
-/* Remove unwanted background on action column */
-.tabulator-cell[tabulator-field="action"] {
-    background-color: transparent !important;
-}
-
-/* Override default group header padding and force horizontal alignment */
-.tabulator-group {
-    padding-left: 4px !important;
-    display: flex !important;
-    align-items: center !important;
-}
-
-/* Flex container for group header content */
-.group-header-flex-container {
+.table-container {
     display: flex;
-    align-items: center;
-    width: 100%;
+    height: 100vh;
 }
 
-.group-action-container {
-    width: 65px;
-    min-width: 65px;
-    display: flex;
-    justify-content: center;
+.table-wrapper {
+    flex: 1;
 }
 
-.group-info-container {
-    padding-left: 4px;
+#left-table {
+    margin-right: 5px;
 }
 
-.tabulator-group .tabulator-group-toggle {
-    padding-right: 3.5px;
+#right-table {
+    margin-left: 5px;
 }
