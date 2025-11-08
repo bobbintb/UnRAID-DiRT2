@@ -6,7 +6,6 @@ const path = require("path");
 const redisFunctions = require("./redisFunctions");
 const broadcaster = require('./broadcaster');
 
-
 let redisClient;
 let redisPublisherClient;
 let redisSubscriberClient;
@@ -58,8 +57,6 @@ async function connectToRedis() {
 		]);
 
 		// --- Configure Keyspace Notifications ---
-		// 'AKE' enables events for all keys and all event types.
-		// This is crucial for the keyspace subscriber to receive notifications.
 		await redisClient.configSet('notify-keyspace-events', 'AKE');
 		console.log("[REDIS] Configured keyspace notifications ('AKE').");
 
@@ -132,10 +129,6 @@ async function closeRedis() {
 		await redisPublisherClient.quit();
 		redisPublisherClient = null;
 	}
-	if (redisSubscriberClient) {
-		await redisSubscriberClient.quit();
-		redisSubscriberClient = null;
-	}
 	// Also close the BullMQ queue connection
 	if (fileProcessingQueue) {
 		await fileProcessingQueue.close();
@@ -147,6 +140,7 @@ async function closeRedis() {
 
 module.exports = {
     connectToRedis,
+    startRedisSubscriber,
     getFileMetadataRepository,
     getRedisClient,
     getRedisPublisherClient,
@@ -162,7 +156,6 @@ module.exports = {
     getAllFiles: redisFunctions.getAllFiles,
     findDuplicates: redisFunctions.findDuplicates,
     getActionQueue: redisFunctions.getActionQueue,
-    startRedisSubscriber,
 };
 
 async function startRedisSubscriber() {
@@ -172,7 +165,6 @@ async function startRedisSubscriber() {
   }
   console.log('[REDIS_SUB] Starting Redis keyspace event listener...');
 
-  // psubscribe to events on 'ino:*' keys
   await redisSubscriberClient.pSubscribe('__keyspace@0__:ino:*', async (message, channel) => {
     const key = channel.substring('__keyspace@0__:'.length);
     const ino = key.split(':')[1];
@@ -181,7 +173,6 @@ async function startRedisSubscriber() {
       try {
         const fileEntity = await fileMetadataRepository.fetch(ino);
         if (fileEntity) {
-          console.log(`[REDIS_SUB] Detected '${message}' on ${key}. Broadcasting update.`);
           broadcaster.broadcast({
             action: 'addOrUpdateFile',
             data: fileEntity.toJSON(),
@@ -191,10 +182,10 @@ async function startRedisSubscriber() {
         console.error(`[REDIS_SUB] Error fetching entity for ${key} after '${message}' event:`, error);
       }
     } else if (message === 'del') {
-      // The 'del' event is now handled proactively by the 'remove' handler,
-      // which broadcasts the path *before* the entity is deleted.
-      // We no longer need to react to the 'del' keyspace event here.
-      console.log(`[REDIS_SUB] Detected 'del' on ${key}. No action taken as this is handled by the worker.`);
+      broadcaster.broadcast({
+        action: 'removeFile',
+        data: { ino },
+      });
     }
   });
 }

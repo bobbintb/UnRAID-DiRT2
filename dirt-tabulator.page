@@ -52,15 +52,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
                 }
                 case 'addOrUpdateFile': {
-                    console.log("Tabulator Tab: Received addOrUpdateFile data for file:", data.path);
                     leftTable.updateOrAddData([data]);
                     rightTable.updateOrAddData([data]);
                     break;
                 }
                 case 'removeFile': {
-                    console.log("Tabulator Tab: Received removeFile data for file:", data.path);
-                    leftTable.deleteRow(data.path);
-                    rightTable.deleteRow(data.path);
+                    leftTable.deleteRow(data.ino);
+                    rightTable.deleteRow(data.ino);
                     break;
                 }
                 default:

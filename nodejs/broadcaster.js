@@ -1,27 +1,36 @@
-// broadcaster.js
-let wss;
+const { WebSocketServer } = require('ws');
 
-function init(webSocketServer) {
-  wss = webSocketServer;
-  console.log('[BROADCASTER] Broadcaster initialized.');
+let wss;
+const clients = new Map();
+
+function init(server) {
+    wss = new WebSocketServer({ server });
+
+    wss.on('connection', (ws, req) => {
+        const url = new URL(req.url, `ws://${req.headers.host}`);
+        const clientId = url.searchParams.get('clientId');
+
+        console.log(`[BROADCASTER] Client '${clientId}' connected.`);
+        clients.set(ws, clientId);
+
+        ws.on('close', () => {
+            console.log(`[BROADCASTER] Client '${clientId}' disconnected.`);
+            clients.delete(ws);
+        });
+    });
+    console.log('[BROADCASTER] Broadcaster initialized.');
 }
 
 function broadcast(message) {
-  if (!wss) {
-    console.error('[BROADCASTER] Broadcaster not initialized. Cannot send message.');
-    return;
-  }
-
-  const jsonMessage = JSON.stringify(message);
-
-  wss.clients.forEach(client => {
-    if (client.readyState === 1) { // WebSocket.OPEN = 1
-      client.send(jsonMessage);
-    }
-  });
+    const serializedMessage = JSON.stringify(message);
+    clients.forEach((id, client) => {
+        if (client.readyState === 1) { // WebSocket.OPEN
+            client.send(serializedMessage);
+        }
+    });
 }
 
 module.exports = {
-  init,
-  broadcast,
+    init,
+    broadcast,
 };
