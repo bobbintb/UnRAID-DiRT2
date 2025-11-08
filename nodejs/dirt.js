@@ -4,7 +4,7 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 const { scan } = require('./scan.js');
 const { createClient } = require('redis');
-const { connectToRedis, closeRedis, getRedisClient, actionQueue } = require('./redis.js');
+const { connectToRedis, closeRedis, getRedisClient, actionQueue, startRedisSubscriber } = require('./redis.js');
 const { fileProcessingQueue } = require('./redis.js');
 const { saveDbSnapshot } = require('./snapshot.js');
 const {
@@ -14,6 +14,7 @@ const {
   debugFindFileByPath,
 } = require('./debug.js');
 const { getAllFiles, findDuplicates } = require('./redis.js');
+const broadcaster = require('./broadcaster');
 
 let inboxListenerClient;
 
@@ -122,6 +123,8 @@ async function main() {
 
     const port = 41820;
     const wss = new WebSocket.Server({ port });
+    broadcaster.init(wss); // Initialize the broadcaster
+    startRedisSubscriber(); // Start listening for Redis keyspace events
 
     console.log(`[DIRT] WebSocket server started on port ${port}`);
 
