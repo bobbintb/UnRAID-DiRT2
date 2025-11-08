@@ -1,36 +1,28 @@
-const { WebSocketServer } = require('ws');
+// nodejs/broadcaster.js
+const WebSocket = require('ws');
 
 let wss;
-const clients = new Map();
 
-function init(server) {
-    wss = new WebSocketServer({ server });
-
-    wss.on('connection', (ws, req) => {
-        const url = new URL(req.url, `ws://${req.headers.host}`);
-        const clientId = url.searchParams.get('clientId');
-
-        console.log(`[BROADCASTER] Client '${clientId}' connected.`);
-        clients.set(ws, clientId);
-
-        ws.on('close', () => {
-            console.log(`[BROADCASTER] Client '${clientId}' disconnected.`);
-            clients.delete(ws);
-        });
-    });
-    console.log('[BROADCASTER] Broadcaster initialized.');
+function init(webSocketServer) {
+  wss = webSocketServer;
+  console.log('[BROADCASTER] Initialized.');
 }
 
 function broadcast(message) {
-    const serializedMessage = JSON.stringify(message);
-    clients.forEach((id, client) => {
-        if (client.readyState === 1) { // WebSocket.OPEN
-            client.send(serializedMessage);
-        }
-    });
+  if (!wss) {
+    console.error('[BROADCASTER] Broadcast called before initialization.');
+    return;
+  }
+
+  console.log('[BROADCASTER] Broadcasting message:', message);
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(JSON.stringify(message));
+    }
+  });
 }
 
 module.exports = {
-    init,
-    broadcast,
+  init,
+  broadcast,
 };

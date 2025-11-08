@@ -1,5 +1,4 @@
 const { performance } = require('perf_hooks');
-const http = require('http');
 const WebSocket = require('ws');
 const fs = require('fs').promises;
 const crypto = require('crypto');
@@ -14,7 +13,7 @@ const {
   debugFindFilesWithNonUniqueHashes,
   debugFindFileByPath,
 } = require('./debug.js');
-const { getAllFiles, findDuplicates, startRedisSubscriber } = require('./redis.js');
+const { getAllFiles, findDuplicates } = require('./redis.js');
 const broadcaster = require('./broadcaster');
 
 let inboxListenerClient;
@@ -122,15 +121,9 @@ async function main() {
     // Now that Redis is connected, start the worker and the WebSocket server.
     require('./worker.js'); // This will start the worker process
 
-    const server = http.createServer();
-    broadcaster.init(server);
-    startRedisSubscriber();
-
-
     const port = 41820;
-    const wss = new WebSocket.Server({ server });
-    server.listen(port);
-
+    const wss = new WebSocket.Server({ port });
+    broadcaster.init(wss);
 
     console.log(`[DIRT] WebSocket server started on port ${port}`);
 
