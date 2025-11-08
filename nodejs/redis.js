@@ -172,8 +172,8 @@ async function startRedisSubscriber() {
   }
   console.log('[REDIS_SUB] Starting Redis keyspace event listener...');
 
-  // Subscribe to events on 'ino:*' keys
-  await redisSubscriberClient.subscribe('__keyspace@0__:ino:*', async (message, channel) => {
+  // psubscribe to events on 'ino:*' keys
+  await redisSubscriberClient.pSubscribe('__keyspace@0__:ino:*', async (message, channel) => {
     const key = channel.substring('__keyspace@0__:'.length);
     const ino = key.split(':')[1];
 
