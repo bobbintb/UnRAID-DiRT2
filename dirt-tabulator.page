@@ -48,6 +48,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 leftTable.replaceData(tableData);
                 rightTable.replaceData(tableData);
+            } else if (action === 'addOrUpdateFile') {
+                console.log(`Tabulator Tab: Received addOrUpdateFile for ino ${data.ino}`);
+                leftTable.updateOrAddData([data]);
+                rightTable.updateOrAddData([data]);
+            } else if (action === 'removeFile') {
+                console.log(`Tabulator Tab: Received removeFile for ino ${data.ino}`);
+                leftTable.deleteRow(data.ino);
+                rightTable.deleteRow(data.ino);
             }
         };
 

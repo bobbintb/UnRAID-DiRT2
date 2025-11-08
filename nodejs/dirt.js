@@ -14,6 +14,7 @@ const {
   debugFindFileByPath,
 } = require('./debug.js');
 const { getAllFiles, findDuplicates } = require('./redis.js');
+const broadcaster = require('./broadcaster');
 
 let inboxListenerClient;
 
@@ -122,6 +123,7 @@ async function main() {
 
     const port = 41820;
     const wss = new WebSocket.Server({ port });
+    broadcaster.init(wss);
 
     console.log(`[DIRT] WebSocket server started on port ${port}`);
 

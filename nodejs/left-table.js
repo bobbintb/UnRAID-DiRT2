@@ -1,4 +1,5 @@
 const leftTableConfig = {
+    index:"ino",
     height:"100%",
     reactiveData:true,
     groupBy:"hash",

@@ -1,6 +1,7 @@
 const { Client, Schema } = require("redis-om");
 const { createClient } = require("redis");
 const { Queue } = require("bullmq");
+const broadcaster = require('./broadcaster');
 const fs = require("fs").promises;
 const path = require("path");
 const redisFunctions = require("./redisFunctions");
@@ -39,6 +40,43 @@ const connection = {
 
 const fileProcessingQueue = new Queue('file-processing', { connection });
 const actionQueue = new Queue('action-queue', { connection });
+
+async function startRedisListener() {
+    const subscriber = createClient({ url: "redis://localhost:6379" });
+    await subscriber.connect();
+
+    // Enable keyspace events for Hashes (h) and generic commands like DEL (g)
+    await subscriber.configSet('notify-keyspace-events', 'Kgh');
+
+    await subscriber.pSubscribe('__keyspace@0__:ino:*', async (message, channel) => {
+        const key = channel.substring(channel.indexOf(':') + 1);
+        const ino = key.split(':')[1];
+        console.log(`[REDIS-LISTENER] Event: '${message}' on key '${key}'`);
+
+        if (message === 'hset') {
+            try {
+                const fileData = await redisClient.hGetAll(key);
+                if (Object.keys(fileData).length > 0) {
+                    console.log(`[REDIS-LISTENER] Broadcasting 'addOrUpdateFile' for ino '${ino}'`);
+                    broadcaster.broadcast({
+                        action: 'addOrUpdateFile',
+                        data: redisFunctions.parseHGetAll([fileData])[0] // Use existing parser
+                    });
+                }
+            } catch (error) {
+                console.error(`[REDIS-LISTENER] Error processing hset for key '${key}':`, error);
+            }
+        } else if (message === 'del') {
+            console.log(`[REDIS-LISTENER] Broadcasting 'removeFile' for ino '${ino}'`);
+            broadcaster.broadcast({
+                action: 'removeFile',
+                data: { ino: ino }
+            });
+        }
+    });
+
+    console.log('[REDIS] Subscribed to keyspace events for real-time updates.');
+}
 
 async function connectToRedis() {
 	if (!redisClient) {
@@ -84,6 +122,8 @@ async function connectToRedis() {
 			findWithNonUniqueHashesScriptSha,
 			findDuplicatesScriptSha,
 		});
+
+        startRedisListener();
 	}
 	return { redisClient, fileMetadataRepository };
 }
