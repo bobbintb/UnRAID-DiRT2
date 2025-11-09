@@ -3,10 +3,12 @@ Title="Deduplication in Real-Time"
 Icon="fa-search-minus"
 ---
 <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
-<link href="/plugins/bobbintb.system.dirt/nodejs/css/dirt-tabulator.css" rel="stylesheet">
+<link href="/plugins/bobbintb.system.dirt/nodejs/frontend/css/dirt-tabulator.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-<script src="/plugins/bobbintb.system.dirt/nodejs/left-table.js"></script>
-<script src="/plugins/bobbintb.system.dirt/nodejs/right-table.js"></script>
+<script src="/plugins/bobbintb.system.dirt/nodejs/frontend/dirt-tabulator-formatters.js"></script>
+<script src="/plugins/bobbintb.system.dirt/nodejs/frontend/dirt-tabulator-helpers.js"></script>
+<script src="/plugins/bobbintb.system.dirt/nodejs/frontend/left-table.js"></script>
+<script src="/plugins/bobbintb.system.dirt/nodejs/frontend/right-table.js"></script>
 
 <div class="table-container">
     <div id="left-table" class="table-wrapper"></div>
