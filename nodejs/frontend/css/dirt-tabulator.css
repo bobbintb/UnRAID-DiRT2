@@ -6,17 +6,18 @@ body, html {
 
 .table-container {
     display: flex;
-    height: 100vh;
+    height: calc(100vh - 245px);
 }
 
 .table-wrapper {
-    flex: 1;
 }
 
 #left-table {
+    flex-basis: 70%;
     margin-right: 5px;
 }
 
 #right-table {
+    flex-basis: 30%;
     margin-left: 5px;
 }
