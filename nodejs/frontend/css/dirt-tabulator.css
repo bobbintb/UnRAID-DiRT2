@@ -6,24 +6,16 @@ body, html {
 
 .table-container {
     display: flex;
+    flex-direction: row;
     height: calc(100vh - 245px);
 }
 
 .table-wrapper {
-    overflow: hidden;
-}
-
-#left-wrapper {
-    flex-basis: 70%;
-}
-
-#right-wrapper {
-    flex-basis: 30%;
+    /* The width will be set by split.js, so we don't need flex-basis here */
 }
 
 #left-table, #right-table {
     height: 100%;
-    width: 100%;
 }
 
 .gutter {

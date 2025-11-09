@@ -12,19 +12,15 @@ Icon="fa-search-minus"
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
 <div class="table-container">
-    <div id="left-wrapper" class="table-wrapper">
-        <div id="left-table"></div>
-    </div>
-    <div id="right-wrapper" class="table-wrapper">
-        <div id="right-table"></div>
-    </div>
+    <div id="left-table" class="table-wrapper"></div>
+    <div id="right-table" class="table-wrapper"></div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let socket;
 
-    Split(['#left-wrapper', '#right-wrapper'], {
+    Split(['#left-table', '#right-table'], {
         sizes: [70, 30],
         gutterSize: 8,
         cursor: 'col-resize'
