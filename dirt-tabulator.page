@@ -9,6 +9,7 @@ Icon="fa-search-minus"
 <script src="/plugins/bobbintb.system.dirt/nodejs/frontend/dirt-tabulator-helpers.js"></script>
 <script src="/plugins/bobbintb.system.dirt/nodejs/frontend/left-table.js"></script>
 <script src="/plugins/bobbintb.system.dirt/nodejs/frontend/right-table.js"></script>
+<script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
 <div class="table-container">
     <div id="left-table" class="table-wrapper"></div>
@@ -18,6 +19,12 @@ Icon="fa-search-minus"
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let socket;
+
+    Split(['#left-table', '#right-table'], {
+        sizes: [70, 30],
+        gutterSize: 8,
+        cursor: 'col-resize'
+    });
 
     const leftTable = new Tabulator("#left-table", leftTableConfig);
     const rightTable = new Tabulator("#right-table", rightTableConfig);
