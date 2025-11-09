@@ -9,6 +9,7 @@ Icon="fa-search-minus"
 <script src="/plugins/bobbintb.system.dirt/nodejs/frontend/dirt-tabulator-helpers.js"></script>
 <script src="/plugins/bobbintb.system.dirt/nodejs/frontend/left-table.js"></script>
 <script src="/plugins/bobbintb.system.dirt/nodejs/frontend/right-table.js"></script>
+<script src="/plugins/bobbintb.system.dirt/nodejs/frontend/custom-layout.js"></script>
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
 <div class="table-container">
@@ -26,14 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cursor: 'col-resize'
     });
 
-    const leftTable = new Tabulator("#left-table", {
-        ...leftTableConfig,
-        dataLoaded:function(data){
-            this.getColumn("size").setWidth(true);
-            this.getColumn("mtime").setWidth(true);
-            this.getColumn("ctime").setWidth(true);
-        },
-    });
+    const leftTable = new Tabulator("#left-table", leftTableConfig);
     const rightTable = new Tabulator("#right-table", rightTableConfig);
 
     function connect() {
