@@ -2,7 +2,8 @@ const rightTableConfig = {
     index:"ino",
     height:"100%",
     reactiveData:true,
+    layout:"fitColumns",
     columns:[
-        {title:"Path", field:"path", widthGrow:1},
+        {title:"Path", field:"path"},
     ],
 };
