@@ -5,7 +5,7 @@ const leftTableConfig = {
     groupBy:"hash",
     layout:"fitColumns",
     columns:[
-        {title:"Path", field:"path"},
+        {title:"Path", field:"path", resizable:false},
         {title:"Size", field:"size", width:90, resizable:false},
         {title:"Modified", field:"mtime", width:170, resizable:false},
         {title:"Created", field:"ctime", width:170, resizable:false},
