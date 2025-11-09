@@ -14,10 +14,18 @@ body, html {
 
 #left-table {
     flex-basis: 70%;
-    margin-right: 5px;
 }
 
 #right-table {
     flex-basis: 30%;
-    margin-left: 5px;
+}
+
+.gutter {
+    background-color: #eee;
+    background-repeat: no-repeat;
+    background-position: 50%;
+}
+
+.gutter.gutter-horizontal {
+    cursor: col-resize;
 }
