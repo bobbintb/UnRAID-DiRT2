@@ -12,12 +12,17 @@ body, html {
 .table-wrapper {
 }
 
-#left-table {
+#left-wrapper {
     flex-basis: 70%;
 }
 
-#right-table {
+#right-wrapper {
     flex-basis: 30%;
+}
+
+#left-table, #right-table {
+    height: 100%;
+    width: 100%;
 }
 
 .gutter {
