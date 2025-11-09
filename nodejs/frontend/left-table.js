@@ -3,7 +3,7 @@ const leftTableConfig = {
     height:"100%",
     reactiveData:true,
     groupBy:"hash",
-    layout:"fitDataFill",
+    layout:"fitColumns",
     columns:[
         {title:"Path", field:"path"},
         {title:"Size", field:"size", resizable:false},

@@ -26,7 +26,14 @@ document.addEventListener('DOMContentLoaded', function() {
         cursor: 'col-resize'
     });
 
-    const leftTable = new Tabulator("#left-table", leftTableConfig);
+    const leftTable = new Tabulator("#left-table", {
+        ...leftTableConfig,
+        dataLoaded:function(data){
+            this.getColumn("size").setWidth(true);
+            this.getColumn("mtime").setWidth(true);
+            this.getColumn("ctime").setWidth(true);
+        },
+    });
     const rightTable = new Tabulator("#right-table", rightTableConfig);
 
     function connect() {
