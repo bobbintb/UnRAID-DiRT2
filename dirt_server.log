@@ -1,6 +1,0 @@
-[REDIS] Search index created successfully.
-[DIRT] Successfully connected to Redis.
-[DIRT] No existing data found. Waiting for initial scan to be triggered.
-[DIRT] Initializing a pool of 3 worker thread(s) for hashing.
-[BROADCASTER] Initialized.
-[DIRT] WebSocket server started on port 41820
