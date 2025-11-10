@@ -78,7 +78,9 @@ async function startRedisListener() {
     console.log('[REDIS] Subscribed to keyspace events for real-time updates.');
 }
 
-async function connectToRedis() {
+async function connectToRedis(options = {}) {
+    const { startListener = true } = options;
+
 	if (!redisClient) {
 		// Create and connect the node-redis client
 		redisClient = createClient({ url: "redis://localhost:6379" });
@@ -123,7 +125,9 @@ async function connectToRedis() {
 			findDuplicatesScriptSha,
 		});
 
-        startRedisListener();
+        if (startListener) {
+            startRedisListener();
+        }
 	}
 	return { redisClient, fileMetadataRepository };
 }

@@ -32,7 +32,7 @@ async function seedDatabase() {
     let fileMetadataRepository;
 
     try {
-        const connections = await connectToRedis();
+        const connections = await connectToRedis({ startListener: false });
         redisClient = connections.redisClient;
         fileMetadataRepository = connections.fileMetadataRepository;
         console.log('Connected to Redis.');
