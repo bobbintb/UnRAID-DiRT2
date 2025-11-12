@@ -104,7 +104,7 @@ The frontend for this Unraid plugin consists of `.page` files, which are `php` f
 
 This project uses Tabulator 6.3.1. Before implementing new features or customizations, **you must** consult the official documentation to see if a built-in solution exists. This is to avoid complication as well as wasted time and effort custom coding functions or features that are already natively handled by the Tabulator library.
 
-- **`dirt-tabulator.page`**:
+- **`dirt-tables.page`**:
 
     - **Library**: Tabulator v6.3.1
 
