@@ -1,7 +1,3 @@
-Menu="DiskUtilities"
-Title="Deduplication in Real-Time"
-Icon="fa-search-minus"
----
 <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
 <link href="/plugins/bobbintb.system.dirt/nodejs/frontend/css/dirt-tabulator.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
