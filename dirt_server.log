@@ -1,0 +1,12 @@
+
+> dirt-backend@1.0.0 start
+> node nodejs/dirt.js >> dirt_server.log 2>&1 &
+
+[REDIS] Search index created successfully.
+[DIRT] Successfully connected to Redis.
+[DIRT] Existing data found. Starting real-time event listener.
+[DIRT] Initializing a pool of 3 worker thread(s) for hashing.
+[BROADCASTER] Initialized.
+[DIRT] WebSocket server started on port 41820
+[DIRT] Inbox listener connected to Redis.
+[REDIS] Subscribed to keyspace events for real-time updates.
