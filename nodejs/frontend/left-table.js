@@ -5,6 +5,28 @@ const leftTableConfig = {
     layout: "fitColumns",
     columns: [
         {
+            formatter: function(cell, formatterParams, onRendered) {
+                return "▶"; // Return a right-pointing arrow for the collapsed state
+            },
+            width: 40,
+            hozAlign: "center",
+            cellClick: function(e, cell) {
+                const row = cell.getRow();
+                const rowEl = row.getElement();
+                const holderEl = rowEl.querySelector(".nested-table-container");
+
+                if (holderEl) {
+                    if (holderEl.style.display === "none") {
+                        holderEl.style.display = "block";
+                        cell.getElement().innerHTML = "▼"; // Change to down-pointing arrow for expanded state
+                    } else {
+                        holderEl.style.display = "none";
+                        cell.getElement().innerHTML = "▶"; // Change back to right-pointing arrow for collapsed state
+                    }
+                }
+            }
+        },
+        {
             title: "Hash",
             field: "hash",
             widthGrow: 3,
@@ -29,6 +51,9 @@ const leftTableConfig = {
             const holderEl = document.createElement("div");
             const tableEl = document.createElement("div");
 
+            holderEl.classList.add("nested-table-container");
+            holderEl.style.display = "none"; // Hide the nested table by default
+
             holderEl.style.boxSizing = "border-box";
             holderEl.style.padding = "10px 30px 10px 10px";
             holderEl.style.borderTop = "1px solid #333";
@@ -39,7 +64,7 @@ const leftTableConfig = {
             holderEl.appendChild(tableEl);
             row.getElement().appendChild(holderEl);
 
-            const subTable = new Tabulator(tableEl, {
+            new Tabulator(tableEl, {
                 layout: "fitColumns",
                 data: data.fileList,
                 index: "ino",
