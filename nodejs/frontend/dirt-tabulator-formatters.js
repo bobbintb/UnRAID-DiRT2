@@ -9,12 +9,14 @@ function radioSelectFormatter(cell, formatterParams) {
 
     radio.addEventListener('change', () => {
         const row = cell.getRow();
-        const group = row.getGroup();
-        if (group) {
-            group.getRows().forEach(groupRow => {
-                groupRow.update({isOriginal: false});
-            });
-        }
+        const table = row.getTable();
+
+        table.getRows().forEach(tableRow => {
+            if (tableRow !== row) {
+                tableRow.update({isOriginal: false});
+            }
+        });
+
         row.update({isOriginal: true});
     });
 

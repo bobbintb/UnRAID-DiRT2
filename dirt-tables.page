@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         hash: group.hash,
                         count: group.files.length,
                         size: totalSize,
-                        fileList: group.files.map((file, index) => ({...file, isOriginal: index === 0})),
+                        fileList: group.files.map((file, index) => ({...file, hash: group.hash, isOriginal: index === 0})),
                     };
                 });
                 leftTable.replaceData(leftTableData);
