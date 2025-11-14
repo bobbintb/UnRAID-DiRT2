@@ -45,29 +45,58 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
                 const { duplicates } = data;
 
-                const tableData = [];
+                const rightTableData = [];
                 duplicates.forEach(group => {
                     group.files.forEach((file, index) => {
-                        tableData.push({
+                        rightTableData.push({
                             ...file,
                             hash: group.hash,
                             isOriginal: index === 0,
                         });
                     });
                 });
+                rightTable.replaceData(rightTableData);
 
-                leftTable.replaceData(tableData);
-                rightTable.replaceData(tableData);
+                const leftTableData = duplicates.map(group => {
+                    const totalSize = group.files.reduce((acc, file) => acc + file.size, 0);
+                    return {
+                        hash: group.hash,
+                        count: group.files.length,
+                        size: totalSize,
+                        fileList: group.files.map((file, index) => ({...file, isOriginal: index === 0})),
+                    };
+                });
+                leftTable.replaceData(leftTableData);
+
             } else if (action === 'addOrUpdateFile') {
                 console.log(`Tabulator Tab: Received addOrUpdateFile for ino ${data.ino}`);
-                leftTable.updateOrAddData([data]);
                 rightTable.updateOrAddData([data]);
+                const subTable = findSubTableByHash(data.hash);
+                if (subTable) {
+                    subTable.updateOrAddData([data]);
+                }
             } else if (action === 'removeFile') {
                 console.log(`Tabulator Tab: Received removeFile for ino ${data.ino}`);
-                leftTable.deleteRow(data.ino);
                 rightTable.deleteRow(data.ino);
+                const subTable = findSubTableByHash(data.hash);
+                if (subTable) {
+                    subTable.deleteRow(data.ino);
+                }
             }
         };
+
+        function findSubTableByHash(hash) {
+            const row = leftTable.getRow(hash);
+            if (row) {
+                const rowEl = row.getElement();
+                const subTableEl = rowEl.querySelector(".tabulator-table");
+                if (subTableEl) {
+                    const table = Tabulator.findTable(subTableEl);
+                    return table ? table[0] : null;
+                }
+            }
+            return null;
+        }
 
         socket.onclose = function(event) {
             console.log("Tabulator Tab: WebSocket connection closed. Reconnecting...");
