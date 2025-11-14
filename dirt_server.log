@@ -1,7 +1,14 @@
-
-> dirt-backend@1.0.0 start
-> node nodejs/dirt.js >> dirt_server.log 2>&1 &
-
+[REDIS] Search index created successfully.
+[DIRT] Successfully connected to Redis.
+[DIRT] Existing data found. Starting real-time event listener.
+[DIRT] Initializing a pool of 3 worker thread(s) for hashing.
+[BROADCASTER] Initialized.
+[DIRT] WebSocket server started on port 41820
+[REDIS] Subscribed to keyspace events for real-time updates.
+[DIRT] Inbox listener connected to Redis.
+[DIRT] Client connected.
+[DIRT] Received action 'findDuplicates' from client 'dirt-tabulator.page' with data: null
+[DIRT] Client disconnected.
 [REDIS] Search index created successfully.
 [DIRT] Successfully connected to Redis.
 [DIRT] Existing data found. Starting real-time event listener.
@@ -10,3 +17,32 @@
 [DIRT] WebSocket server started on port 41820
 [DIRT] Inbox listener connected to Redis.
 [REDIS] Subscribed to keyspace events for real-time updates.
+[REDIS] Search index created successfully.
+[DIRT] Successfully connected to Redis.
+[DIRT] Existing data found. Starting real-time event listener.
+[DIRT] Initializing a pool of 3 worker thread(s) for hashing.
+[BROADCASTER] Initialized.
+[DIRT] WebSocket server started on port 41820
+node:events:497
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:41820
+    at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at new WebSocketServer (/app/node_modules/ws/lib/websocket-server.js:102:20)
+    at main (/app/nodejs/dirt.js:125:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+Emitted 'error' event on WebSocketServer instance at:
+    at Server.emit (node:events:519:28)
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -98,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 41820
+}
+
+Node.js v22.20.0
