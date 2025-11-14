@@ -1,3 +1,5 @@
+let allRowsExpanded = true; // Global state for the toggle all feature
+
 const leftTableConfig = {
     index: "hash",
     height: "100%",
@@ -5,23 +7,40 @@ const leftTableConfig = {
     layout: "fitColumns",
     columns: [
         {
+            title: "▼",
             formatter: function(cell, formatterParams, onRendered) {
-                return "▶"; // Return a right-pointing arrow for the collapsed state
+                return "▼"; // Default to expanded state
             },
             width: 40,
             hozAlign: "center",
+            headerClick: function(e, column) {
+                allRowsExpanded = !allRowsExpanded;
+                const newIcon = allRowsExpanded ? "▼" : "▶";
+                column.getElement().querySelector(".tabulator-col-title").textContent = newIcon;
+
+                const table = column.getTable();
+                table.getRows().forEach(row => {
+                    const holderEl = row.getElement().querySelector(".nested-table-container");
+                    if (holderEl) {
+                        holderEl.style.display = allRowsExpanded ? "block" : "none";
+                        const cell = row.getCell(column.getField());
+                        if (cell) {
+                           cell.getElement().innerHTML = newIcon;
+                        }
+                    }
+                });
+            },
             cellClick: function(e, cell) {
                 const row = cell.getRow();
-                const rowEl = row.getElement();
-                const holderEl = rowEl.querySelector(".nested-table-container");
+                const holderEl = row.getElement().querySelector(".nested-table-container");
 
                 if (holderEl) {
                     if (holderEl.style.display === "none") {
                         holderEl.style.display = "block";
-                        cell.getElement().innerHTML = "▼"; // Change to down-pointing arrow for expanded state
+                        cell.getElement().innerHTML = "▼";
                     } else {
                         holderEl.style.display = "none";
-                        cell.getElement().innerHTML = "▶"; // Change back to right-pointing arrow for collapsed state
+                        cell.getElement().innerHTML = "▶";
                     }
                 }
             }
@@ -52,7 +71,7 @@ const leftTableConfig = {
             const tableEl = document.createElement("div");
 
             holderEl.classList.add("nested-table-container");
-            holderEl.style.display = "none"; // Hide the nested table by default
+            holderEl.style.display = "block"; // Show the nested table by default
 
             holderEl.style.boxSizing = "border-box";
             holderEl.style.padding = "10px 30px 10px 10px";

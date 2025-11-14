@@ -4,8 +4,8 @@
 [DIRT] Initializing a pool of 3 worker thread(s) for hashing.
 [BROADCASTER] Initialized.
 [DIRT] WebSocket server started on port 41820
-[DIRT] Inbox listener connected to Redis.
 [REDIS] Subscribed to keyspace events for real-time updates.
+[DIRT] Inbox listener connected to Redis.
 [DIRT] Client connected.
 [DIRT] Received action 'findDuplicates' from client 'dirt-tabulator.page' with data: null
 [DIRT] Client disconnected.
