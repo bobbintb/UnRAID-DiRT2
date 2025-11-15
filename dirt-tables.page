@@ -62,41 +62,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     return {
                         hash: group.hash,
                         count: group.files.length,
-                        size: totalSize,
-                        fileList: group.files.map((file, index) => ({...file, isOriginal: index === 0})),
+                        totalSize: totalSize,
+                        _children: group.files.map((file, index) => ({...file, isOriginal: index === 0})),
                     };
                 });
                 leftTable.replaceData(leftTableData);
 
             } else if (action === 'addOrUpdateFile') {
-                console.log(`Tabulator Tab: Received addOrUpdateFile for ino ${data.ino}`);
-                rightTable.updateOrAddData([data]);
-                const subTable = findSubTableByHash(data.hash);
-                if (subTable) {
-                    subTable.updateOrAddData([data]);
-                }
+                console.log(`Tabulator Tab: Received addOrUpdateFile for ino ${data.ino}, refreshing table`);
+                dirtySock('findDuplicates', null);
             } else if (action === 'removeFile') {
-                console.log(`Tabulator Tab: Received removeFile for ino ${data.ino}`);
-                rightTable.deleteRow(data.ino);
-                const subTable = findSubTableByHash(data.hash);
-                if (subTable) {
-                    subTable.deleteRow(data.ino);
-                }
+                console.log(`Tabulator Tab: Received removeFile for ino ${data.ino}, refreshing table`);
+                dirtySock('findDuplicates', null);
             }
         };
-
-        function findSubTableByHash(hash) {
-            const row = leftTable.getRow(hash);
-            if (row) {
-                const rowEl = row.getElement();
-                const subTableEl = rowEl.querySelector(".tabulator-table");
-                if (subTableEl) {
-                    const table = Tabulator.findTable(subTableEl);
-                    return table ? table[0] : null;
-                }
-            }
-            return null;
-        }
 
         socket.onclose = function(event) {
             console.log("Tabulator Tab: WebSocket connection closed. Reconnecting...");
