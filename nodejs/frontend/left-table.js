@@ -5,6 +5,7 @@ const leftTableConfig = {
     height: "100%",
     reactiveData: true,
     layout: "fitColumns",
+    renderVertical:"basic",
     columns: [
         {
             title: "▼",
