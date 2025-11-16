@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cursor: 'col-resize'
     });
 
-    const leftTable = new Tabulator("#left-table", leftTableConfig);
+    const leftTable = new Tabulator("#left-table", generateLeftTableConfig(dirtySock));
     const rightTable = new Tabulator("#right-table", rightTableConfig);
 
     function connect() {
@@ -44,30 +44,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (action === 'duplicateFiles') {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
                 const { duplicates } = data;
-
-                const rightTableData = [];
-                duplicates.forEach(group => {
-                    group.files.forEach((file, index) => {
-                        rightTableData.push({
-                            ...file,
-                            hash: group.hash,
-                            isOriginal: index === 0,
-                        });
-                    });
-                });
+                const { leftTableData, rightTableData } = processDuplicateFiles(duplicates);
                 rightTable.replaceData(rightTableData);
-
-                const leftTableData = duplicates.map(group => {
-                    const totalSize = group.files.reduce((acc, file) => acc + file.size, 0);
-                    return {
-                        hash: group.hash,
-                        count: group.files.length,
-                        size: totalSize,
-                        fileList: group.files.map((file, index) => ({...file, isOriginal: index === 0})),
-                    };
-                });
                 leftTable.replaceData(leftTableData);
-
             } else if (action === 'addOrUpdateFile') {
                 console.log(`Tabulator Tab: Received addOrUpdateFile for ino ${data.ino}`);
                 rightTable.updateOrAddData([data]);

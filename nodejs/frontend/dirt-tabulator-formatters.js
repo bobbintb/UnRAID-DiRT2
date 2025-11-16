@@ -2,6 +2,8 @@
 function radioSelectFormatter(cell, formatterParams) {
     const isOriginal = cell.getRow().getData().isOriginal;
     const hash = cell.getRow().getData().hash;
+    const ino = cell.getRow().getData().ino;
+    const { dirtySock } = formatterParams;
     const radio = document.createElement("input");
     radio.type = "radio";
     radio.name = "original-" + hash;
@@ -16,6 +18,10 @@ function radioSelectFormatter(cell, formatterParams) {
             });
         }
         row.update({isOriginal: true});
+
+        if (dirtySock) {
+            dirtySock('setOriginalFile', { hash, ino });
+        }
     });
 
     return radio;
