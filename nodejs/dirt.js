@@ -242,18 +242,24 @@ async function main() {
               }
               const redisClient = getRedisClient();
               await redisClient.hSet('state', hash, ino);
-              console.log(`[DIRT] State updated for hash ${hash} to ino ${ino}`);
+              await redisClient.hDel('actions', ino); // Clear any action for this file
+              console.log(`[DIRT] State updated for hash ${hash} to ino ${ino} and action cleared.`);
               break;
             }
             case 'setAction': {
-                const { hash, ino, action } = data;
-                if (!hash || !ino || !action) {
+                const { ino, action } = data;
+                if (!ino || !action) {
                     console.error(`[DIRT] Invalid data for setAction:`, data);
                     break;
                 }
                 const redisClient = getRedisClient();
-                await redisClient.hSet(`actions:${hash}`, ino, action);
-                console.log(`[DIRT] Action for hash ${hash}, ino ${ino} set to ${action}`);
+                if (action === 'none') {
+                    await redisClient.hDel('actions', ino);
+                    console.log(`[DIRT] Action for ino ${ino} cleared.`);
+                } else {
+                    await redisClient.hSet('actions', ino, action);
+                    console.log(`[DIRT] Action for ino ${ino} set to ${action}`);
+                }
                 break;
             }
             case 'setFileAction': {
@@ -304,9 +310,10 @@ async function main() {
             }
             case 'findDuplicates': {
               const redisClient = getRedisClient();
-              const [duplicates, state, waitingJobs] = await Promise.all([
+              const [duplicates, state, actions, waitingJobs] = await Promise.all([
                   findDuplicates(),
                   redisClient.hGetAll('state'),
+                  redisClient.hGetAll('actions'),
                   actionQueue.getWaiting(),
               ]);
 
@@ -319,7 +326,6 @@ async function main() {
               // Before sending, augment the duplicates with the isOriginal flag and actions
               for (const group of duplicates) {
                   const originalIno = state[group.hash];
-                  const actions = await redisClient.hGetAll(`actions:${group.hash}`);
                   group.files.forEach(file => {
                       if (originalIno && file.ino === originalIno) {
                           file.isOriginal = true;
