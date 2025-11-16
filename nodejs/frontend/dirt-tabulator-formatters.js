@@ -22,6 +22,9 @@ function actionFormatter(cell, formatterParams) {
     const getAction = () => cell.getRow().getData().action;
 
     trashIcon.addEventListener('click', () => {
+        if (cell.getRow().getElement().classList.contains('original-row')) {
+            return;
+        }
         const currentAction = getAction();
         const newAction = currentAction === "delete" ? "none" : "delete";
 
@@ -35,6 +38,9 @@ function actionFormatter(cell, formatterParams) {
     });
 
     linkIcon.addEventListener('click', () => {
+        if (cell.getRow().getElement().classList.contains('original-row')) {
+            return;
+        }
         const currentAction = getAction();
         const newAction = currentAction === "link" ? "none" : "link";
 
@@ -53,26 +59,60 @@ function actionFormatter(cell, formatterParams) {
     return container;
 }
 
-function radioSelectFormatter(cell, formatterParams) {
-    const isOriginal = cell.getRow().getData().isOriginal;
-    const hash = cell.getRow().getData().hash;
-    const ino = cell.getRow().getData().ino;
+function radioSelectFormatter(cell, formatterParams, onRendered) {
+    const { isOriginal, hash, ino } = cell.getRow().getData();
     const { dirtySock } = formatterParams;
     const radio = document.createElement("input");
     radio.type = "radio";
     radio.name = "original-" + hash;
     radio.checked = isOriginal;
 
-    radio.addEventListener('change', () => {
-        const row = cell.getRow();
-        const group = row.getGroup();
-        if (group) {
-            group.getRows().forEach(groupRow => {
-                groupRow.update({isOriginal: false});
-            });
-        }
-        row.update({isOriginal: true});
+    const rowEl = cell.getRow().getElement();
 
+    function setRowState(isOriginal) {
+        if (isOriginal) {
+            rowEl.classList.add('original-row');
+        } else {
+            rowEl.classList.remove('original-row');
+        }
+    }
+
+    // Set initial state after the cell has been rendered
+    onRendered(() => {
+        setRowState(cell.getRow().getData().isOriginal);
+    });
+
+    radio.addEventListener('change', () => {
+        const table = cell.getTable();
+        const selectedRow = cell.getRow();
+        const { hash, ino } = selectedRow.getData();
+
+        table.getRows().forEach(row => {
+            const rowEl = row.getElement();
+            const rowData = row.getData();
+
+            if (row === selectedRow) {
+                // This row is now the original
+                if (rowData.isOriginal === false) {
+                    row.update({ isOriginal: true, action: 'none' });
+                    if (dirtySock) {
+                        dirtySock('setAction', { hash: rowData.hash, ino: rowData.ino, action: 'none' });
+                    }
+                    // Deselect icons in UI
+                    const icons = rowEl.querySelectorAll('.fa-trash.selected, .fa-link.selected');
+                    icons.forEach(icon => icon.classList.remove('selected'));
+                }
+                rowEl.classList.add('original-row');
+            } else {
+                // All other rows are not the original
+                if (rowData.isOriginal === true) {
+                   row.update({ isOriginal: false });
+                }
+                rowEl.classList.remove('original-row');
+            }
+        });
+
+        // Persist the new original file choice
         if (dirtySock) {
             dirtySock('setOriginalFile', { hash, ino });
         }

@@ -94,7 +94,7 @@ const generateLeftTableConfig = (dirtySock) => ({
                     {
                         title: "",
                         field: "isOriginal",
-                        formatter: (cell, formatterParams) => radioSelectFormatter(cell, { ...formatterParams, dirtySock }),
+                        formatter: (cell, formatterParams, onRendered) => radioSelectFormatter(cell, { ...formatterParams, dirtySock }, onRendered),
                         hozAlign: "center",
                         width: 30,
                         minWidth: 30,

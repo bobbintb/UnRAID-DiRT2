@@ -31,3 +31,9 @@ body, html {
 .fa-trash.selected, .fa-link.selected {
     color: blue;
 }
+
+.tabulator-row.original-row {
+    background-color: #e0e0e0 !important;
+    pointer-events: none;
+    color: #a0a0a0;
+}
