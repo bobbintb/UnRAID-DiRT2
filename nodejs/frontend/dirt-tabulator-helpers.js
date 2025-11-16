@@ -55,7 +55,9 @@ function processDuplicateFiles(duplicates) {
                 hash: group.hash,
                 isOriginal: isOriginal,
             };
-            rightTableData.push(fileData);
+            if (fileData.action) {
+                rightTableData.push(fileData);
+            }
             return fileData;
         });
 
