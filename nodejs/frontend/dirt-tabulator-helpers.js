@@ -1,75 +1,152 @@
-// Helper function to remove an action from the queue (UI and backend)
-function removeFileActionFromQueue(ino, filePath, dirtySock, actionQueueTable, mainTable, updateQueueFooter) {
-    // 1. Send message to backend to remove from Redis
-    dirtySock('removeFileAction', { ino });
+let allRowsExpanded = true; // Global state for the toggle all feature
 
-    // 2. Remove the row from the action queue table
-    const rows = actionQueueTable.getRows();
-    const rowToDelete = rows.find(row => row.getData().file === filePath);
-    if (rowToDelete) {
-        rowToDelete.delete().then(() => {
-            if (mainTable && updateQueueFooter) {
-                updateQueueFooter(actionQueueTable, mainTable);
+const generateLeftTableConfig = (dirtySock) => ({
+    index: "hash",
+    height: "100%",
+    reactiveData: true,
+    layout: "fitColumns",
+    renderVertical:"basic",
+    columns: [
+        {
+            title: "▼",
+            formatter: function(cell, formatterParams, onRendered) {
+                return "▼"; // Default to expanded state
+            },
+            width: 40,
+            hozAlign: "center",
+            headerSort: false,
+            headerClick: function(e, column) {
+                allRowsExpanded = !allRowsExpanded;
+                const newIcon = allRowsExpanded ? "▼" : "▶";
+                column.getElement().querySelector(".tabulator-col-title").textContent = newIcon;
+
+                const table = column.getTable();
+                table.getRows().forEach(row => {
+                    const cell = row.getCells()[0];
+                    if (cell) {
+                        const cellIcon = cell.getElement().innerHTML;
+                        const isCurrentlyExpanded = cellIcon.includes("▼");
+
+                        if (isCurrentlyExpanded !== allRowsExpanded) {
+                            cell.getElement().click();
+                        }
+                    }
+                });
+            },
+            cellClick: function(e, cell) {
+                const row = cell.getRow();
+                const holderEl = row.getElement().querySelector(".nested-table-container");
+
+                if (holderEl) {
+                    if (holderEl.style.display === "none") {
+                        holderEl.style.display = "block";
+                        cell.getElement().innerHTML = "▼";
+                    } else {
+                        holderEl.style.display = "none";
+                        cell.getElement().innerHTML = "▶";
+                    }
+                }
             }
-        });
-    }
-}
+        },
+        {
+            title: "Hash",
+            field: "hash",
+            widthGrow: 3,
+            resizable: false,
+        },
+        {
+            title: "Count",
+            field: "count",
+            width: 90,
+            resizable: false,
+        },
+        {
+            title: "Freeable",
+            field: "size",
+            width: 120,
+            resizable: false,
+            formatter: function(cell) {
+                const data = cell.getRow().getData();
+                if (data.count <= 1) {
+                    return formatBytes(0);
+                }
+                const singleFileSize = data.size / data.count;
+                const freeableSize = singleFileSize * (data.count - 1);
+                return formatBytes(freeableSize);
+            }
+        },
+    ],
+    rowFormatter: function (row) {
+        const data = row.getData();
+        if (data.fileList && data.fileList.length > 0) {
+            const holderEl = document.createElement("div");
+            const tableEl = document.createElement("div");
 
-function formatBytes(bytes, decimals = 2) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-}
+            holderEl.classList.add("nested-table-container");
+            holderEl.style.display = "block"; // Show the nested table by default
 
-// Helper function to format dates
-function formatDate(cell) {
-    const value = cell.getValue();
-    return value ? new Date(value).toLocaleString() : '';
-}
+            holderEl.style.boxSizing = "border-box";
+            holderEl.style.padding = "10px 30px 10px 10px";
+            holderEl.style.borderTop = "1px solid #333";
+            holderEl.style.borderBottom = "1px solid #333";
+            holderEl.style.background = "#ddd";
 
-// Helper function to format size
-function formatSize(cell) {
-    const value = cell.getValue();
-    return formatBytes(value);
-}
+            tableEl.style.border = "1px solid #333";
+            holderEl.appendChild(tableEl);
+            row.getElement().appendChild(holderEl);
 
-function processDuplicateFiles(duplicates) {
-    const rightTableData = [];
-    const leftTableData = [];
-
-    duplicates.forEach(group => {
-        // Sort files by path to ensure consistent ordering
-        const sortedFiles = group.files.sort((a, b) => a.path.localeCompare(b.path));
-
-        // Find if an original is already designated
-        const originalFile = sortedFiles.find(file => file.isOriginal === true);
-
-        // Process each file in the group
-        const fileList = sortedFiles.map((file, index) => {
-            const isOriginal = originalFile ? file.ino === originalFile.ino : !originalFile && index === 0;
-            const fileData = {
-                ...file,
-                hash: group.hash,
-                isOriginal: isOriginal,
-            };
-            rightTableData.push(fileData);
-            return fileData;
-        });
-
-        // Calculate total size for the left table
-        const totalSize = group.files.reduce((acc, file) => acc + file.size, 0);
-
-        // Add processed group data to the left table
-        leftTableData.push({
-            hash: group.hash,
-            count: group.files.length,
-            size: totalSize,
-            fileList: fileList,
-        });
-    });
-
-    return { leftTableData, rightTableData };
-}
+            new Tabulator(tableEl, {
+                layout: "fitColumns",
+                data: data.fileList,
+                index: "ino",
+                columns: [
+                    {
+                        title: "",
+                        field: "isOriginal",
+                        formatter: (cell, formatterParams, onRendered) => radioSelectFormatter(cell, { ...formatterParams, dirtySock }, onRendered),
+                        hozAlign: "center",
+                        width: 30,
+                        minWidth: 30,
+                        resizable: false,
+                        headerSort: false
+                    },
+                    {
+                        title: "Action",
+                        field: "action",
+                        formatter: (cell, formatterParams) => actionFormatter(cell, { ...formatterParams, dirtySock }),
+                        hozAlign: "center",
+                        width: 80,
+                        minWidth: 80,
+                        resizable: false,
+                        headerSort: false
+                    },
+                    {
+                        title: "Path",
+                        field: "path",
+                        resizable: false,
+                        widthGrow: 3
+                    },
+                    {
+                        title: "Size",
+                        field: "size",
+                        formatter: formatSize,
+                        width: 90,
+                        resizable: false
+                    },
+                    {
+                        title: "Modified",
+                        field: "mtime",
+                        width: 170,
+                        resizable: false
+                    },
+                    {
+                        title: "Created",
+                        field: "ctime",
+                        width: 170,
+                        resizable: false
+                    },
+                ]
+            });
+        }
+    },
+});
