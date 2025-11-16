@@ -102,6 +102,16 @@ const generateLeftTableConfig = (dirtySock) => ({
                         headerSort: false
                     },
                     {
+                        title: "Action",
+                        field: "action",
+                        formatter: (cell, formatterParams) => actionFormatter(cell, { ...formatterParams, dirtySock }),
+                        hozAlign: "center",
+                        width: 80,
+                        minWidth: 80,
+                        resizable: false,
+                        headerSort: false
+                    },
+                    {
                         title: "Path",
                         field: "path",
                         resizable: false,
