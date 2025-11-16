@@ -67,11 +67,7 @@ const generateLeftTableConfig = (dirtySock) => ({
             resizable: false,
             formatter: function(cell) {
                 const data = cell.getRow().getData();
-                if (data.count <= 1) {
-                    return formatBytes(0);
-                }
-                const singleFileSize = data.size / data.count;
-                const freeableSize = singleFileSize * (data.count - 1);
+                const freeableSize = data.size - data.fileList[0].size;
                 return formatBytes(freeableSize);
             }
         },
