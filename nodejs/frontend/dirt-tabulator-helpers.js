@@ -55,7 +55,7 @@ function processDuplicateFiles(duplicates) {
                 hash: group.hash,
                 isOriginal: isOriginal,
             };
-            if (fileData.action) {
+            if (fileData.action === 'link' || fileData.action === 'delete') {
                 rightTableData.push(fileData);
             }
             return fileData;
