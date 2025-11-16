@@ -245,6 +245,17 @@ async function main() {
               console.log(`[DIRT] State updated for hash ${hash} to ino ${ino}`);
               break;
             }
+            case 'setAction': {
+                const { hash, ino, action } = data;
+                if (!hash || !ino || !action) {
+                    console.error(`[DIRT] Invalid data for setAction:`, data);
+                    break;
+                }
+                const redisClient = getRedisClient();
+                await redisClient.hSet(`actions:${hash}`, ino, action);
+                console.log(`[DIRT] Action for hash ${hash}, ino ${ino} set to ${action}`);
+                break;
+            }
             case 'setFileAction': {
               const { ino, path, action } = data;
               if (!ino || !path || !action) {
@@ -305,17 +316,17 @@ async function main() {
                   return acc;
               }, {});
 
-              // Before sending, augment the duplicates with the isOriginal flag
-              duplicates.forEach(group => {
-                const originalIno = state[group.hash];
-                if (originalIno) {
+              // Before sending, augment the duplicates with the isOriginal flag and actions
+              for (const group of duplicates) {
+                  const originalIno = state[group.hash];
+                  const actions = await redisClient.hGetAll(`actions:${group.hash}`);
                   group.files.forEach(file => {
-                    if (file.ino === originalIno) {
-                      file.isOriginal = true;
-                    }
+                      if (originalIno && file.ino === originalIno) {
+                          file.isOriginal = true;
+                      }
+                      file.action = actions[file.ino] || 'none';
                   });
-                }
-              });
+              }
 
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
