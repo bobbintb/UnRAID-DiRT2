@@ -305,6 +305,18 @@ async function main() {
                   return acc;
               }, {});
 
+              // Before sending, augment the duplicates with the isOriginal flag
+              duplicates.forEach(group => {
+                const originalIno = state[group.hash];
+                if (originalIno) {
+                  group.files.forEach(file => {
+                    if (file.ino === originalIno) {
+                      file.isOriginal = true;
+                    }
+                  });
+                }
+              });
+
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
                   action: 'duplicateFiles',

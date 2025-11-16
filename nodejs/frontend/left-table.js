@@ -1,6 +1,6 @@
 let allRowsExpanded = true; // Global state for the toggle all feature
 
-const leftTableConfig = {
+const generateLeftTableConfig = (dirtySock) => ({
     index: "hash",
     height: "100%",
     reactiveData: true,
@@ -94,7 +94,7 @@ const leftTableConfig = {
                     {
                         title: "",
                         field: "isOriginal",
-                        formatter: radioSelectFormatter,
+                        formatter: (cell, formatterParams) => radioSelectFormatter(cell, { ...formatterParams, dirtySock }),
                         hozAlign: "center",
                         width: 80,
                         resizable: false,
@@ -128,4 +128,4 @@ const leftTableConfig = {
             });
         }
     },
-};
+});

@@ -35,3 +35,41 @@ function formatSize(cell) {
     const value = cell.getValue();
     return formatBytes(value);
 }
+
+function processDuplicateFiles(duplicates) {
+    const rightTableData = [];
+    const leftTableData = [];
+
+    duplicates.forEach(group => {
+        // Sort files by path to ensure consistent ordering
+        const sortedFiles = group.files.sort((a, b) => a.path.localeCompare(b.path));
+
+        // Find if an original is already designated
+        const originalFile = sortedFiles.find(file => file.isOriginal === true);
+
+        // Process each file in the group
+        const fileList = sortedFiles.map((file, index) => {
+            const isOriginal = originalFile ? file.ino === originalFile.ino : !originalFile && index === 0;
+            const fileData = {
+                ...file,
+                hash: group.hash,
+                isOriginal: isOriginal,
+            };
+            rightTableData.push(fileData);
+            return fileData;
+        });
+
+        // Calculate total size for the left table
+        const totalSize = group.files.reduce((acc, file) => acc + file.size, 0);
+
+        // Add processed group data to the left table
+        leftTableData.push({
+            hash: group.hash,
+            count: group.files.length,
+            size: totalSize,
+            fileList: fileList,
+        });
+    });
+
+    return { leftTableData, rightTableData };
+}
