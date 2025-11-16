@@ -22,11 +22,11 @@ document.addEventListener('DOMContentLoaded', function() {
         cursor: 'col-resize'
     });
 
-    const leftTable = new Tabulator("#left-table", leftTableConfig);
+    const leftTable = new Tabulator("#left-table", generateLeftTableConfig(dirtySock));
     const rightTable = new Tabulator("#right-table", rightTableConfig);
 
     function connect() {
-        socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tabulator.page`);
+        socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tables.page`);
 
         socket.onopen = function() {
             console.log("Tabulator Tab: WebSocket connection established.");
@@ -40,30 +40,38 @@ document.addEventListener('DOMContentLoaded', function() {
             if (action === 'duplicateFiles') {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
                 const { duplicates } = data;
-
-                const tableData = [];
-                duplicates.forEach(group => {
-                    group.files.forEach((file, index) => {
-                        tableData.push({
-                            ...file,
-                            hash: group.hash,
-                            isOriginal: index === 0,
-                        });
-                    });
-                });
-
-                leftTable.replaceData(tableData);
-                rightTable.replaceData(tableData);
+                const { leftTableData, rightTableData } = processDuplicateFiles(duplicates);
+                rightTable.replaceData(rightTableData);
+                leftTable.replaceData(leftTableData);
             } else if (action === 'addOrUpdateFile') {
                 console.log(`Tabulator Tab: Received addOrUpdateFile for ino ${data.ino}`);
-                leftTable.updateOrAddData([data]);
                 rightTable.updateOrAddData([data]);
+                const subTable = findSubTableByHash(data.hash);
+                if (subTable) {
+                    subTable.updateOrAddData([data]);
+                }
             } else if (action === 'removeFile') {
                 console.log(`Tabulator Tab: Received removeFile for ino ${data.ino}`);
-                leftTable.deleteRow(data.ino);
                 rightTable.deleteRow(data.ino);
+                const subTable = findSubTableByHash(data.hash);
+                if (subTable) {
+                    subTable.deleteRow(data.ino);
+                }
             }
         };
+
+        function findSubTableByHash(hash) {
+            const row = leftTable.getRow(hash);
+            if (row) {
+                const rowEl = row.getElement();
+                const subTableEl = rowEl.querySelector(".tabulator-table");
+                if (subTableEl) {
+                    const table = Tabulator.findTable(subTableEl);
+                    return table ? table[0] : null;
+                }
+            }
+            return null;
+        }
 
         socket.onclose = function(event) {
             console.log("Tabulator Tab: WebSocket connection closed. Reconnecting...");
@@ -78,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function dirtySock(action, data) {
         const message = {
-            clientId: "dirt-tabulator.page",
+            clientId: "dirt-tables.page",
             action: action,
             data: data
         };
