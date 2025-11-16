@@ -61,10 +61,15 @@ const generateLeftTableConfig = (dirtySock) => ({
             resizable: false,
         },
         {
-            title: "Total Size",
+            title: "Freeable",
             field: "size",
             width: 120,
             resizable: false,
+            formatter: function(cell) {
+                const data = cell.getRow().getData();
+                const freeableSize = data.size - data.fileList[0].size;
+                return formatBytes(freeableSize);
+            }
         },
     ],
     rowFormatter: function (row) {
@@ -120,6 +125,7 @@ const generateLeftTableConfig = (dirtySock) => ({
                     {
                         title: "Size",
                         field: "size",
+                        formatter: formatSize,
                         width: 90,
                         resizable: false
                     },
