@@ -26,7 +26,7 @@ function actionFormatter(cell, formatterParams) {
             return;
         }
         const currentAction = getAction();
-        const newAction = currentAction === "delete" ? "none" : "delete";
+        const newAction = currentAction === "delete" ? null : "delete";
 
         // Update UI immediately
         trashIcon.classList.toggle("selected", newAction === "delete");
@@ -43,7 +43,7 @@ function actionFormatter(cell, formatterParams) {
             return;
         }
         const currentAction = getAction();
-        const newAction = currentAction === "link" ? "none" : "link";
+        const newAction = currentAction === "link" ? null : "link";
 
         // Update UI immediately
         linkIcon.classList.toggle("selected", newAction === "link");
@@ -97,9 +97,9 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
             if (row === selectedRow) {
                 // This row is now the original
                 if (rowData.isOriginal === false) {
-                    row.update({ isOriginal: true, action: 'none' });
+                    row.update({ isOriginal: true, action: null });
                     if (dirtySock) {
-                        dirtySock('setAction', { hash: rowData.hash, ino: rowData.ino, action: 'none' });
+                        dirtySock('setAction', { hash: rowData.hash, ino: rowData.ino, action: null });
                     }
                     // Deselect icons in UI
                     const icons = rowEl.querySelectorAll('.fa-trash.selected, .fa-link.selected');
@@ -146,7 +146,7 @@ function checkAndUpdateMasterRow(cell) {
 
     rows.forEach(row => {
         const rowData = row.getData();
-        if (!rowData.isOriginal && (!rowData.action || rowData.action === 'none')) {
+        if (!rowData.isOriginal && (!rowData.action || rowData.action === null)) {
             allActionsSet = false;
         }
     });

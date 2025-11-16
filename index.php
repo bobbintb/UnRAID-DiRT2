@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     const leftTable = new Tabulator("#left-table", generateLeftTableConfig(dirtySock));
-    const rightTable = new Tabulator("#right-table", rightTableConfig);
+    const rightTable = new Tabulator("#right-table", generateRightTableConfig(dirtySock, leftTable));
 
     rightTable.setFilter(function(data){
         return data.action === "link" || data.action === "delete";
