@@ -1,184 +1,160 @@
-const fs = require('fs');
-const { getFileMetadataRepository, getRedisPublisherClient } = require('./redis.js');
-const { getShareFromPath } = require('./utils.js');
-const { getFileStats } = require('./scan.js');
-const { handleUpsertGroup } = require('./upsert-processor.js');
-const { saveWithRetries } = require('./file-group-processor.js');
+const { findDuplicates, getFileMetadataRepository, getRedisClient, actionQueue } = require('./redis.js');
+const { hashFile } = require('./utils');
+const broadcaster = require('./broadcaster');
+const fs = require('fs').promises;
 
-const handleUpsert = async (job, workerPool) => {
-  const { path: upsertedPath } = job.data;
-  console.log(`[HANDLER] Processing file.upsert job ${job.id} for path: ${upsertedPath}`);
 
-  // 1. Get file stats.
-  const stats = await getFileStats(upsertedPath);
-  if (!stats) {
-    console.error(`[HANDLER] Could not stat file ${upsertedPath}. Aborting upsert.`);
-    return;
-  }
-  const { ino: upsertedIno, size: upsertedSize } = stats;
+async function handleUpsert(job) {
+    const { path } = job.data;
+    const repository = getFileMetadataRepository();
+    const redisClient = getRedisClient();
 
-  const fileRepository = getFileMetadataRepository();
+    try {
+        const stats = await fs.stat(path);
+        const ino = stats.ino.toString();
 
-  // Handle zero-byte files as a special case, consistent with initial scan logic.
-  if (upsertedSize === 0) {
-    console.log(`[HANDLER] Zero-byte file detected: ${upsertedPath}. Assigning static hash.`);
-    const upsertedFile = {
-      ...stats,
-      path: [upsertedPath],
-      shares: [getShareFromPath(upsertedPath)],
-      size: upsertedSize,
-      hash: 'af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262', // Static hash for zero-byte files
-    };
-    await saveWithRetries([upsertedFile]);
-    console.log(`[HANDLER] Finished processing zero-byte upsert for ${upsertedPath}`);
-    return;
-  }
+        let fileEntity = await repository.fetch(ino);
+        const existingPaths = new Set(fileEntity.path || []);
 
-  // 2. Query for files of the same size, excluding the current file's inode.
-  console.log(`[HANDLER] Searching for files with size ${upsertedSize} and different inode...`);
-  const candidateFiles = await fileRepository.search()
-    .where('size').equals(upsertedSize)
-    .and('ino').not.equals(upsertedIno)
-    .return.all();
-
-  const upsertedFile = {
-    ...stats,
-    path: [upsertedPath],
-    shares: [getShareFromPath(upsertedPath)],
-    size: upsertedSize,
-  };
-
-  let filesToSave = [];
-
-  // 3. Handle based on whether candidates were found.
-  if (candidateFiles.length === 0) {
-    // No other files of the same size exist. It's unique.
-    console.log(`[HANDLER] No files of same size found. Preparing to save as unique file: ${upsertedPath}`);
-    filesToSave.push(upsertedFile);
-  } else {
-    // 4. Candidates found. Proceed with definitive hash comparison.
-    console.log(`[HANDLER] Found ${candidateFiles.length} candidate(s) of the same size. Starting hash comparison.`);
-    filesToSave = await handleUpsertGroup(upsertedFile, candidateFiles, workerPool);
-  }
-
-  // 5. Save all necessary files (either the single unique file or the group of duplicates) to Redis.
-  if (filesToSave.length > 0) {
-    await saveWithRetries(filesToSave);
-  } else {
-    console.warn(`[HANDLER] No files were marked for saving for upserted path: ${upsertedPath}`);
-  }
-
-  console.log(`[HANDLER] Finished processing upsert for ${upsertedPath}`);
-};
-
-const handleRemove = async (job) => {
-  const { path: removedPath } = job.data;
-  console.log(`[HANDLER] Processing file.removed job ${job.id} for path: ${removedPath}`);
-
-  try {
-    // 1. Publish cancellation signal immediately.
-    const pubClient = getRedisPublisherClient();
-    const channel = `cancel-hashing:${removedPath}`;
-    await pubClient.publish(channel, 'cancel');
-    console.log(`[HANDLER] Published cancellation signal to ${channel}`);
-
-    // 2. Search for the file record by its path, getting all results.
-    const fileRepository = getFileMetadataRepository();
-    const fileEntities = await fileRepository.search().where('path').contains(removedPath).return.all();
-
-    // 3. If no record is found, log and exit gracefully.
-    if (!fileEntities || fileEntities.length === 0) {
-      console.warn(`[HANDLER] Received 'remove' event for a path not in the database: ${removedPath}. No action taken.`);
-      return;
-    }
-
-    const fileEntity = fileEntities[0]; // Use the first result
-    // The entityId is stored in a symbol property. Find it by its description.
-    const entityIdSymbol = Object.getOwnPropertySymbols(fileEntity).find(s => s.description === 'entityId');
-    const ino = entityIdSymbol ? fileEntity[entityIdSymbol] : null;
-
-    if (!ino) {
-      console.error(`[HANDLER] Could not retrieve entity ID (ino) for path ${removedPath}. The record may be malformed. Aborting removal.`);
-      return;
-    }
-
-    // 4. Check if the file has multiple paths (is a hard link).
-    if (fileEntity.path.length <= 1) {
-      // This is the last path, remove the entire entity.
-      await fileRepository.remove(ino);
-      console.log(`[HANDLER] File entity ${ino} had one path. Deleted entity.`);
-    } else {
-      // This is a hard link; remove only this path.
-      const pathIndex = fileEntity.path.indexOf(removedPath);
-      if (pathIndex > -1) {
-        fileEntity.path.splice(pathIndex, 1);
-        // Also remove the corresponding share.
-        if (fileEntity.shares && fileEntity.shares.length > pathIndex) {
-          fileEntity.shares.splice(pathIndex, 1);
+        if (existingPaths.has(path)) {
+            console.log(`[HANDLER] Path '${path}' already exists for ino '${ino}'. Skipping update.`);
+            return;
         }
-        await fileRepository.save(fileEntity);
-        console.log(`[HANDLER] Removed path '${removedPath}' from entity ${ino}. ${fileEntity.path.length} paths remain.`);
-      } else {
-        console.warn(`[HANDLER] Path '${removedPath}' not found in record ${ino}, despite being found by search. No action taken.`);
-      }
+
+        const newPaths = [...existingPaths, path];
+        const newShares = [...new Set(newPaths.map(p => p.split('/')[3]))];
+
+        fileEntity.path = newPaths;
+        fileEntity.shares = newShares;
+        fileEntity.nlink = stats.nlink;
+        fileEntity.atime = stats.atime;
+        fileEntity.mtime = stats.mtime;
+        fileEntity.ctime = stats.ctime;
+
+        if (!fileEntity.hash || existingPaths.size === 0) {
+            fileEntity.hash = await hashFile(path);
+        }
+
+        await repository.save(fileEntity);
+        console.log(`[HANDLER] Upserted file metadata for ino '${ino}' with new path '${path}'.`);
+
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            console.warn(`[HANDLER] File not found during upsert: ${path}. It may have been deleted.`);
+        } else {
+            console.error(`[HANDLER] Error processing upsert for path '${path}':`, error);
+        }
     }
-  } catch (error) {
-    console.error(`[HANDLER] Error processing file.removed job for path ${removedPath}:`, error);
-    throw error;
-  }
-};
+}
 
-const handleRename = async (job) => {
-  const { oldPath, newPath } = job.data;
-  console.log(`[HANDLER] Processing file.rename job ${job.id} from ${oldPath} to ${newPath}`);
+async function handleRemove(job) {
+    const { path } = job.data;
+    const repository = getFileMetadataRepository();
 
-  try {
-    // 1. Search for the file record by its old path. This is safer against race conditions.
-    const fileRepository = getFileMetadataRepository();
-    const fileEntities = await fileRepository.search().where('path').contains(oldPath).return.all();
+    try {
+        const searchResults = await repository.search().where('path').contains(path).return.all();
+        if (searchResults.length === 0) {
+            console.log(`[HANDLER] No record found with path '${path}'. Nothing to remove.`);
+            return;
+        }
 
-    // 2. If no record is found, it was likely already updated by a concurrent upsert job.
-    if (!fileEntities || fileEntities.length === 0) {
-      console.warn(`[HANDLER] 'rename' job: No record found for oldPath: ${oldPath}. The record may have been updated by another job. No action taken.`);
-      return;
+        for (const entity of searchResults) {
+            const ino = entity.entityId;
+            const currentPaths = new Set(entity.path);
+
+            if (currentPaths.size > 1) {
+                currentPaths.delete(path);
+                const newShares = [...new Set([...currentPaths].map(p => p.split('/')[3]))];
+
+                entity.path = [...currentPaths];
+                entity.shares = newShares;
+
+                await repository.save(entity);
+                console.log(`[HANDLER] Removed path '${path}' from ino '${ino}'.`);
+            } else {
+                await repository.remove(ino);
+                await getRedisClient().hDel('actions', ino);
+                console.log(`[HANDLER] Removed entity for ino '${ino}' as it was the last path.`);
+            }
+        }
+    } catch (error) {
+        console.error(`[HANDLER] Error processing remove for path '${path}':`, error);
+    }
+}
+
+async function handleRename(job) {
+    const { oldPath, newPath } = job.data;
+    const repository = getFileMetadataRepository();
+
+    try {
+        const searchResults = await repository.search().where('path').contains(oldPath).return.all();
+        if (searchResults.length === 0) {
+            console.log(`[HANDLER] No record found with path '${oldPath}'. Cannot rename.`);
+            return;
+        }
+
+        for (const entity of searchResults) {
+            const ino = entity.entityId;
+            const currentPaths = new Set(entity.path);
+
+            currentPaths.delete(oldPath);
+            currentPaths.add(newPath);
+
+            const newShares = [...new Set([...currentPaths].map(p => p.split('/')[3]))];
+
+            entity.path = [...currentPaths];
+            entity.shares = newShares;
+
+            await repository.save(entity);
+            console.log(`[HANDLER] Renamed path for ino '${ino}' from '${oldPath}' to '${newPath}'.`);
+        }
+    } catch (error) {
+        console.error(`[HANDLER] Error processing rename from '${oldPath}' to '${newPath}':`, error);
+    }
+}
+
+
+async function findDuplicatesAndBroadcast(ws) {
+    const redisClient = getRedisClient();
+    const [duplicates, state, actions, waitingJobs] = await Promise.all([
+        findDuplicates(),
+        redisClient.hGetAll('state'),
+        redisClient.hGetAll('actions'),
+        actionQueue.getWaiting(),
+    ]);
+
+    // Transform the BullMQ jobs into the simple { path: action } format the frontend expects
+    const queue = waitingJobs.reduce((acc, job) => {
+        acc[job.data.path] = job.name; // job.name is the action, e.g., 'delete'
+        return acc;
+    }, {});
+
+    // Before sending, augment the duplicates with the isOriginal flag and actions
+    for (const group of duplicates) {
+        const originalIno = state[group.hash];
+        group.files.forEach(file => {
+            if (originalIno && file.ino === originalIno) {
+                file.isOriginal = true;
+            }
+            file.action = actions[file.ino] || null;
+        });
     }
 
-    // Although we expect only one, handle the case of multiple results.
-    if (fileEntities.length > 1) {
-      console.warn(`[HANDLER] 'rename' job: Found multiple records containing path: ${oldPath}. Proceeding with the first result.`);
+    if (ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify({
+            action: 'duplicateFiles',
+            data: {
+                duplicates,
+                state,
+                queue,
+            },
+        }));
     }
-    const fileEntity = fileEntities[0];
-
-    // 3. Update the path array.
-    const pathIndex = fileEntity.path.indexOf(oldPath);
-    if (pathIndex > -1) {
-      fileEntity.path[pathIndex] = newPath;
-    } else {
-      // If the record was found by searching for oldPath, but oldPath is not in its path array,
-      // something is critically wrong with the data consistency. Do not try to 'fix' it.
-      const entityIdSymbol = Object.getOwnPropertySymbols(fileEntity).find(s => s.description === 'entityId');
-      const ino = entityIdSymbol ? fileEntity[entityIdSymbol] : '[unknown]';
-      throw new Error(`[HANDLER] CRITICAL: Record ${ino} found by oldPath '${oldPath}', but path was not present in record's path array.`);
-    }
-
-    // 4. For robustness, always rebuild the shares array from the paths array.
-    fileEntity.shares = fileEntity.path.map(getShareFromPath).filter(share => share !== null);
-
-    // 5. Save the updated record back to Redis.
-    await fileRepository.save(fileEntity);
-    const entityIdSymbol = Object.getOwnPropertySymbols(fileEntity).find(s => s.description === 'entityId');
-    const ino = entityIdSymbol ? fileEntity[entityIdSymbol] : '[unknown]';
-    console.log(`[HANDLER] Successfully updated path for ino ${ino}. New path: ${newPath}`);
-
-  } catch (error) {
-    console.error(`[HANDLER] Error processing file.rename job from ${oldPath} to ${newPath}:`, error);
-    // Re-throw the error to allow BullMQ to handle the job failure (e.g., retry).
-    throw error;
-  }
-};
+}
 
 module.exports = {
     handleUpsert,
     handleRemove,
     handleRename,
+    findDuplicatesAndBroadcast,
 };

@@ -155,4 +155,11 @@ module.exports = {
     findWithNonUniqueHashes,
     getAllFiles,
     findDuplicates,
+    clearAllActions,
 };
+
+async function clearAllActions() {
+    const redisClient = getRedisClient();
+    await redisClient.del('actions');
+    console.log('[REDIS] All actions cleared.');
+}

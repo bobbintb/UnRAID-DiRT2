@@ -190,4 +190,5 @@ module.exports = {
     getAllFiles: redisFunctions.getAllFiles,
     findDuplicates: redisFunctions.findDuplicates,
     getActionQueue: redisFunctions.getActionQueue,
+    clearAllActions: redisFunctions.clearAllActions,
 };

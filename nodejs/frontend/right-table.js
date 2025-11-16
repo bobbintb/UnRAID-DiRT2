@@ -1,4 +1,4 @@
-const generateRightTableConfig = (dirtySock, leftTable) => ({
+const generateRightTableConfig = (dirtySock) => ({
     index:"ino",
     height:"100%",
     reactiveData:true,
@@ -15,26 +15,7 @@ const generateRightTableConfig = (dirtySock, leftTable) => ({
             headerHozAlign:"center",
             headerClick:function(e, column){
                 if(confirm("Are you sure you want to reset all actions?")){
-                    const rightTable = column.getTable();
-                    const leftTableRows = leftTable.getRows();
-
-                    leftTableRows.forEach(function(masterRow){
-                        const nestedTable = masterRow.getTreeChildren()[0];
-                        if(nestedTable){
-                            const nestedRows = nestedTable.getRows();
-                            nestedRows.forEach(function(nestedRow){
-                                const rowData = nestedRow.getData();
-                                if(rowData.action === 'delete' || rowData.action === 'link'){
-                                    nestedRow.update({action: null});
-                                    const rightTableRow = rightTable.getRow(rowData.ino);
-                                    if(rightTableRow){
-                                        rightTableRow.update({action: null});
-                                    }
-                                    dirtySock('setAction', { hash: rowData.hash, ino: rowData.ino, action: null });
-                                }
-                            });
-                        }
-                    });
+                    dirtySock('clearAllActions');
                 }
             }
         },

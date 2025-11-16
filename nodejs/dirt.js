@@ -308,43 +308,19 @@ async function main() {
               }
               break;
             }
-            case 'findDuplicates': {
-              const redisClient = getRedisClient();
-              const [duplicates, state, actions, waitingJobs] = await Promise.all([
-                  findDuplicates(),
-                  redisClient.hGetAll('state'),
-                  redisClient.hGetAll('actions'),
-                  actionQueue.getWaiting(),
-              ]);
-
-              // Transform the BullMQ jobs into the simple { path: action } format the frontend expects
-              const queue = waitingJobs.reduce((acc, job) => {
-                  acc[job.data.path] = job.name; // job.name is the action, e.g., 'delete'
-                  return acc;
-              }, {});
-
-              // Before sending, augment the duplicates with the isOriginal flag and actions
-              for (const group of duplicates) {
-                  const originalIno = state[group.hash];
-                  group.files.forEach(file => {
-                      if (originalIno && file.ino === originalIno) {
-                          file.isOriginal = true;
-                      }
-                      file.action = actions[file.ino] || 'none';
-                  });
-              }
-
-              if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
-                  action: 'duplicateFiles',
-                  data: {
-                    duplicates,
-                    state,
-                    queue,
-                  },
-                }));
-              }
+            case 'clearAllActions': {
+              const { clearAllActions } = require('./redis.js');
+              await clearAllActions();
+              // After clearing, we need to re-fetch and broadcast the updated data.
+              // This is a direct way to trigger a refresh on all clients.
+              const findDuplicatesAndBroadcast = require('./handlers.js').findDuplicatesAndBroadcast;
+              await findDuplicatesAndBroadcast(ws);
               break;
+            }
+            case 'findDuplicates': {
+                const findDuplicatesAndBroadcast = require('./handlers.js').findDuplicatesAndBroadcast;
+                await findDuplicatesAndBroadcast(ws);
+                break;
             }
             default:
               console.log(`[DIRT] Received unknown action: ${action}`);
