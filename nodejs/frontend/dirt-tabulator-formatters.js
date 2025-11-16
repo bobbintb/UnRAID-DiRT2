@@ -35,6 +35,7 @@ function actionFormatter(cell, formatterParams) {
         // Update Tabulator and send to backend
         cell.getRow().update({ action: newAction });
         dirtySock('setAction', { hash, ino, action: newAction });
+        checkAndUpdateMasterRow(cell);
     });
 
     linkIcon.addEventListener('click', () => {
@@ -51,6 +52,7 @@ function actionFormatter(cell, formatterParams) {
         // Update Tabulator and send to backend
         cell.getRow().update({ action: newAction });
         dirtySock('setAction', { hash, ino, action: newAction });
+        checkAndUpdateMasterRow(cell);
     });
 
     container.appendChild(trashIcon);
@@ -80,6 +82,7 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
     // Set initial state after the cell has been rendered
     onRendered(() => {
         setRowState(cell.getRow().getData().isOriginal);
+        checkAndUpdateMasterRow(cell);
     });
 
     radio.addEventListener('change', () => {
@@ -111,6 +114,7 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
                 rowEl.classList.remove('original-row');
             }
         });
+        checkAndUpdateMasterRow(cell);
 
         // Persist the new original file choice
         if (dirtySock) {
@@ -119,4 +123,40 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
     });
 
     return radio;
+}
+
+function rightTableActionFormatter(cell) {
+    const action = cell.getValue();
+    const icon = document.createElement("i");
+    icon.classList.add("fa");
+
+    if (action === "delete") {
+        icon.classList.add("fa-trash");
+    } else if (action === "link") {
+        icon.classList.add("fa-link");
+    }
+
+    return icon;
+}
+
+function checkAndUpdateMasterRow(cell) {
+    const table = cell.getTable();
+    const rows = table.getRows();
+    let allActionsSet = true;
+
+    rows.forEach(row => {
+        const rowData = row.getData();
+        if (!rowData.isOriginal && (!rowData.action || rowData.action === 'none')) {
+            allActionsSet = false;
+        }
+    });
+
+    const masterRowEl = table.element.closest('.tabulator-row');
+    if (masterRowEl) {
+        if (allActionsSet) {
+            masterRowEl.classList.add('all-actions-set');
+        } else {
+            masterRowEl.classList.remove('all-actions-set');
+        }
+    }
 }

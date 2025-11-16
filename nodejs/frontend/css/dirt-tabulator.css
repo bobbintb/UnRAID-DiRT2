@@ -37,3 +37,7 @@ body, html {
     pointer-events: none;
     color: #a0a0a0;
 }
+
+.all-actions-set {
+    background-color: lightgreen !important;
+}
