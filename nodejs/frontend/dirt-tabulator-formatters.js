@@ -5,7 +5,7 @@ function actionFormatter(cell, formatterParams) {
     const container = document.createElement("div");
 
     const trashIcon = document.createElement("i");
-    trashIcon.classList.add("fas", "fa-trash");
+    trashIcon.classList.add("fa", "fa-trash");
     trashIcon.style.cursor = "pointer";
     trashIcon.style.marginRight = "10px";
     if (action === "delete") {
@@ -13,7 +13,7 @@ function actionFormatter(cell, formatterParams) {
     }
 
     const linkIcon = document.createElement("i");
-    linkIcon.classList.add("fas", "fa-link");
+    linkIcon.classList.add("fa", "fa-link");
     linkIcon.style.cursor = "pointer";
     if (action === "link") {
         linkIcon.classList.add("selected");
