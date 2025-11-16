@@ -27,3 +27,7 @@ body, html {
 .gutter.gutter-horizontal {
     cursor: col-resize;
 }
+
+.fa-trash.selected, .fa-link.selected {
+    color: blue;
+}
