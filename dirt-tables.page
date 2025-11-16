@@ -29,6 +29,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const leftTable = new Tabulator("#left-table", generateLeftTableConfig(dirtySock));
     const rightTable = new Tabulator("#right-table", rightTableConfig);
 
+    rightTable.setFilter(function(data){
+        return data.action === "link" || data.action === "delete";
+    });
+
+    rightTable.on("dataChanged", () => {
+        rightTable.refreshFilter();
+    });
+
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tables.page`);
 
@@ -45,8 +53,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
                 const { duplicates } = data;
                 const { leftTableData, rightTableData } = processDuplicateFiles(duplicates);
-                rightTable.replaceData(rightTableData);
-                leftTable.replaceData(leftTableData);
+                rightTable.setData(rightTableData);
+                leftTable.setData(leftTableData);
             } else if (action === 'addOrUpdateFile') {
                 console.log(`Tabulator Tab: Received addOrUpdateFile for ino ${data.ino}`);
                 rightTable.updateOrAddData([data]);
@@ -62,6 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     subTable.deleteRow(data.ino);
                 }
             }
+
         };
 
         function findSubTableByHash(hash) {
