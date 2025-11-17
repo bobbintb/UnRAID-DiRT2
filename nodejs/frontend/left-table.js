@@ -91,7 +91,7 @@ const generateLeftTableConfig = (dirtySock) => ({
             holderEl.appendChild(tableEl);
             row.getElement().appendChild(holderEl);
 
-            new Tabulator(tableEl, {
+            const nestedTable = new Tabulator(tableEl, {
                 layout: "fitColumns",
                 data: data.fileList,
                 index: "ino",
