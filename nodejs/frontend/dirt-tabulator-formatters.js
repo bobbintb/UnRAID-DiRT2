@@ -98,21 +98,23 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
             if (row === selectedRow) {
                 // This row is now the original
                 if (rowData.isOriginal === false) {
-                    row.update({ isOriginal: true, action: 'none' });
+                    row.update({ isOriginal: true, action: 'none' }).then(() => {
+                        setRowState(true);
+                        // Deselect icons in UI
+                        const icons = rowEl.querySelectorAll('.fa-trash.selected, .fa-link.selected');
+                        icons.forEach(icon => icon.classList.remove('selected'));
+                    });
                     if (dirtySock) {
                         dirtySock('setAction', { hash: rowData.hash, ino: rowData.ino, action: 'none' });
                     }
-                    // Deselect icons in UI
-                    const icons = rowEl.querySelectorAll('.fa-trash.selected, .fa-link.selected');
-                    icons.forEach(icon => icon.classList.remove('selected'));
                 }
-                rowEl.classList.add('original-row');
             } else {
                 // All other rows are not the original
                 if (rowData.isOriginal === true) {
-                   row.update({ isOriginal: false });
+                    row.update({ isOriginal: false }).then(() => {
+                        setRowState(false);
+                    });
                 }
-                rowEl.classList.remove('original-row');
             }
         });
 
