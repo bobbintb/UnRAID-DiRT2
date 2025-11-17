@@ -33,9 +33,7 @@ function actionFormatter(cell, formatterParams) {
         linkIcon.classList.remove("selected");
 
         // Update Tabulator and send to backend
-        cell.getRow().update({ action: newAction }).then(() => {
-            checkAndUpdateMasterRow(cell.getTable());
-        });
+        cell.getRow().update({ action: newAction });
         dirtySock('setAction', { hash, ino, action: newAction });
     });
 
@@ -51,9 +49,7 @@ function actionFormatter(cell, formatterParams) {
         trashIcon.classList.remove("selected");
 
         // Update Tabulator and send to backend
-        cell.getRow().update({ action: newAction }).then(() => {
-            checkAndUpdateMasterRow(cell.getTable());
-        });
+        cell.getRow().update({ action: newAction });
         dirtySock('setAction', { hash, ino, action: newAction });
     });
 
@@ -121,8 +117,7 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
             dirtySock('setOriginalFile', { hash, ino });
         }
 
-        // Update the master row color
-        checkAndUpdateMasterRow(table);
+        // The master row color is now updated by the nested table's dataChanged event
     });
 
     return radio;

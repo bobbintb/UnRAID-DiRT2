@@ -141,8 +141,33 @@ const generateLeftTableConfig = (dirtySock) => ({
                         width: 170,
                         resizable: false
                     },
-                ]
+                ],
+                tableBuilt: function() {
+                    checkAndApplyClass(this);
+                },
+                dataChanged: function() {
+                    checkAndApplyClass(this);
+                }
             });
+
+            function checkAndApplyClass(table) {
+                const rows = table.getRows();
+                const masterRowEl = table.element.closest('.tabulator-row');
+
+                if (masterRowEl) {
+                    const nonOriginalRows = rows.filter(row => !row.getData().isOriginal);
+                    const allSet = nonOriginalRows.every(row => {
+                        const action = row.getData().action;
+                        return action === 'delete' || action === 'link';
+                    });
+
+                    if (allSet) {
+                        masterRowEl.classList.add('all-actions-set');
+                    } else {
+                        masterRowEl.classList.remove('all-actions-set');
+                    }
+                }
+            }
         }
     },
 });

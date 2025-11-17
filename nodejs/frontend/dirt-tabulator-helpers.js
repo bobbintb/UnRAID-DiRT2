@@ -36,27 +36,6 @@ function formatSize(cell) {
     return formatBytes(value);
 }
 
-function checkAndUpdateMasterRow(table) {
-    const rows = table.getRows();
-    const masterRow = table.element.closest('.tabulator-row');
-
-    if (masterRow) {
-        // Exclude the 'original' file from the check
-        const nonOriginalRows = rows.filter(row => !row.getData().isOriginal);
-        // Check if all non-original files have an action
-        const allSet = nonOriginalRows.every(row => {
-            const action = row.getData().action;
-            return action === 'delete' || action === 'link';
-        });
-
-        if (allSet) {
-            masterRow.style.backgroundColor = 'lightgreen';
-        } else {
-            masterRow.style.backgroundColor = '';
-        }
-    }
-}
-
 function processDuplicateFiles(duplicates) {
     const rightTableData = [];
     const leftTableData = [];

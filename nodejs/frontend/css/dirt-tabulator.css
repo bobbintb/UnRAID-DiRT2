@@ -32,6 +32,10 @@ body, html {
     color: blue;
 }
 
+.tabulator-row.all-actions-set {
+    background-color: lightgreen;
+}
+
 .tabulator-row.original-row {
     background-color: #e0e0e0 !important;
     pointer-events: none;
