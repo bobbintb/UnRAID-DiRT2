@@ -143,6 +143,21 @@ const generateLeftTableConfig = (dirtySock) => ({
                     },
                 ]
             });
+            // Ensure master-row highlight updates when nested table finishes rendering
+            try {
+                if (nestedTable && typeof nestedTable.on === 'function') {
+                    nestedTable.on('renderComplete', function () {
+                        if (typeof checkAndUpdateMasterRow === 'function') checkAndUpdateMasterRow(nestedTable);
+                    });
+                }
+            } catch (e) {
+                // Ignore: defensive in case Tabulator instance doesn't expose events
+            }
+
+            // Attempt an immediate update as a fallback (idempotent)
+            if (typeof checkAndUpdateMasterRow === 'function') {
+                checkAndUpdateMasterRow(nestedTable);
+            }
         }
     },
 });
