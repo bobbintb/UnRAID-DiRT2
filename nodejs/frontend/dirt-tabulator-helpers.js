@@ -37,23 +37,26 @@ function formatSize(cell) {
 }
 
 function checkAndUpdateMasterRow(table) {
+    // Defensive: ensure table is valid and has rows
+    if (!table || typeof table.getRows !== 'function' || !table.element) return;
+
     const rows = table.getRows();
     const masterRow = table.element.closest('.tabulator-row');
 
-    if (masterRow) {
-        // Exclude the 'original' file from the check
-        const nonOriginalRows = rows.filter(row => !row.getData().isOriginal);
-        // Check if all non-original files have an action
-        const allSet = nonOriginalRows.every(row => {
-            const action = row.getData().action;
-            return action === 'delete' || action === 'link';
-        });
+    if (!masterRow) return;
 
-        if (allSet) {
-            masterRow.style.backgroundColor = 'lightgreen';
-        } else {
-            masterRow.style.backgroundColor = '';
-        }
+    // Exclude the 'original' file from the check
+    const nonOriginalRows = rows.filter(row => !row.getData().isOriginal);
+    // Check if all non-original files have an action
+    const allSet = nonOriginalRows.length > 0 && nonOriginalRows.every(row => {
+        const action = row.getData().action;
+        return action === 'delete' || action === 'link';
+    });
+
+    if (allSet) {
+        masterRow.style.backgroundColor = 'lightgreen';
+    } else {
+        masterRow.style.backgroundColor = '';
     }
 }
 
