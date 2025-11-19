@@ -39,3 +39,13 @@ body, html {
     pointer-events: none;
     color: #a0a0a0;
 }
+
+#right-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+#process-button {
+    margin: 10px;
+    align-self: flex-end;
+}
