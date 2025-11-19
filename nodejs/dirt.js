@@ -337,6 +337,17 @@ async function main() {
               }
               break;
             }
+            case 'processActions': {
+              const { processActionQueue } = require('./action-processor.js');
+              const results = await processActionQueue();
+              if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                  action: 'processingComplete',
+                  data: results,
+                }));
+              }
+              break;
+            }
             default:
               console.log(`[DIRT] Received unknown action: ${action}`);
               break;
