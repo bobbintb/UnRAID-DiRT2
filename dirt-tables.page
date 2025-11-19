@@ -20,9 +20,21 @@ Icon="fa-search-minus"
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
     let socket;
+    function dirtySock(action, data) {
+        const message = {
+            clientId: "dirt-tables.page",
+            action: action,
+            data: data
+        };
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify(message));
+        } else {
+            console.error("Tabulator Tab: WebSocket is not connected.");
+        }
+    }
 
+document.addEventListener('DOMContentLoaded', function() {
     Split(['#left-table', '#right-panel'], {
         sizes: [70, 30],
         gutterSize: 8,
@@ -116,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     document.getElementById('process-button').addEventListener('click', () => {
-        const tableData = rightTable.getData();
+        const tableData = rightTable.getData("active");
         let message = "Actions to be performed:\n\n";
         tableData.forEach(row => {
             message += `Action: ${row.action}, Path: ${row.path}\n`;

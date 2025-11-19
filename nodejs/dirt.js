@@ -241,37 +241,30 @@ async function main() {
                 break;
               }
               const redisClient = getRedisClient();
-              await redisClient.hSet('state', hash, ino);
-              await redisClient.hDel('actions', ino); // Clear any action for this file
+              await redisClient.hSet('state', hash, String(ino));
+              await actionQueue.remove(`ino-${ino}`); // Clear any action for this file
               console.log(`[DIRT] State updated for hash ${hash} to ino ${ino} and action cleared.`);
               break;
             }
             case 'setAction': {
-                const { ino, action } = data;
-                if (!ino || !action) {
-                    console.error(`[DIRT] Invalid data for setAction:`, data);
-                    break;
-                }
-                const redisClient = getRedisClient();
-                if (action === 'none') {
-                    await redisClient.hDel('actions', ino);
-                    console.log(`[DIRT] Action for ino ${ino} cleared.`);
-                } else {
-                    await redisClient.hSet('actions', ino, action);
-                    console.log(`[DIRT] Action for ino ${ino} set to ${action}`);
-                }
-                break;
-            }
-            case 'setFileAction': {
               const { ino, path, action } = data;
-              if (!ino || !path || !action) {
-                console.error(`[DIRT] Invalid data for setFileAction:`, data);
+              if (!ino || !path) {
+                console.error(`[DIRT] Invalid data for setAction:`, data);
                 break;
               }
-              // Remove-then-add strategy
-              await actionQueue.remove(ino);
-              await actionQueue.add(action, { path }, { jobId: ino });
-              console.log(`[DIRT] Action queue job SET for ino ${ino} to action '${action}'`);
+
+              const jobId = `ino-${ino}`;
+              // If action is provided (e.g., 'link' or 'delete'), add/update the job.
+              // If action is null, the job is removed.
+              if (action) {
+                // Remove-then-add strategy ensures the job is updated if it exists
+                await actionQueue.remove(jobId);
+                await actionQueue.add(action, { path }, { jobId });
+                console.log(`[DIRT] Action queue job SET for ino ${ino} to action '${action}'`);
+              } else {
+                await actionQueue.remove(jobId);
+                console.log(`[DIRT] Action queue job REMOVED for ino ${ino}`);
+              }
               break;
             }
             case 'removeFileAction': {
@@ -280,7 +273,7 @@ async function main() {
                 console.error(`[DIRT] Invalid data for removeFileAction:`, data);
                 break;
               }
-              await actionQueue.remove(ino);
+              await actionQueue.remove(`ino-${ino}`);
               console.log(`[DIRT] Action queue job REMOVED for ino ${ino}`);
               break;
             }
@@ -310,16 +303,15 @@ async function main() {
             }
             case 'findDuplicates': {
               const redisClient = getRedisClient();
-              const [duplicates, state, actions, waitingJobs] = await Promise.all([
+              const [duplicates, state, waitingJobs] = await Promise.all([
                   findDuplicates(),
                   redisClient.hGetAll('state'),
-                  redisClient.hGetAll('actions'),
                   actionQueue.getWaiting(),
               ]);
 
-              // Transform the BullMQ jobs into the simple { path: action } format the frontend expects
-              const queue = waitingJobs.reduce((acc, job) => {
-                  acc[job.data.path] = job.name; // job.name is the action, e.g., 'delete'
+              // Transform the BullMQ jobs into a map of { ino: action }
+              const actionMap = waitingJobs.reduce((acc, job) => {
+                  acc[job.id] = job.name; // job.id is the jobId, which we set to the ino
                   return acc;
               }, {});
 
@@ -330,7 +322,7 @@ async function main() {
                       if (originalIno && file.ino === originalIno) {
                           file.isOriginal = true;
                       }
-                      file.action = actions[file.ino] || 'none';
+                      file.action = actionMap[`ino-${file.ino}`] || null;
                   });
               }
 
@@ -340,7 +332,6 @@ async function main() {
                   data: {
                     duplicates,
                     state,
-                    queue,
                   },
                 }));
               }
