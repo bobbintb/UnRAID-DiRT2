@@ -11,7 +11,7 @@ body, html {
 }
 
 .table-wrapper {
-    /* The width will be set by split.js, so we don't need flex-basis here */
+    width: 100%;
 }
 
 #left-table, #right-table {
