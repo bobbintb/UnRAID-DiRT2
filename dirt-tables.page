@@ -29,8 +29,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const leftTable = new Tabulator("#left-table", generateLeftTableConfig(dirtySock));
     const rightTable = new Tabulator("#right-table", rightTableConfig);
 
-    rightTable.setFilter(function(data){
-        return data.action === "link" || data.action === "delete";
+    rightTable.on("tableBuilt", function(){
+        rightTable.setFilter(function(data){
+            return data.action === "link" || data.action === "delete";
+        });
     });
 
     rightTable.on("dataChanged", () => {
