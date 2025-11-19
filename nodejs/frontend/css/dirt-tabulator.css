@@ -11,13 +11,17 @@ body, html {
 }
 
 .table-wrapper {
-    width: 100%;
+    /* The width will be set by split.js, so we don't need flex-basis here */
 }
 
 #left-table, #right-table {
     height: 100%;
     border-top: unset;
     border-bottom: unset;
+}
+
+#left-table {
+    min-width: 0;
 }
 
 .gutter {
