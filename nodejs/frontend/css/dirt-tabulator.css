@@ -16,6 +16,8 @@ body, html {
 
 #left-table, #right-table {
     height: 100%;
+    border-top: unset;
+    border-bottom: unset;
 }
 
 .gutter {
