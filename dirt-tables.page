@@ -13,14 +13,17 @@ Icon="fa-search-minus"
 
 <div class="table-container">
     <div id="left-table" class="table-wrapper"></div>
-    <div id="right-table" class="table-wrapper"></div>
+    <div id="right-panel">
+        <div id="right-table" class="table-wrapper"></div>
+        <button id="process-button">Process</button>
+    </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let socket;
 
-    Split(['#left-table', '#right-table'], {
+    Split(['#left-table', '#right-panel'], {
         sizes: [70, 30],
         gutterSize: 8,
         cursor: 'col-resize'
@@ -111,6 +114,15 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error("Tabulator Tab: WebSocket is not connected.");
         }
     }
+
+    document.getElementById('process-button').addEventListener('click', () => {
+        const tableData = rightTable.getData();
+        let message = "Actions to be performed:\n\n";
+        tableData.forEach(row => {
+            message += `Action: ${row.action}, Path: ${row.path}\n`;
+        });
+        alert(message);
+    });
 
     connect();
 });
