@@ -86,6 +86,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (subTable) {
                     subTable.deleteRow(data.ino);
                 }
+            } else if (action === 'processingComplete') {
+                console.log("Tabulator Tab: Received processingComplete data package.");
+                console.log("Processing Results:", data);
             }
 
         };
@@ -128,12 +131,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     document.getElementById('process-button').addEventListener('click', () => {
-        const tableData = rightTable.getData("active");
-        let message = "Actions to be performed:\n\n";
-        tableData.forEach(row => {
-            message += `Action: ${row.action}, Path: ${row.path}\n`;
-        });
-        alert(message);
+        console.log("Tabulator Tab: 'Process' button clicked. Sending 'processActions' message.");
+        dirtySock('processActions', null);
     });
 
     connect();
