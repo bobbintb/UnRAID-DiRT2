@@ -128,12 +128,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     document.getElementById('process-button').addEventListener('click', () => {
-        const tableData = rightTable.getData("active");
-        let message = "Actions to be performed:\n\n";
-        tableData.forEach(row => {
-            message += `Action: ${row.action}, Path: ${row.path}\n`;
-        });
-        alert(message);
+        dirtySock('processActions', {});
+        console.log("Tabulator Tab: Process actions requested.");
     });
 
     connect();
