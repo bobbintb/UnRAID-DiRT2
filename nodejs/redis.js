@@ -60,7 +60,7 @@ async function startRedisListener() {
                     console.log(`[REDIS-LISTENER] Broadcasting 'addOrUpdateFile' for ino '${ino}'`);
                     broadcaster.broadcast({
                         action: 'addOrUpdateFile',
-                        data: redisFunctions.parseHGetAll([fileData])[0] // Use existing parser
+                        data: fileData
                     });
                 }
             } catch (error) {
