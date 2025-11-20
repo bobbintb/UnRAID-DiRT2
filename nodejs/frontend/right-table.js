@@ -1,5 +1,5 @@
 const rightTableConfig = {
-    index: "ino",
+    index: "path",
     height: "100%",
     reactiveData: true,
     layout: "fitColumns",

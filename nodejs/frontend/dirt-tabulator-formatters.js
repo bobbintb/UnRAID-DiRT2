@@ -36,7 +36,7 @@ function actionFormatter(cell, formatterParams) {
         cell.getRow().update({ action: newAction }).then(() => {
             checkAndUpdateMasterRow(cell.getTable());
         });
-        dirtySock('setAction', { ino, path, action: newAction });
+        dirtySock('setAction', { path, action: newAction });
     });
 
     linkIcon.addEventListener('click', () => {
@@ -54,7 +54,7 @@ function actionFormatter(cell, formatterParams) {
         cell.getRow().update({ action: newAction }).then(() => {
             checkAndUpdateMasterRow(cell.getTable());
         });
-        dirtySock('setAction', { ino, path, action: newAction });
+        dirtySock('setAction', { path, action: newAction });
     });
 
     container.appendChild(trashIcon);
@@ -89,7 +89,7 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
     radio.addEventListener('change', () => {
         const table = cell.getTable();
         const selectedRow = cell.getRow();
-        const { hash, ino } = selectedRow.getData();
+        const { hash, path } = selectedRow.getData();
 
         table.getRows().forEach(row => {
             const rowEl = row.getElement();
@@ -100,7 +100,7 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
                 if (rowData.isOriginal === false) {
                     row.update({ isOriginal: true, action: null });
                     if (dirtySock) {
-                        dirtySock('setAction', { ino: rowData.ino, path: rowData.path, action: null });
+                        dirtySock('setAction', { path: rowData.path, action: null });
                     }
                     // Deselect icons in UI
                     const icons = rowEl.querySelectorAll('.fa-trash.selected, .fa-link.selected');
@@ -118,7 +118,7 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
 
         // Persist the new original file choice
         if (dirtySock) {
-            dirtySock('setOriginalFile', { hash, ino });
+            dirtySock('setOriginalFile', { hash, path });
         }
 
         // Update the master row color

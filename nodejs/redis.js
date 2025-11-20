@@ -55,12 +55,17 @@ async function startRedisListener() {
 
         if (message === 'hset') {
             try {
-                const fileData = await redisClient.hGetAll(key);
-                if (Object.keys(fileData).length > 0) {
+                const fileEntity = await fileMetadataRepository.fetch(ino);
+                if (fileEntity && fileEntity.path) {
+                    const data = {
+                        ...fileEntity,
+                        ino: ino,
+                        path: Array.isArray(fileEntity.path) ? fileEntity.path.join('<br>') : fileEntity.path
+                    };
                     console.log(`[REDIS-LISTENER] Broadcasting 'addOrUpdateFile' for ino '${ino}'`);
                     broadcaster.broadcast({
                         action: 'addOrUpdateFile',
-                        data: fileData
+                        data: data
                     });
                 }
             } catch (error) {

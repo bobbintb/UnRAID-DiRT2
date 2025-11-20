@@ -93,8 +93,9 @@ const generateLeftTableConfig = (dirtySock) => ({
 
             const nestedTable = new Tabulator(tableEl, {
                 layout: "fitColumns",
+                renderVertical: "basic",
                 data: data.fileList,
-                index: "ino",
+                index: "path",
                 columns: [
                     {
                         title: "",

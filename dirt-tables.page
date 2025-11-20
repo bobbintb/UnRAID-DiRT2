@@ -68,24 +68,75 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (action === 'duplicateFiles') {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
-                const { duplicates } = data;
-                const { leftTableData, rightTableData } = processDuplicateFiles(duplicates);
+                const { duplicates, state, actions } = data;
+                const { leftTableData, rightTableData } = processDuplicateFiles(duplicates, state, actions);
                 rightTable.setData(rightTableData);
                 leftTable.setData(leftTableData);
             } else if (action === 'addOrUpdateFile') {
                 console.log(`Tabulator Tab: Received addOrUpdateFile for ino ${data.ino}`);
-                rightTable.updateOrAddData([data]);
+                const paths = data.path.split('<br>');
+
+                // Remove stale rows (paths that are no longer in the file's path list)
+                const existingRows = rightTable.getRows().filter(r => r.getData().ino == data.ino);
+                existingRows.forEach(r => {
+                     const p = r.getData().path;
+                     if (!paths.includes(p)) {
+                         r.delete();
+                     }
+                });
+
+                // Also handle stale rows in subtable if visible
                 const subTable = findSubTableByHash(data.hash);
                 if (subTable) {
-                    subTable.updateOrAddData([data]);
+                    const existingSubRows = subTable.getRows().filter(r => r.getData().ino == data.ino);
+                    existingSubRows.forEach(r => {
+                         const p = r.getData().path;
+                         if (!paths.includes(p)) {
+                             r.delete();
+                         }
+                    });
+                }
+
+                const newRows = paths.map(p => {
+                    const existingRow = rightTable.getRow(p);
+                    let existingData = {};
+                    if (existingRow) {
+                        existingData = existingRow.getData();
+                    }
+                    return {
+                        ...data,
+                        path: p,
+                        action: existingData.action || null,
+                        isOriginal: existingData.isOriginal || false
+                    };
+                });
+
+                rightTable.updateOrAddData(newRows);
+                if (subTable) {
+                    subTable.updateOrAddData(newRows);
                 }
             } else if (action === 'removeFile') {
                 console.log(`Tabulator Tab: Received removeFile for ino ${data.ino}`);
-                rightTable.deleteRow(data.ino);
-                const subTable = findSubTableByHash(data.hash);
-                if (subTable) {
-                    subTable.deleteRow(data.ino);
-                }
+                // 1. Update Right Table
+                const rightRows = rightTable.getRows().filter(r => r.getData().ino == data.ino);
+                rightRows.forEach(r => r.delete());
+
+                // 2. Update Left Table (find parent row)
+                leftTable.getRows().forEach(row => {
+                    const rowData = row.getData();
+                    if (rowData.fileList && rowData.fileList.some(f => f.ino == data.ino)) {
+                        const rowEl = row.getElement();
+                        const subTableEl = rowEl.querySelector(".tabulator-table");
+                        if (subTableEl) {
+                             const tables = Tabulator.findTable(subTableEl);
+                             if (tables && tables.length > 0) {
+                                 const subTable = tables[0];
+                                 const subRows = subTable.getRows().filter(r => r.getData().ino == data.ino);
+                                 subRows.forEach(r => r.delete());
+                             }
+                        }
+                    }
+                });
             }
 
         };

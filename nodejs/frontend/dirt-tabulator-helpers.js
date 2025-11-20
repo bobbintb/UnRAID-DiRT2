@@ -1,7 +1,7 @@
 // Helper function to remove an action from the queue (UI and backend)
 function removeFileActionFromQueue(ino, filePath, dirtySock, actionQueueTable, mainTable, updateQueueFooter) {
     // 1. Send message to backend to remove from Redis
-    dirtySock('removeFileAction', { ino });
+    dirtySock('removeFileAction', { path: filePath });
 
     // 2. Remove the row from the action queue table
     const rows = actionQueueTable.getRows();
@@ -60,36 +60,54 @@ function checkAndUpdateMasterRow(table) {
     }
 }
 
-function processDuplicateFiles(duplicates) {
+function processDuplicateFiles(duplicates, state = {}, actions = {}) {
     const rightTableData = [];
     const leftTableData = [];
 
     duplicates.forEach(group => {
-        // Sort files by path to ensure consistent ordering
-        const sortedFiles = group.files.sort((a, b) => a.path.localeCompare(b.path));
+        // 1. Explode files
+        let explodedFiles = [];
+        group.files.forEach(file => {
+            // Backend may send path joined by <br>
+            const paths = file.path.split('<br>');
+            paths.forEach(p => {
+                // Create a shallow copy
+                const newFile = { ...file, path: p };
+                explodedFiles.push(newFile);
+            });
+        });
 
-        // Find if an original is already designated
-        const originalFile = sortedFiles.find(file => file.isOriginal === true);
+        // 2. Sort exploded files by path
+        explodedFiles.sort((a, b) => a.path.localeCompare(b.path));
 
-        // Process each file in the group
-        const fileList = sortedFiles.map((file, index) => {
-            const isOriginal = originalFile ? file.ino === originalFile.ino : !originalFile && index === 0;
+        // 3. Apply state (isOriginal) and actions
+        const originalPath = state[group.hash];
+
+        // Find if an original is already designated by state
+        const hasDesignatedOriginal = explodedFiles.some(file => file.path === originalPath);
+
+        const fileList = explodedFiles.map((file, index) => {
+            const isOriginal = hasDesignatedOriginal ? file.path === originalPath : index === 0;
+            const action = actions[file.path] || null;
+
             const fileData = {
                 ...file,
                 hash: group.hash,
                 isOriginal: isOriginal,
+                action: action,
             };
             rightTableData.push(fileData);
             return fileData;
         });
 
         // Calculate total size for the left table
+        // Use group.files (unique inodes) to avoid double counting hardlinks
         const totalSize = group.files.reduce((acc, file) => acc + file.size, 0);
 
         // Add processed group data to the left table
         leftTableData.push({
             hash: group.hash,
-            count: group.files.length,
+            count: explodedFiles.length,
             size: totalSize,
             fileList: fileList,
         });

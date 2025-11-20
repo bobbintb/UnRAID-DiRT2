@@ -262,46 +262,48 @@ async function main() {
               break;
             }
             case 'setOriginalFile': {
-              const { hash, ino } = data;
-              if (!hash || !ino) {
+              const { hash, path } = data;
+              if (!hash || !path) {
                 console.error(`[DIRT] Invalid data for setOriginalFile:`, data);
                 break;
               }
               const redisClient = getRedisClient();
-              await redisClient.hSet('state', hash, String(ino));
-              await actionQueue.remove(`ino-${ino}`); // Clear any action for this file
-              console.log(`[DIRT] State updated for hash ${hash} to ino ${ino} and action cleared.`);
+              await redisClient.hSet('state', hash, path);
+              const jobId = Buffer.from(path).toString('base64');
+              await actionQueue.remove(jobId); // Clear any action for this file
+              console.log(`[DIRT] State updated for hash ${hash} to path ${path} and action cleared.`);
               break;
             }
             case 'setAction': {
-              const { ino, path, action } = data;
-              if (!ino || !path) {
+              const { path, action } = data;
+              if (!path) {
                 console.error(`[DIRT] Invalid data for setAction:`, data);
                 break;
               }
 
-              const jobId = `ino-${ino}`;
+              const jobId = Buffer.from(path).toString('base64');
               // If action is provided (e.g., 'link' or 'delete'), add/update the job.
               // If action is null, the job is removed.
               if (action) {
                 // Remove-then-add strategy ensures the job is updated if it exists
                 await actionQueue.remove(jobId);
                 await actionQueue.add(action, { path }, { jobId });
-                console.log(`[DIRT] Action queue job SET for ino ${ino} to action '${action}'`);
+                console.log(`[DIRT] Action queue job SET for path ${path} to action '${action}'`);
               } else {
                 await actionQueue.remove(jobId);
-                console.log(`[DIRT] Action queue job REMOVED for ino ${ino}`);
+                console.log(`[DIRT] Action queue job REMOVED for path ${path}`);
               }
               break;
             }
             case 'removeFileAction': {
-              const { ino } = data;
-              if (!ino) {
+              const { path } = data;
+              if (!path) {
                 console.error(`[DIRT] Invalid data for removeFileAction:`, data);
                 break;
               }
-              await actionQueue.remove(`ino-${ino}`);
-              console.log(`[DIRT] Action queue job REMOVED for ino ${ino}`);
+              const jobId = Buffer.from(path).toString('base64');
+              await actionQueue.remove(jobId);
+              console.log(`[DIRT] Action queue job REMOVED for path ${path}`);
               break;
             }
             case 'clearQueue': {
@@ -336,29 +338,22 @@ async function main() {
                   actionQueue.getWaiting(),
               ]);
 
-              // Transform the BullMQ jobs into a map of { ino: action }
+              // Transform the BullMQ jobs into a map of { path: action_name }
               const actionMap = waitingJobs.reduce((acc, job) => {
-                  acc[job.id] = job.name; // job.id is the jobId, which we set to the ino
+                  if (job.data && job.data.path) {
+                      acc[job.data.path] = job.name;
+                  }
                   return acc;
               }, {});
 
-              // Before sending, augment the duplicates with the isOriginal flag and actions
-              for (const group of duplicates) {
-                  const originalIno = state[group.hash];
-                  group.files.forEach(file => {
-                      if (originalIno && file.ino === originalIno) {
-                          file.isOriginal = true;
-                      }
-                      file.action = actionMap[`ino-${file.ino}`] || null;
-                  });
-              }
-
+              // We send raw data to frontend, which will handle the merging and exploding of paths
               if (ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
                   action: 'duplicateFiles',
                   data: {
                     duplicates,
                     state,
+                    actions: actionMap,
                   },
                 }));
               }

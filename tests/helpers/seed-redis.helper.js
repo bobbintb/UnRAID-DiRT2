@@ -52,6 +52,29 @@ async function seedDatabase() {
             { ino: 3003, path: ['/mnt/user/staging/sorted/IMG_001.jpg'], shares: ['staging'], size: 4194304, nlink: 1, atime: new Date('2023-10-20T15:00:00Z'), mtime: new Date('2023-10-20T15:00:00Z'), ctime: new Date('2023-10-20T15:00:00Z'), hash: 'duplicate_hash_A_9876543210' },
             { ino: 4001, path: ['/mnt/user/downloads/document.pdf'], shares: ['downloads'], size: 1048576, nlink: 1, atime: new Date('2023-11-05T12:00:00Z'), mtime: new Date('2023-11-05T12:00:00Z'), ctime: new Date('2023-11-05T12:00:00Z'), hash: 'duplicate_hash_B_fedcba54321' },
             { ino: 4002, path: ['/mnt/user/documents/important/document_final.pdf'], shares: ['documents'], size: 1048576, nlink: 1, atime: new Date('2023-11-05T12:05:00Z'), mtime: new Date('2023-11-05T12:05:00Z'), ctime: new Date('2023-11-05T12:05:00Z'), hash: 'duplicate_hash_B_fedcba54321' },
+            // Hardlink Group (Same Inode, Multiple Paths)
+            {
+                ino: 9999,
+                path: [
+                    '/mnt/user/data/hardlink_A.txt',
+                    '/mnt/user/data/hardlink_B.txt'
+                ],
+                shares: ['data', 'data'],
+                size: 1024,
+                nlink: 2,
+                atime: new Date(), mtime: new Date(), ctime: new Date(),
+                hash: 'hardlink_hash_123'
+            },
+            // Duplicate of the hardlink group (Different Inode, Same Hash)
+            {
+                ino: 8888,
+                path: ['/mnt/user/data/duplicate_of_hardlink.txt'],
+                shares: ['data'],
+                size: 1024,
+                nlink: 1,
+                atime: new Date(), mtime: new Date(), ctime: new Date(),
+                hash: 'hardlink_hash_123'
+            },
         ];
 
         const generatedFiles = generateMockData();
