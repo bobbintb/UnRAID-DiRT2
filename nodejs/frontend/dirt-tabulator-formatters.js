@@ -1,6 +1,15 @@
 
+function pathFormatter(cell, formatterParams) {
+    const path = cell.getValue();
+    const data = cell.getRow().getData();
+    if (data.nlink > 1) {
+        return `<i class="fa fa-link" style="transform: rotate(45deg); margin-right: 5px;"></i>${path}`;
+    }
+    return path;
+}
+
 function actionFormatter(cell, formatterParams) {
-    const { hash, ino, path, action } = cell.getRow().getData();
+    const { path, action } = cell.getRow().getData();
     const { dirtySock } = formatterParams;
     const container = document.createElement("div");
 
@@ -36,7 +45,7 @@ function actionFormatter(cell, formatterParams) {
         cell.getRow().update({ action: newAction }).then(() => {
             checkAndUpdateMasterRow(cell.getTable());
         });
-        dirtySock('setAction', { ino, path, action: newAction });
+        dirtySock('setAction', { path, action: newAction });
     });
 
     linkIcon.addEventListener('click', () => {
@@ -54,7 +63,7 @@ function actionFormatter(cell, formatterParams) {
         cell.getRow().update({ action: newAction }).then(() => {
             checkAndUpdateMasterRow(cell.getTable());
         });
-        dirtySock('setAction', { ino, path, action: newAction });
+        dirtySock('setAction', { path, action: newAction });
     });
 
     container.appendChild(trashIcon);
@@ -64,7 +73,7 @@ function actionFormatter(cell, formatterParams) {
 }
 
 function radioSelectFormatter(cell, formatterParams, onRendered) {
-    const { isOriginal, hash, ino } = cell.getRow().getData();
+    const { isOriginal, hash } = cell.getRow().getData();
     const { dirtySock } = formatterParams;
     const radio = document.createElement("input");
     radio.type = "radio";
@@ -89,7 +98,7 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
     radio.addEventListener('change', () => {
         const table = cell.getTable();
         const selectedRow = cell.getRow();
-        const { hash, ino } = selectedRow.getData();
+        const { hash, path } = selectedRow.getData();
 
         table.getRows().forEach(row => {
             const rowEl = row.getElement();
@@ -100,7 +109,7 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
                 if (rowData.isOriginal === false) {
                     row.update({ isOriginal: true, action: null });
                     if (dirtySock) {
-                        dirtySock('setAction', { ino: rowData.ino, path: rowData.path, action: null });
+                        dirtySock('setAction', { path: rowData.path, action: null });
                     }
                     // Deselect icons in UI
                     const icons = rowEl.querySelectorAll('.fa-trash.selected, .fa-link.selected');
@@ -118,7 +127,7 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
 
         // Persist the new original file choice
         if (dirtySock) {
-            dirtySock('setOriginalFile', { hash, ino });
+            dirtySock('setOriginalFile', { hash, path });
         }
 
         // Update the master row color

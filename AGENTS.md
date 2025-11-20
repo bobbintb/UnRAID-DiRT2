@@ -110,6 +110,10 @@ This project uses Tabulator 6.3.1. Before implementing new features or customiza
 
     - **Documentation**: [https://tabulator.info/docs/6.3](https://tabulator.info/docs/6.3 "null")
 
+- **FontAwesome**:
+
+    - FontAwesome is loaded globally by the Unraid OS. You do **not** need to add it to `.page` files.
+
 
 ### Running Tests (Playwright)
 

@@ -117,6 +117,7 @@ async function findDuplicates() {
                         ino: entityId,
                         path: fileEntity.path.join('<br>'), // Join for display on new lines
                         size: fileEntity.size,
+                        nlink: fileEntity.nlink,
                         atime: fileEntity.atime,
                         mtime: fileEntity.mtime,
                         ctime: fileEntity.ctime,
