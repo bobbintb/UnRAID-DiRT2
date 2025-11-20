@@ -36,7 +36,7 @@ _(Database directory)_:
 : <input type="text" id="dbdir" name="dbdir" autocomplete="off" spellcheck="false" value="<?= htmlspecialchars($cfg['dbdir']) ?>" data-pickfolders="true" data-pickfilter="HIDE_FILES_FILTER"> <? if (!is_dir($cfg['dbdir'])):?><span><i class="fa fa-warning icon warning"></i> _(Path does not exist)_</span><? endif;?>
 
 <input type="submit" name="#default" value="_(Default)_" onclick="if(confirm('Are you sure?')) {$('input[class^=share]').prop('checked', false);}">
-: <input type="submit" name="#apply" value="_(Apply)_"><input type="button" id="scan-button" value="_(Scan)_" onclick="this.disabled=true; dataObj = Array.from(document.querySelectorAll('#share option:checked')).map(o => o.value); dirtySock('scan', dataObj);">
+: <input type="submit" name="#apply" value="_(Apply)_" disabled><input type="button" id="scan-button" value="_(Scan)_" disabled onclick="this.disabled=true; dataObj = Array.from(document.querySelectorAll('#share option:checked')).map(o => o.value); dirtySock('scan', dataObj);">
 </form>
 
 <script src="<?= autov('/webGui/javascript/jquery.filetree.js') ?>" charset="utf-8"></script>
