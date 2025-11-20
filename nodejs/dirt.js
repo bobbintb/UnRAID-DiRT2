@@ -4,7 +4,7 @@ const fs = require('fs').promises;
 const crypto = require('crypto');
 const { scan } = require('./scan.js');
 const { createClient } = require('redis');
-const { connectToRedis, closeRedis, getRedisClient, actionQueue } = require('./redis.js');
+const { connectToRedis, closeRedis, getRedisClient, actionQueue, getFileMetadataRepository } = require('./redis.js');
 const { fileProcessingQueue } = require('./redis.js');
 const { saveDbSnapshot } = require('./snapshot.js');
 const {
@@ -107,10 +107,10 @@ async function main() {
     // --- CONDITIONAL STARTUP ---
     // Check if the initial scan has been completed before.
     // We do this by checking for the existence of any file data.
-    const redisClient = getRedisClient();
-    const { keys } = await redisClient.scan(0, { MATCH: 'ino:*', COUNT: 1 });
+    const repo = getFileMetadataRepository();
+    const count = await repo.search().return.count();
 
-    if (keys.length > 0) {
+    if (count > 0) {
       // Data exists, so start the listener immediately.
       console.log('[DIRT] Existing data found. Starting real-time event listener.');
       startInboxListener();
@@ -132,12 +132,12 @@ async function main() {
       console.log('[DIRT] Client connected.');
 
       try {
-        const redisClient = getRedisClient();
-        const { keys } = await redisClient.scan(0, { MATCH: 'ino:*', COUNT: 1 });
+        const repo = getFileMetadataRepository();
+        const count = await repo.search().return.count();
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({
             action: 'dbStatus',
-            data: { hasData: keys.length > 0 },
+            data: { hasData: count > 0 },
           }));
         }
       } catch (error) {
@@ -160,10 +160,10 @@ async function main() {
                 break;
               }
 
-              const redisClient = getRedisClient();
-              const { keys } = await redisClient.scan(0, { MATCH: 'ino:*', COUNT: 1 });
+              const repo = getFileMetadataRepository();
+              const count = await repo.search().return.count();
 
-              if (keys.length > 0) {
+              if (count > 0) {
                 console.warn('[DIRT] Scan blocked: Database contains data.');
                 break;
               }
