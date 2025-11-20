@@ -17,6 +17,7 @@ const { getAllFiles, findDuplicates } = require('./redis.js');
 const broadcaster = require('./broadcaster');
 
 let inboxListenerClient;
+let isScanning = false;
 
 const getPathFromEvent = (pathInfo) => {
   if (!pathInfo || !pathInfo.share || !pathInfo.relative_path) {
@@ -127,8 +128,21 @@ async function main() {
 
     console.log(`[DIRT] WebSocket server started on port ${port}`);
 
-    wss.on('connection', ws => {
+    wss.on('connection', async ws => {
       console.log('[DIRT] Client connected.');
+
+      try {
+        const redisClient = getRedisClient();
+        const { keys } = await redisClient.scan(0, { MATCH: 'ino:*', COUNT: 1 });
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            action: 'dbStatus',
+            data: { hasData: keys.length > 0 },
+          }));
+        }
+      } catch (error) {
+        console.error('[DIRT] Error sending dbStatus:', error);
+      }
 
       ws.on('message', async (message) => {
         try {
@@ -140,10 +154,23 @@ async function main() {
           switch (action) {
             case 'scan': {
               console.log(`[DIRT] Scan initiated for shares: ${data.join(', ')}`);
+
+              if (isScanning) {
+                console.warn('[DIRT] Scan blocked: Scan already in progress.');
+                break;
+              }
+
               const redisClient = getRedisClient();
               const { keys } = await redisClient.scan(0, { MATCH: 'ino:*', COUNT: 1 });
 
-              if (keys.length === 0) {
+              if (keys.length > 0) {
+                console.warn('[DIRT] Scan blocked: Database contains data.');
+                break;
+              }
+
+              isScanning = true;
+
+              try {
                 // --- INITIAL SCAN LOGIC ---
                 console.log('[DIRT] This is the initial scan. Applying special lifecycle management.');
                 await fileProcessingQueue.pause();
@@ -151,16 +178,16 @@ async function main() {
 
                 console.log('[DIRT] Starting real-time event listener for the first time.');
                 startInboxListener(); // Runs in the background
-              } else {
-                console.log('[DIRT] This is a subsequent scan. Running without special lifecycle management.');
-              }
 
-              const sharesToScan = data.map(share => ({ share, path: `/mnt/user/${share}` }));
-              const startTime = performance.now();
-              await scan(sharesToScan); // Await the scan to complete
-              const endTime = performance.now();
-              const duration = ((endTime - startTime) / 1000).toFixed(3);
-              console.log(`[DIRT] Full scan completed in ${duration} seconds.`);
+                const sharesToScan = data.map(share => ({ share, path: `/mnt/user/${share}` }));
+                const startTime = performance.now();
+                await scan(sharesToScan); // Await the scan to complete
+                const endTime = performance.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(3);
+                console.log(`[DIRT] Full scan completed in ${duration} seconds.`);
+              } finally {
+                isScanning = false;
+              }
               break;
             }
             case 'addShare':
