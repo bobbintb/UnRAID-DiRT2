@@ -15,6 +15,7 @@ const {
 } = require('./debug.js');
 const { getAllFiles, findDuplicates } = require('./redis.js');
 const broadcaster = require('./broadcaster');
+const { processActionQueue } = require('./action-processor.js');
 
 let inboxListenerClient;
 let isScanning = false;
@@ -286,7 +287,7 @@ async function main() {
               if (action) {
                 // Remove-then-add strategy ensures the job is updated if it exists
                 await actionQueue.remove(jobId);
-                await actionQueue.add(action, { path }, { jobId });
+                await actionQueue.add(action, { path, ino }, { jobId });
                 console.log(`[DIRT] Action queue job SET for ino ${ino} to action '${action}'`);
               } else {
                 await actionQueue.remove(jobId);
@@ -328,6 +329,9 @@ async function main() {
               }
               break;
             }
+            case 'processActions':
+              await processActionQueue();
+              break;
             case 'findDuplicates': {
               const redisClient = getRedisClient();
               const [duplicates, state, waitingJobs] = await Promise.all([
