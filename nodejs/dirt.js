@@ -15,7 +15,8 @@ const {
 } = require('./debug.js');
 const { getAllFiles, findDuplicates } = require('./redis.js');
 const broadcaster = require('./broadcaster');
-const { processActionQueue } = require('./action-processor.js');
+const path = require('path');
+const { processActionQueue } = require(path.join(__dirname, 'action-processor.js'));
 
 let inboxListenerClient;
 let isScanning = false;
@@ -348,7 +349,21 @@ async function main() {
 
               // Before sending, augment the duplicates with the isOriginal flag and actions
               for (const group of duplicates) {
-                  const originalIno = state[group.hash];
+                  let originalIno = state[group.hash];
+
+                  // If no original is set, pick the first one (sorted by path) and persist it
+                  if (!originalIno && group.files.length > 0) {
+                      // Sort by path to match frontend default selection logic
+                      group.files.sort((a, b) => String(a.path).localeCompare(String(b.path)));
+
+                      const defaultOriginal = group.files[0];
+                      originalIno = defaultOriginal.ino;
+                      state[group.hash] = originalIno;
+                      // Persist to Redis
+                      await redisClient.hSet('state', group.hash, String(originalIno));
+                      console.log(`[DIRT] Auto-designated original for hash ${group.hash}: ${originalIno}`);
+                  }
+
                   group.files.forEach(file => {
                       if (originalIno && file.ino === originalIno) {
                           file.isOriginal = true;

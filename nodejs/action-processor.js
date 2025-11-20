@@ -26,7 +26,8 @@ const processActionQueue = async () => {
     const state = await redisClient.hGetAll('state');
 
     for (const job of jobs) {
-        const { ino, path, action } = job.data;
+        const { ino, path } = job.data;
+        const action = job.name;
         const jobId = job.id;
 
         try {
