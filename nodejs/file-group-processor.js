@@ -198,7 +198,7 @@ const handleFileGroup = async (job, workerPool) => {
 
     try {
         let bytesRead = 0;
-        let lastLogMessage = '';
+        let lastTotalFiles = -1;
 
         while (activeGroups.length > 0 && bytesRead < size) {
             const currentChunkSize = Math.min(CHUNK_SIZE, size - bytesRead);
@@ -216,16 +216,15 @@ const handleFileGroup = async (job, workerPool) => {
 
             if (activeGroups.length > 0) {
                 const totalFiles = activeGroups.reduce((sum, group) => sum + group.length, 0);
-                const message = `[DIRT] Chunk comparison complete. ${totalFiles} potential duplicates remain in ${activeGroups.length} group(s).`;
 
-                if (message !== lastLogMessage) {
+                if (totalFiles !== lastTotalFiles) {
                     if (process.stdout.isTTY) {
                         process.stdout.moveCursor(0, -1);
                         process.stdout.clearLine(0);
                         process.stdout.cursorTo(0);
                     }
-                    console.log(message);
-                    lastLogMessage = message;
+                    console.log(`[DIRT] Chunk comparison complete. ${totalFiles} potential duplicates remain in ${activeGroups.length} group(s).`);
+                    lastTotalFiles = totalFiles;
                 }
             } else {
                 break;
