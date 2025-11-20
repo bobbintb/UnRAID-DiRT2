@@ -20,6 +20,7 @@ const rightTableConfig = {
         }
     }, {
         title: "Path",
-        field: "path"
+        field: "path",
+        formatter: pathFormatter,
     }, ],
 };

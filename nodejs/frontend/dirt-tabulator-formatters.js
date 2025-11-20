@@ -127,3 +127,13 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
 
     return radio;
 }
+
+function pathFormatter(cell, formatterParams) {
+    const path = cell.getValue();
+    const data = cell.getRow().getData();
+
+    if (data.nlink > 1) {
+        return `<i class="fa fa-link" style="margin-right: 5px; color: #555; transform: rotate(45deg); display: inline-block;" title="Hardlink"></i>${path}`;
+    }
+    return path;
+}

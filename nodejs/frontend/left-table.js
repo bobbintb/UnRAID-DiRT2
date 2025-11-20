@@ -120,6 +120,7 @@ const generateLeftTableConfig = (dirtySock) => ({
                     {
                         title: "Path",
                         field: "path",
+                        formatter: pathFormatter,
                         resizable: false,
                         widthGrow: 3
                     },
