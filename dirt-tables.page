@@ -68,23 +68,46 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (action === 'duplicateFiles') {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
-                const { duplicates } = data;
-                const { leftTableData, rightTableData } = processDuplicateFiles(duplicates);
+                const { duplicates, state, actions } = data;
+                const { leftTableData, rightTableData } = processDuplicateFiles(duplicates, state, actions);
                 rightTable.setData(rightTableData);
                 leftTable.setData(leftTableData);
             } else if (action === 'addOrUpdateFile') {
                 console.log(`Tabulator Tab: Received addOrUpdateFile for ino ${data.ino}`);
-                rightTable.updateOrAddData([data]);
+                const paths = data.path.split('<br>').filter(p => p);
+                const newRows = paths.map(p => ({ ...data, path: p }));
+
+                // Update Right Table (find stale rows by ino)
+                const rightRows = rightTable.getRows().filter(r => r.getData().ino === data.ino);
+                rightRows.forEach(r => {
+                    if (!paths.includes(r.getData().path)) {
+                        r.delete();
+                    }
+                });
+                rightTable.updateOrAddData(newRows);
+
+                // Update Sub Table
                 const subTable = findSubTableByHash(data.hash);
                 if (subTable) {
-                    subTable.updateOrAddData([data]);
+                    const subRows = subTable.getRows().filter(r => r.getData().ino === data.ino);
+                    subRows.forEach(r => {
+                         if (!paths.includes(r.getData().path)) {
+                             r.delete();
+                         }
+                    });
+                    subTable.updateOrAddData(newRows);
                 }
             } else if (action === 'removeFile') {
                 console.log(`Tabulator Tab: Received removeFile for ino ${data.ino}`);
-                rightTable.deleteRow(data.ino);
+
+                // Delete all rows matching the inode from Right Table
+                const rightRows = rightTable.getRows().filter(r => r.getData().ino === data.ino);
+                rightRows.forEach(r => r.delete());
+
                 const subTable = findSubTableByHash(data.hash);
                 if (subTable) {
-                    subTable.deleteRow(data.ino);
+                    const subRows = subTable.getRows().filter(r => r.getData().ino === data.ino);
+                    subRows.forEach(r => r.delete());
                 }
             }
 

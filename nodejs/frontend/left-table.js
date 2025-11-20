@@ -93,8 +93,9 @@ const generateLeftTableConfig = (dirtySock) => ({
 
             const nestedTable = new Tabulator(tableEl, {
                 layout: "fitColumns",
+                renderVertical: "basic",
                 data: data.fileList,
-                index: "ino",
+                index: "path",
                 columns: [
                     {
                         title: "",
@@ -119,8 +120,10 @@ const generateLeftTableConfig = (dirtySock) => ({
                     {
                         title: "Path",
                         field: "path",
+                        formatter: pathFormatter,
                         resizable: false,
-                        widthGrow: 3
+                        widthGrow: 3,
+                        titleFormatter: "html" // Just in case, usually safe
                     },
                     {
                         title: "Size",

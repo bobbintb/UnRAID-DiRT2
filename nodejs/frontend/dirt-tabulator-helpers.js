@@ -1,7 +1,7 @@
 // Helper function to remove an action from the queue (UI and backend)
 function removeFileActionFromQueue(ino, filePath, dirtySock, actionQueueTable, mainTable, updateQueueFooter) {
     // 1. Send message to backend to remove from Redis
-    dirtySock('removeFileAction', { ino });
+    dirtySock('removeFileAction', { path: filePath });
 
     // 2. Remove the row from the action queue table
     const rows = actionQueueTable.getRows();
@@ -60,36 +60,53 @@ function checkAndUpdateMasterRow(table) {
     }
 }
 
-function processDuplicateFiles(duplicates) {
+function processDuplicateFiles(duplicates, state, actions) {
     const rightTableData = [];
     const leftTableData = [];
 
     duplicates.forEach(group => {
+        const explodedFiles = [];
+        const uniqueInodes = group.files;
+
+        // Explode group.files by splitting path string
+        uniqueInodes.forEach(file => {
+            const paths = file.path.split('<br>');
+            paths.forEach(p => {
+                if (p) {
+                    explodedFiles.push({
+                        ...file,
+                        path: p
+                    });
+                }
+            });
+        });
+
         // Sort files by path to ensure consistent ordering
-        const sortedFiles = group.files.sort((a, b) => a.path.localeCompare(b.path));
+        const sortedFiles = explodedFiles.sort((a, b) => a.path.localeCompare(b.path));
 
         // Find if an original is already designated
-        const originalFile = sortedFiles.find(file => file.isOriginal === true);
+        const originalPath = state[group.hash];
 
         // Process each file in the group
         const fileList = sortedFiles.map((file, index) => {
-            const isOriginal = originalFile ? file.ino === originalFile.ino : !originalFile && index === 0;
+            const isOriginal = originalPath ? file.path === originalPath : (!originalPath && index === 0);
             const fileData = {
                 ...file,
                 hash: group.hash,
                 isOriginal: isOriginal,
+                action: actions[file.path] || null
             };
             rightTableData.push(fileData);
             return fileData;
         });
 
-        // Calculate total size for the left table
-        const totalSize = group.files.reduce((acc, file) => acc + file.size, 0);
+        // Calculate total size for the left table using unique inodes to avoid double-counting hardlinks
+        const totalSize = uniqueInodes.reduce((acc, file) => acc + file.size, 0);
 
         // Add processed group data to the left table
         leftTableData.push({
             hash: group.hash,
-            count: group.files.length,
+            count: fileList.length,
             size: totalSize,
             fileList: fileList,
         });
