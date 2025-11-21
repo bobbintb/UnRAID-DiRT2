@@ -52,19 +52,17 @@ def test_path_granularity_and_link_icon(page, redis_client):
     # Level 1 Row
     level1_row = page.locator("#left-table .tabulator-row").first
 
-    # Level 2 Group Row
-    group_row = level1_row.locator(".nested-table-container .tabulator-row").filter(has_text="Inode 999")
-    expect(group_row).to_be_visible()
-
-    # Expand Group
-    group_row.locator(".tabulator-cell").first.click()
+    # Level 2 Group Row (Identified by presence of Level 3 container, since text is hidden)
+    # We can just search for Level 3 container directly
+    level3_container = level1_row.locator(".level3-table-container")
+    expect(level3_container).to_be_visible()
 
     # Locate the row for hardlink1 (inside Level 3)
-    row1 = group_row.locator(".level3-table-container .tabulator-row").filter(has_text="/mnt/user/share/hardlink1.txt")
+    row1 = level3_container.locator(".tabulator-row").filter(has_text="/mnt/user/share/hardlink1.txt")
     expect(row1).to_be_visible(timeout=10000)
 
     # Locate the row for hardlink2
-    row2 = group_row.locator(".level3-table-container .tabulator-row").filter(has_text="/mnt/user/share/hardlink2.txt")
+    row2 = level3_container.locator(".tabulator-row").filter(has_text="/mnt/user/share/hardlink2.txt")
     expect(row2).to_be_visible(timeout=10000)
 
     # Locate the row for duplicate (Level 2)

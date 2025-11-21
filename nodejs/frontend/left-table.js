@@ -96,40 +96,9 @@ const generateLeftTableConfig = (dirtySock) => ({
                 layout: "fitColumns",
                 renderVertical: "basic",
                 data: data.fileList,
-                index: "path", // Unique identifier within the group
+                index: "path",
                 columns: [
-                    // 1. Expander for Hardlinks
-                    {
-                        title: "",
-                        width: 30,
-                        minWidth: 30,
-                        hozAlign: "center",
-                        headerSort: false,
-                        formatter: function(cell) {
-                            // Default to Collapsed (▶)
-                            return cell.getRow().getData().nestedFiles ? "▶" : "";
-                        },
-                        cellClick: function(e, cell) {
-                            const row = cell.getRow();
-                            if (!row.getData().nestedFiles) return;
-
-                            const holder = row.getElement().querySelector(".level3-table-container");
-                            if (holder) {
-                                if (holder.style.display === "none") {
-                                    holder.style.display = "block";
-                                    cell.getElement().innerHTML = "▼";
-
-                                    // Redraw the table if stored on the element
-                                    if (holder._tabulator) {
-                                        holder._tabulator.redraw();
-                                    }
-                                } else {
-                                    holder.style.display = "none";
-                                    cell.getElement().innerHTML = "▶";
-                                }
-                            }
-                        }
-                    },
+                    // Removed Expander Column
                     {
                         title: "",
                         field: "isOriginal",
@@ -181,10 +150,15 @@ const generateLeftTableConfig = (dirtySock) => ({
                 rowFormatter: function(row) {
                     const data = row.getData();
 
-                    // Styling for Group Row
+                    // If Group Row: Hide standard cells to remove "Header" look
                     if (data.type === 'group') {
-                        row.getElement().style.fontWeight = "bold";
-                        row.getElement().style.backgroundColor = "#eee";
+                        const cells = row.getCells();
+                        cells.forEach(c => {
+                            const el = c.getElement();
+                            if (el) el.style.display = 'none';
+                        });
+                        row.getElement().style.border = "none";
+                        row.getElement().style.background = "transparent";
                     }
 
                     // LEVEL 3 TABLE (Hardlinks)
@@ -193,12 +167,13 @@ const generateLeftTableConfig = (dirtySock) => ({
                         const tableEl3 = document.createElement("div");
 
                         holder.className = "level3-table-container";
-                        holder.style.display = "none"; // Default to Hidden (Collapsed)
-                        holder.style.padding = "5px 5px 5px 20px"; // Indent
-                        holder.style.background = "#f9f9f9";
-                        holder.style.borderTop = "1px dashed #ccc";
+                        holder.style.display = "block"; // Always Visible
+                        // Indentation to distinguish group
+                        holder.style.padding = "0 0 5px 0";
+                        holder.style.borderLeft = "3px solid #999"; // Simple visual grouper line
+                        holder.style.marginLeft = "10px"; // Indent slightly
 
-                        tableEl3.style.border = "1px solid #ccc";
+                        tableEl3.style.border = "none"; // Clean look
 
                         holder.appendChild(tableEl3);
                         row.getElement().appendChild(holder);
@@ -210,7 +185,12 @@ const generateLeftTableConfig = (dirtySock) => ({
                             index: "path",
                             headerVisible: false,
                             columns: [
-                                { width: 30, minWidth: 30 }, // Spacer for expander alignment
+                                // Spacer to align with Level 2 radio?
+                                // Since Level 2 Radio is Col 0 (after removing expander).
+                                // Level 3 Col 0 should align with Level 2 Col 0?
+                                // But Level 2 Group Row cells are hidden.
+                                // Level 3 Table is indented by margin-left: 10px.
+                                // Let's just render the columns naturally.
                                 {
                                     title: "",
                                     field: "isOriginal",
@@ -242,7 +222,7 @@ const generateLeftTableConfig = (dirtySock) => ({
                             ]
                         });
 
-                        // Store reference for redraw
+                        // Store reference just in case
                         holder._tabulator = level3Table;
 
                          try {

@@ -174,7 +174,7 @@ function processDuplicateFiles(duplicates, state, actions) {
 
                 fileList.push({
                     ...inodeData,
-                    path: `Inode ${inodeData.ino} (${paths.length} files)`,
+                    path: "", // Group row has no text
                     hash: group.hash,
                     isOriginal: false,
                     action: null,
