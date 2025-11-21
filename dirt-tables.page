@@ -2,19 +2,49 @@ Menu="DiskUtilities"
 Title="Deduplication in Real-Time"
 Icon="fa-search-minus"
 ---
-<link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
-<link href="/plugins/bobbintb.system.dirt/nodejs/frontend/css/dirt-tabulator.css" rel="stylesheet">
-<script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
-<script src="/plugins/bobbintb.system.dirt/nodejs/frontend/dirt-tabulator-formatters.js"></script>
-<script src="/plugins/bobbintb.system.dirt/nodejs/frontend/dirt-tabulator-helpers.js"></script>
+<script src="https://unpkg.com/ag-grid-community@31.3.1/dist/ag-grid-community.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/ag-grid-community@31.3.1/styles/ag-grid.css" />
+<link rel="stylesheet" href="https://unpkg.com/ag-grid-community@31.3.1/styles/ag-theme-alpine.css" />
+
+<style>
+    html, body { height: 100%; margin: 0; }
+    .table-container { display: flex; height: calc(100vh - 100px); width: 100%; }
+    .table-wrapper { height: 100%; width: 100%; overflow: hidden; }
+    #right-panel { display: flex; flex-direction: column; height: 100%; }
+    #right-table { flex-grow: 1; }
+    #process-button { margin: 10px; padding: 10px; cursor: pointer; }
+
+    .ag-theme-alpine .all-actions-set {
+        background-color: #d4edda !important; /* light green */
+    }
+    .ag-theme-alpine .original-row {
+        color: #888;
+        font-style: italic;
+    }
+    .nested-grid-container {
+        /* Custom padding handled in renderer */
+    }
+    .gutter {
+        background-color: #eee;
+        background-repeat: no-repeat;
+        background-position: 50%;
+    }
+    .gutter.gutter-horizontal {
+        background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
+        cursor: col-resize;
+    }
+</style>
+
+<script src="/plugins/bobbintb.system.dirt/nodejs/frontend/dirt-ag-grid-renderers.js"></script>
+<script src="/plugins/bobbintb.system.dirt/nodejs/frontend/dirt-ag-grid-helpers.js"></script>
 <script src="/plugins/bobbintb.system.dirt/nodejs/frontend/left-table.js"></script>
 <script src="/plugins/bobbintb.system.dirt/nodejs/frontend/right-table.js"></script>
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
 <div class="table-container">
-    <div id="left-table" class="table-wrapper"></div>
+    <div id="left-table" class="table-wrapper ag-theme-alpine"></div>
     <div id="right-panel">
-        <div id="right-table" class="table-wrapper"></div>
+        <div id="right-table" class="table-wrapper ag-theme-alpine"></div>
         <button id="process-button">Process</button>
     </div>
 </div>
@@ -30,7 +60,7 @@ Icon="fa-search-minus"
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(message));
         } else {
-            console.error("Tabulator Tab: WebSocket is not connected.");
+            console.error("Dirt Tab: WebSocket is not connected.");
         }
     }
 
@@ -41,24 +71,19 @@ document.addEventListener('DOMContentLoaded', function() {
         cursor: 'col-resize'
     });
 
-    const leftTable = new Tabulator("#left-table", generateLeftTableConfig(dirtySock));
-    const rightTable = new Tabulator("#right-table", rightTableConfig);
+    // Initialize ag-Grids
+    const leftGridDiv = document.querySelector('#left-table');
+    const rightGridDiv = document.querySelector('#right-table');
 
-    rightTable.on("tableBuilt", function(){
-        rightTable.setFilter(function(data){
-            return data.action === "link" || data.action === "delete";
-        });
-    });
-
-    rightTable.on("dataChanged", () => {
-        rightTable.refreshFilter();
-    });
+    // Assign APIs immediately to avoid race conditions
+    window.leftGridApi = agGrid.createGrid(leftGridDiv, generateLeftTableConfig(dirtySock));
+    window.rightGridApi = agGrid.createGrid(rightGridDiv, rightTableConfig);
 
     function connect() {
         socket = new WebSocket(`ws://${window.location.hostname}:41820?clientId=dirt-tables.page`);
 
         socket.onopen = function() {
-            console.log("Tabulator Tab: WebSocket connection established.");
+            console.log("Dirt Tab: WebSocket connection established.");
             dirtySock('findDuplicates', null);
         };
 
@@ -67,92 +92,149 @@ document.addEventListener('DOMContentLoaded', function() {
             const { action, data } = parsedMessage;
 
             if (action === 'duplicateFiles') {
-                console.log("Tabulator Tab: Received duplicateFiles data package.");
+                console.log("Dirt Tab: Received duplicateFiles data package.");
                 const { duplicates, state, actions } = data;
                 const { leftTableData, rightTableData } = processDuplicateFiles(duplicates, state, actions);
-                rightTable.setData(rightTableData);
-                leftTable.setData(leftTableData);
+
+                // Update Left Table (Source of Truth)
+                window.allGroupsData = leftTableData;
+                refreshLeftGridData();
+
+                // Update Right Table
+                if (window.rightGridApi) {
+                    window.rightGridApi.setGridOption('rowData', rightTableData);
+                    window.rightGridApi.onFilterChanged();
+                }
+
             } else if (action === 'addOrUpdateFile') {
-                console.log(`Tabulator Tab: Received addOrUpdateFile for ino ${data.ino}`);
+                console.log(`Dirt Tab: Received addOrUpdateFile for ino ${data.ino}`);
                 const paths = data.path.split('<br>').filter(p => p);
-                const newRows = paths.map(p => ({ ...data, path: p }));
 
-                // Update Right Table (find stale rows by ino)
-                const rightRows = rightTable.getRows().filter(r => r.getData().ino === data.ino);
-                rightRows.forEach(r => {
-                    if (!paths.includes(r.getData().path)) {
-                        r.delete();
-                    }
-                });
-                rightTable.updateOrAddData(newRows);
-
-                // Update Sub Table
-                const subTable = findSubTableByHash(data.hash);
-                if (subTable) {
-                    const subRows = subTable.getRows().filter(r => r.getData().ino === data.ino);
-                    subRows.forEach(r => {
-                         if (!paths.includes(r.getData().path)) {
-                             r.delete();
-                         }
+                // 1. Update Right Table
+                if (window.rightGridApi) {
+                    const rowsToRemove = [];
+                    window.rightGridApi.forEachNode(node => {
+                        if (node.data.ino === data.ino) rowsToRemove.push(node.data);
                     });
-                    subTable.updateOrAddData(newRows);
+                    if (rowsToRemove.length) {
+                        window.rightGridApi.applyTransaction({ remove: rowsToRemove });
+                    }
+
+                    const newRows = paths.map(p => ({ ...data, path: p }));
+                    window.rightGridApi.applyTransaction({ add: newRows });
                 }
+
+                // 2. Update Left Table (Source of Truth & UI)
+                const group = window.allGroupsData.find(g => g.hash === data.hash);
+                if (group) {
+                    // Update persistent state
+                    group.fileList = group.fileList.filter(f => f.ino !== data.ino);
+
+                    const newFiles = paths.map(p => ({
+                        ...data,
+                        path: p,
+                        isOriginal: false,
+                        action: null
+                    }));
+                    group.fileList.push(...newFiles);
+
+                    // Recalculate stats
+                    const uniqueInodes = new Map();
+                    group.fileList.forEach(f => uniqueInodes.set(f.ino, f));
+                    let newTotalSize = 0;
+                    uniqueInodes.forEach(f => newTotalSize += f.size);
+                    group.size = newTotalSize;
+                    group.count = group.fileList.length;
+
+                    // Update Nested Grid UI if active
+                    if (window.leftGridOptions && window.leftGridOptions.context.nestedGrids[data.hash]) {
+                        const nestedApi = window.leftGridOptions.context.nestedGrids[data.hash];
+                        if (!nestedApi.destroyCalled) {
+                            const rowsToRemove = [];
+                            nestedApi.forEachNode(node => {
+                                if (node.data.ino === data.ino) rowsToRemove.push(node.data);
+                            });
+
+                            nestedApi.applyTransaction({
+                                remove: rowsToRemove,
+                                add: newFiles
+                            });
+                        }
+                    }
+
+                    // Update Master Row UI
+                    if (window.leftGridApi) {
+                        const masterNode = window.leftGridApi.getRowNode(data.hash);
+                        if (masterNode) {
+                            masterNode.setDataValue('count', group.count);
+                            masterNode.setDataValue('size', group.size);
+                        }
+                    }
+                }
+
             } else if (action === 'removeFile') {
-                console.log(`Tabulator Tab: Received removeFile for ino ${data.ino}`);
+                 console.log(`Dirt Tab: Received removeFile for ino ${data.ino}`);
 
-                // Delete all rows matching the inode from Right Table
-                const rightRows = rightTable.getRows().filter(r => r.getData().ino === data.ino);
-                rightRows.forEach(r => r.delete());
+                 // Right Table
+                 if (window.rightGridApi) {
+                     const rowsToRemove = [];
+                     window.rightGridApi.forEachNode(node => {
+                         if (node.data.ino === data.ino) rowsToRemove.push(node.data);
+                     });
+                     if (rowsToRemove.length) window.rightGridApi.applyTransaction({ remove: rowsToRemove });
+                 }
 
-                const subTable = findSubTableByHash(data.hash);
-                if (subTable) {
-                    const subRows = subTable.getRows().filter(r => r.getData().ino === data.ino);
-                    subRows.forEach(r => r.delete());
-                }
+                 // Left Table
+                 const group = window.allGroupsData.find(g => g.hash === data.hash);
+                 if (group) {
+                     // Update persistent state
+                     group.fileList = group.fileList.filter(f => f.ino !== data.ino);
+                     // Recalculate stats
+                     const uniqueInodes = new Map();
+                     group.fileList.forEach(f => uniqueInodes.set(f.ino, f));
+                     let newTotalSize = 0;
+                     uniqueInodes.forEach(f => newTotalSize += f.size);
+                     group.size = newTotalSize;
+                     group.count = group.fileList.length;
+
+                     // Update Nested Grid
+                     if (window.leftGridOptions && window.leftGridOptions.context.nestedGrids[data.hash]) {
+                         const nestedApi = window.leftGridOptions.context.nestedGrids[data.hash];
+                         if (!nestedApi.destroyCalled) {
+                             const rowsToRemove = [];
+                             nestedApi.forEachNode(node => {
+                                 if (node.data.ino === data.ino) rowsToRemove.push(node.data);
+                             });
+                             if (rowsToRemove.length) nestedApi.applyTransaction({ remove: rowsToRemove });
+                         }
+                     }
+
+                     // Update Master Row
+                     if (window.leftGridApi) {
+                        const masterNode = window.leftGridApi.getRowNode(data.hash);
+                        if (masterNode) {
+                            masterNode.setDataValue('count', group.count);
+                            masterNode.setDataValue('size', group.size);
+                        }
+                    }
+                 }
             }
-
         };
 
-        function findSubTableByHash(hash) {
-            const row = leftTable.getRow(hash);
-            if (row) {
-                const rowEl = row.getElement();
-                const subTableEl = rowEl.querySelector(".tabulator-table");
-                if (subTableEl) {
-                    const table = Tabulator.findTable(subTableEl);
-                    return table ? table[0] : null;
-                }
-            }
-            return null;
-        }
-
         socket.onclose = function(event) {
-            console.log("Tabulator Tab: WebSocket connection closed. Reconnecting...");
+            console.log("Dirt Tab: WebSocket connection closed. Reconnecting...");
             setTimeout(connect, 1000);
         };
 
         socket.onerror = function(error) {
-            console.error("Tabulator Tab: WebSocket error: ", error);
+            console.error("Dirt Tab: WebSocket error: ", error);
             socket.close();
         };
     }
 
-    function dirtySock(action, data) {
-        const message = {
-            clientId: "dirt-tables.page",
-            action: action,
-            data: data
-        };
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify(message));
-        } else {
-            console.error("Tabulator Tab: WebSocket is not connected.");
-        }
-    }
-
     document.getElementById('process-button').addEventListener('click', () => {
         dirtySock('processActions', {});
-        console.log("Tabulator Tab: Process actions requested.");
+        console.log("Dirt Tab: Process actions requested.");
     });
 
     connect();
