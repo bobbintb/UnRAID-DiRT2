@@ -91,12 +91,45 @@ const generateLeftTableConfig = (dirtySock) => ({
             holderEl.appendChild(tableEl);
             row.getElement().appendChild(holderEl);
 
+            // LEVEL 2 TABLE
             const nestedTable = new Tabulator(tableEl, {
                 layout: "fitColumns",
                 renderVertical: "basic",
                 data: data.fileList,
-                index: "path",
+                index: "path", // Unique identifier within the group
                 columns: [
+                    // 1. Expander for Hardlinks
+                    {
+                        title: "",
+                        width: 30,
+                        minWidth: 30,
+                        hozAlign: "center",
+                        headerSort: false,
+                        formatter: function(cell) {
+                            // Default to Collapsed (▶)
+                            return cell.getRow().getData().nestedFiles ? "▶" : "";
+                        },
+                        cellClick: function(e, cell) {
+                            const row = cell.getRow();
+                            if (!row.getData().nestedFiles) return;
+
+                            const holder = row.getElement().querySelector(".level3-table-container");
+                            if (holder) {
+                                if (holder.style.display === "none") {
+                                    holder.style.display = "block";
+                                    cell.getElement().innerHTML = "▼";
+
+                                    // Redraw the table if stored on the element
+                                    if (holder._tabulator) {
+                                        holder._tabulator.redraw();
+                                    }
+                                } else {
+                                    holder.style.display = "none";
+                                    cell.getElement().innerHTML = "▶";
+                                }
+                            }
+                        }
+                    },
                     {
                         title: "",
                         field: "isOriginal",
@@ -123,7 +156,7 @@ const generateLeftTableConfig = (dirtySock) => ({
                         formatter: pathFormatter,
                         resizable: false,
                         widthGrow: 3,
-                        titleFormatter: "html" // Just in case, usually safe
+                        titleFormatter: "html"
                     },
                     {
                         title: "Size",
@@ -144,20 +177,97 @@ const generateLeftTableConfig = (dirtySock) => ({
                         width: 170,
                         resizable: false
                     },
-                ]
+                ],
+                rowFormatter: function(row) {
+                    const data = row.getData();
+
+                    // Styling for Group Row
+                    if (data.type === 'group') {
+                        row.getElement().style.fontWeight = "bold";
+                        row.getElement().style.backgroundColor = "#eee";
+                    }
+
+                    // LEVEL 3 TABLE (Hardlinks)
+                    if (data.nestedFiles && data.nestedFiles.length > 0) {
+                        const holder = document.createElement("div");
+                        const tableEl3 = document.createElement("div");
+
+                        holder.className = "level3-table-container";
+                        holder.style.display = "none"; // Default to Hidden (Collapsed)
+                        holder.style.padding = "5px 5px 5px 20px"; // Indent
+                        holder.style.background = "#f9f9f9";
+                        holder.style.borderTop = "1px dashed #ccc";
+
+                        tableEl3.style.border = "1px solid #ccc";
+
+                        holder.appendChild(tableEl3);
+                        row.getElement().appendChild(holder);
+
+                        const level3Table = new Tabulator(tableEl3, {
+                            layout: "fitColumns",
+                            renderVertical: "basic",
+                            data: data.nestedFiles,
+                            index: "path",
+                            headerVisible: false,
+                            columns: [
+                                { width: 30, minWidth: 30 }, // Spacer for expander alignment
+                                {
+                                    title: "",
+                                    field: "isOriginal",
+                                    formatter: (cell, formatterParams, onRendered) => radioSelectFormatter(cell, { ...formatterParams, dirtySock }, onRendered),
+                                    hozAlign: "center",
+                                    width: 30,
+                                    minWidth: 30,
+                                    resizable: false,
+                                    headerSort: false
+                                },
+                                {
+                                    title: "Action",
+                                    field: "action",
+                                    formatter: (cell, formatterParams) => actionFormatter(cell, { ...formatterParams, dirtySock }),
+                                    hozAlign: "center",
+                                    width: 80,
+                                    minWidth: 80,
+                                    resizable: false,
+                                    headerSort: false
+                                },
+                                {
+                                    title: "Path",
+                                    field: "path",
+                                    formatter: pathFormatter,
+                                    widthGrow: 3,
+                                    resizable: false,
+                                    titleFormatter: "html"
+                                }
+                            ]
+                        });
+
+                        // Store reference for redraw
+                        holder._tabulator = level3Table;
+
+                         try {
+                            if (level3Table && typeof level3Table.on === 'function') {
+                                level3Table.on('renderComplete', function () {
+                                    if (typeof checkAndUpdateMasterRow === 'function') checkAndUpdateMasterRow(level3Table);
+                                });
+                            }
+                        } catch (e) {}
+
+                        if (typeof checkAndUpdateMasterRow === 'function') {
+                            checkAndUpdateMasterRow(level3Table);
+                        }
+                    }
+                }
             });
-            // Ensure master-row highlight updates when nested table finishes rendering
+
             try {
                 if (nestedTable && typeof nestedTable.on === 'function') {
                     nestedTable.on('renderComplete', function () {
                         if (typeof checkAndUpdateMasterRow === 'function') checkAndUpdateMasterRow(nestedTable);
                     });
                 }
-            } catch (e) {
-                // Ignore: defensive in case Tabulator instance doesn't expose events
-            }
+            } catch (e) {}
 
-            // Attempt an immediate update as a fallback (idempotent)
             if (typeof checkAndUpdateMasterRow === 'function') {
                 checkAndUpdateMasterRow(nestedTable);
             }
