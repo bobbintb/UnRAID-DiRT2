@@ -65,24 +65,46 @@ function processDuplicateFiles(duplicates, state, actions) {
     const leftTableData = [];
 
     duplicates.forEach(group => {
-        const explodedFiles = [];
+        const inodeGroups = [];
         const uniqueInodes = group.files;
 
-        // Explode group.files by splitting path string
+        // 1. Group files by inode and explode paths
         uniqueInodes.forEach(file => {
             const paths = file.path.split('<br>');
-            paths.forEach(p => {
-                if (p) {
-                    explodedFiles.push({
-                        ...file,
-                        path: p
-                    });
-                }
-            });
+            // Filter empty paths and create file objects
+            const groupFiles = paths
+                .filter(p => p)
+                .map(p => ({
+                    ...file,
+                    path: p
+                }));
+
+            // Sort files within the inode group by path
+            groupFiles.sort((a, b) => a.path.localeCompare(b.path));
+
+            if (groupFiles.length > 0) {
+                inodeGroups.push(groupFiles);
+            }
         });
 
-        // Sort files by path to ensure consistent ordering
-        const sortedFiles = explodedFiles.sort((a, b) => a.path.localeCompare(b.path));
+        // 2. Sort the inode groups based on the first path in each group
+        inodeGroups.sort((groupA, groupB) => {
+            return groupA[0].path.localeCompare(groupB[0].path);
+        });
+
+        // 3. Flatten into a single list and assign group sort keys
+        const sortedFiles = [];
+        inodeGroups.forEach(group => {
+            // The key for the entire group is the path of the first file
+            const groupKey = group[0].path;
+
+            group.forEach(file => {
+                // Determine the groupSortKey: GroupKey + separator + CurrentPath
+                // This ensures groups stay together, and sort by path within the group
+                file.groupSortKey = groupKey + '\0' + file.path;
+                sortedFiles.push(file);
+            });
+        });
 
         // Find if an original is already designated
         const originalPath = state[group.hash];

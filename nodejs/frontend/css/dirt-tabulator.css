@@ -49,3 +49,30 @@ body, html {
     margin: 10px;
     align-self: flex-end;
 }
+
+/* Hardlink grouping borders */
+.hardlink-group-top {
+    border-top: 2px solid #555 !important;
+    border-left: 2px solid #555 !important;
+    border-right: 2px solid #555 !important;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+
+.hardlink-group-middle {
+    border-left: 2px solid #555 !important;
+    border-right: 2px solid #555 !important;
+}
+
+.hardlink-group-bottom {
+    border-bottom: 2px solid #555 !important;
+    border-left: 2px solid #555 !important;
+    border-right: 2px solid #555 !important;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+.hardlink-group-box {
+    border: 2px solid #555 !important;
+    border-radius: 5px;
+}

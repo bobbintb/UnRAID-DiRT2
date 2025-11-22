@@ -121,6 +121,11 @@ const generateLeftTableConfig = (dirtySock) => ({
                         title: "Path",
                         field: "path",
                         formatter: pathFormatter,
+                        sorter: function(a, b, aRow, bRow, column, dir, sorterParams) {
+                            const keyA = aRow.getData().groupSortKey || "";
+                            const keyB = bRow.getData().groupSortKey || "";
+                            return keyA.localeCompare(keyB);
+                        },
                         resizable: false,
                         widthGrow: 3,
                         titleFormatter: "html" // Just in case, usually safe
@@ -151,6 +156,41 @@ const generateLeftTableConfig = (dirtySock) => ({
                 if (nestedTable && typeof nestedTable.on === 'function') {
                     nestedTable.on('renderComplete', function () {
                         if (typeof checkAndUpdateMasterRow === 'function') checkAndUpdateMasterRow(nestedTable);
+
+                        // Apply hardlink group borders
+                        const rows = nestedTable.getRows("active");
+                        const rowCount = rows.length;
+
+                        for (let i = 0; i < rowCount; i++) {
+                            const row = rows[i];
+                            const data = row.getData();
+                            const el = row.getElement();
+
+                            // Clear previous classes
+                            el.classList.remove('hardlink-group-top', 'hardlink-group-middle', 'hardlink-group-bottom', 'hardlink-group-box');
+
+                            if (data.nlink > 1) {
+                                const prevRow = i > 0 ? rows[i - 1] : null;
+                                const nextRow = i < rowCount - 1 ? rows[i + 1] : null;
+
+                                const prevIno = prevRow ? prevRow.getData().ino : null;
+                                const nextIno = nextRow ? nextRow.getData().ino : null;
+                                const currentIno = data.ino;
+
+                                const isStart = currentIno !== prevIno;
+                                const isEnd = currentIno !== nextIno;
+
+                                if (isStart && isEnd) {
+                                    el.classList.add('hardlink-group-box');
+                                } else if (isStart) {
+                                    el.classList.add('hardlink-group-top');
+                                } else if (isEnd) {
+                                    el.classList.add('hardlink-group-bottom');
+                                } else {
+                                    el.classList.add('hardlink-group-middle');
+                                }
+                            }
+                        }
                     });
                 }
             } catch (e) {
