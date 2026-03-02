@@ -8,77 +8,78 @@ function pathFormatter(cell, formatterParams) {
     return path;
 }
 
-function actionFormatter(cell, formatterParams) {
-    const { path, action } = cell.getRow().getData();
+function deleteActionFormatter(cell, formatterParams, onRendered) {
+    const { path, action, isOriginal } = cell.getRow().getData();
     const { dirtySock } = formatterParams;
-    const container = document.createElement("div");
+    const icon = document.createElement("i");
+    icon.classList.add("fa", "fa-trash");
+    icon.style.cursor = "pointer";
+    icon.title = "Delete";
 
-    const trashIcon = document.createElement("i");
-    trashIcon.classList.add("fa", "fa-trash");
-    trashIcon.style.cursor = "pointer";
-    trashIcon.style.marginRight = "10px";
     if (action === "delete") {
-        trashIcon.classList.add("selected");
+        icon.classList.add("selected");
     }
 
-    const linkIcon = document.createElement("i");
-    linkIcon.classList.add("fa", "fa-link");
-    linkIcon.style.cursor = "pointer";
-    if (action === "link") {
-        linkIcon.classList.add("selected");
+    if (isOriginal) {
+        icon.style.display = "none";
     }
 
-    const getAction = () => cell.getRow().getData().action;
+    icon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (cell.getRow().getData().isOriginal) return;
 
-    trashIcon.addEventListener('click', () => {
-        if (cell.getRow().getElement().classList.contains('original-row')) {
-            return;
-        }
-        const currentAction = getAction();
+        const currentAction = cell.getRow().getData().action;
         const newAction = currentAction === "delete" ? null : "delete";
 
-        // Update UI immediately
-        trashIcon.classList.toggle("selected", newAction === "delete");
-        linkIcon.classList.remove("selected");
-
-        // Update Tabulator and send to backend
         cell.getRow().update({ action: newAction }).then(() => {
             checkAndUpdateMasterRow(cell.getTable());
         });
         dirtySock('setAction', { path, action: newAction });
     });
 
-    linkIcon.addEventListener('click', () => {
-        if (cell.getRow().getElement().classList.contains('original-row')) {
-            return;
-        }
-        const currentAction = getAction();
+    return icon;
+}
+
+function linkActionFormatter(cell, formatterParams, onRendered) {
+    const { path, action, isOriginal } = cell.getRow().getData();
+    const { dirtySock } = formatterParams;
+    const icon = document.createElement("i");
+    icon.classList.add("fa", "fa-link");
+    icon.style.cursor = "pointer";
+    icon.title = "Link";
+
+    if (action === "link") {
+        icon.classList.add("selected");
+    }
+
+    if (isOriginal) {
+        icon.style.display = "none";
+    }
+
+    icon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (cell.getRow().getData().isOriginal) return;
+
+        const currentAction = cell.getRow().getData().action;
         const newAction = currentAction === "link" ? null : "link";
 
-        // Update UI immediately
-        linkIcon.classList.toggle("selected", newAction === "link");
-        trashIcon.classList.remove("selected");
-
-        // Update Tabulator and send to backend
         cell.getRow().update({ action: newAction }).then(() => {
             checkAndUpdateMasterRow(cell.getTable());
         });
         dirtySock('setAction', { path, action: newAction });
     });
 
-    container.appendChild(trashIcon);
-    container.appendChild(linkIcon);
-
-    return container;
+    return icon;
 }
 
 function radioSelectFormatter(cell, formatterParams, onRendered) {
-    const { isOriginal, hash } = cell.getRow().getData();
+    const { isOriginal, hash, path } = cell.getRow().getData();
     const { dirtySock } = formatterParams;
     const radio = document.createElement("input");
     radio.type = "radio";
     radio.name = "original-" + hash;
     radio.checked = isOriginal;
+    radio.title = "Original";
 
     const rowEl = cell.getRow().getElement();
 
@@ -90,7 +91,6 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
         }
     }
 
-    // Set initial state after the cell has been rendered
     onRendered(() => {
         setRowState(cell.getRow().getData().isOriginal);
     });
@@ -98,39 +98,26 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
     radio.addEventListener('change', () => {
         const table = cell.getTable();
         const selectedRow = cell.getRow();
-        const { hash, path } = selectedRow.getData();
 
         table.getRows().forEach(row => {
-            const rowEl = row.getElement();
             const rowData = row.getData();
-
             if (row === selectedRow) {
-                // This row is now the original
                 if (rowData.isOriginal === false) {
                     row.update({ isOriginal: true, action: null });
                     if (dirtySock) {
                         dirtySock('setAction', { path: rowData.path, action: null });
+                        dirtySock('setOriginalFile', { hash: rowData.hash, path: rowData.path });
                     }
-                    // Deselect icons in UI
-                    const icons = rowEl.querySelectorAll('.fa-trash.selected, .fa-link.selected');
-                    icons.forEach(icon => icon.classList.remove('selected'));
                 }
-                rowEl.classList.add('original-row');
+                row.getElement().classList.add('original-row');
             } else {
-                // All other rows are not the original
                 if (rowData.isOriginal === true) {
                    row.update({ isOriginal: false });
                 }
-                rowEl.classList.remove('original-row');
+                row.getElement().classList.remove('original-row');
             }
         });
 
-        // Persist the new original file choice
-        if (dirtySock) {
-            dirtySock('setOriginalFile', { hash, path });
-        }
-
-        // Update the master row color
         checkAndUpdateMasterRow(table);
     });
 

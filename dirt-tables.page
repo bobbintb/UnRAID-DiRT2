@@ -2,6 +2,7 @@ Menu="DiskUtilities"
 Title="Deduplication in Real-Time"
 Icon="fa-search-minus"
 ---
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
 <link href="/plugins/bobbintb.system.dirt/nodejs/frontend/css/dirt-tabulator.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
@@ -12,9 +13,9 @@ Icon="fa-search-minus"
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
 <div class="table-container">
-    <div id="left-table" class="table-wrapper"></div>
+    <div id="left-table"></div>
     <div id="right-panel">
-        <div id="right-table" class="table-wrapper"></div>
+        <div id="right-table"></div>
         <button id="process-button">Process</button>
     </div>
 </div>
@@ -69,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (action === 'duplicateFiles') {
                 console.log("Tabulator Tab: Received duplicateFiles data package.");
                 const { duplicates, state, actions } = data;
-                const { leftTableData, rightTableData } = processDuplicateFiles(duplicates, state, actions);
+                const { leftTableData, rightTableData } = processDuplicateFiles(duplicates, state, actions, dirtySock);
                 rightTable.setData(rightTableData);
                 leftTable.setData(leftTableData);
             } else if (action === 'addOrUpdateFile') {

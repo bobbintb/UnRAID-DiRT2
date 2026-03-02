@@ -53,23 +53,16 @@ const generateLeftTableConfig = (dirtySock) => ({
             field: "hash",
             widthGrow: 3,
             resizable: false,
+            headerSort: false,
         },
         {
             title: "Count",
             field: "count",
             width: 90,
+            hozAlign: "center",
+            headerHozAlign: "center",
             resizable: false,
-        },
-        {
-            title: "Freeable",
-            field: "size",
-            width: 120,
-            resizable: false,
-            formatter: function(cell) {
-                const data = cell.getRow().getData();
-                const freeableSize = data.size - data.fileList[0].size;
-                return formatBytes(freeableSize);
-            }
+            headerSort: false,
         },
     ],
     rowFormatter: function (row) {
@@ -102,18 +95,31 @@ const generateLeftTableConfig = (dirtySock) => ({
                         field: "isOriginal",
                         formatter: (cell, formatterParams, onRendered) => radioSelectFormatter(cell, { ...formatterParams, dirtySock }, onRendered),
                         hozAlign: "center",
-                        width: 30,
-                        minWidth: 30,
+                        headerHozAlign: "center",
+                        width: 40,
+                        minWidth: 40,
                         resizable: false,
                         headerSort: false
                     },
                     {
-                        title: "Action",
-                        field: "action",
-                        formatter: (cell, formatterParams) => actionFormatter(cell, { ...formatterParams, dirtySock }),
+                        title: "",
+                        field: "deleteAction",
+                        formatter: (cell, formatterParams, onRendered) => deleteActionFormatter(cell, { ...formatterParams, dirtySock }, onRendered),
                         hozAlign: "center",
-                        width: 80,
-                        minWidth: 80,
+                        headerHozAlign: "center",
+                        width: 40,
+                        minWidth: 40,
+                        resizable: false,
+                        headerSort: false
+                    },
+                    {
+                        title: "",
+                        field: "linkAction",
+                        formatter: (cell, formatterParams, onRendered) => linkActionFormatter(cell, { ...formatterParams, dirtySock }, onRendered),
+                        hozAlign: "center",
+                        headerHozAlign: "center",
+                        width: 40,
+                        minWidth: 40,
                         resizable: false,
                         headerSort: false
                     },
@@ -123,26 +129,30 @@ const generateLeftTableConfig = (dirtySock) => ({
                         formatter: pathFormatter,
                         resizable: false,
                         widthGrow: 3,
-                        titleFormatter: "html" // Just in case, usually safe
+                        titleFormatter: "html",
+                        headerSort: false
                     },
                     {
                         title: "Size",
                         field: "size",
                         formatter: formatSize,
                         width: 90,
-                        resizable: false
+                        resizable: false,
+                        headerSort: false
                     },
                     {
                         title: "Modified",
                         field: "mtime",
                         width: 170,
-                        resizable: false
+                        resizable: false,
+                        headerSort: false
                     },
                     {
                         title: "Created",
                         field: "ctime",
                         width: 170,
-                        resizable: false
+                        resizable: false,
+                        headerSort: false
                     },
                 ]
             });
