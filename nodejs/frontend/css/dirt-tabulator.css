@@ -8,36 +8,56 @@ body, html {
     display: flex;
     flex-direction: row;
     height: calc(100vh - 245px);
+    width: 100%;
 }
 
-.table-wrapper {
-    /* The width will be set by split.js, so we don't need flex-basis here */
+#left-table, #right-panel {
+    height: 100%;
+    min-width: 0;
 }
 
 #left-table, #right-table {
-    height: 100%;
-    border-top: unset;
-    border-bottom: unset;
+    border: 1px solid #333;
 }
 
 .gutter {
-    background-color: #eee;
+    background-color: #ccc;
     background-repeat: no-repeat;
     background-position: 50%;
 }
 
 .gutter.gutter-horizontal {
     cursor: col-resize;
+    width: 8px;
 }
 
-.fa-trash.selected, .fa-link.selected {
-    color: blue;
+.fa-trash.selected, #right-table .fa-trash {
+    color: red !important;
+}
+
+.fa-link.selected, #right-table .fa-link {
+    color: blue !important;
+}
+
+/* Right table hover effect */
+#right-table .action-reset-icon:hover {
+    color: red !important;
+    cursor: pointer;
 }
 
 .tabulator-row.original-row {
-    background-color: #e0e0e0 !important;
-    pointer-events: none;
+    background-color: #f0f0f0 !important;
     color: #a0a0a0;
+}
+
+.tabulator-row.original-row .tabulator-cell:not([tabulator-field="isOriginal"]) {
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+/* Ensure icons are visible even when cell is opaque */
+.tabulator-row.original-row .tabulator-cell i {
+    opacity: 1 !important;
 }
 
 #right-panel {

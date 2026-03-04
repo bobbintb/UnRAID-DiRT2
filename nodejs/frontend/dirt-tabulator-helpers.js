@@ -90,6 +90,15 @@ function processDuplicateFiles(duplicates, state, actions) {
         // Process each file in the group
         const fileList = sortedFiles.map((file, index) => {
             const isOriginal = originalPath ? file.path === originalPath : (!originalPath && index === 0);
+
+            // If it's the first file and no original exists, we need to persist it.
+            // This logic is called on initial data load.
+            if (!originalPath && index === 0) {
+                if (window.dirtySock) {
+                    window.dirtySock('setOriginalFile', { hash: group.hash, path: file.path });
+                }
+            }
+
             const fileData = {
                 ...file,
                 hash: group.hash,

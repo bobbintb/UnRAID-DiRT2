@@ -12,16 +12,17 @@ Icon="fa-search-minus"
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
 <div class="table-container">
-    <div id="left-table" class="table-wrapper"></div>
+    <div id="left-table"></div>
     <div id="right-panel">
-        <div id="right-table" class="table-wrapper"></div>
+        <div id="right-table"></div>
         <button id="process-button">Process</button>
     </div>
 </div>
 
 <script>
     let socket;
-    function dirtySock(action, data) {
+
+    window.dirtySock = function(action, data) {
         const message = {
             clientId: "dirt-tables.page",
             action: action,
@@ -32,7 +33,7 @@ Icon="fa-search-minus"
         } else {
             console.error("Tabulator Tab: WebSocket is not connected.");
         }
-    }
+    };
 
 document.addEventListener('DOMContentLoaded', function() {
     Split(['#left-table', '#right-panel'], {
@@ -41,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cursor: 'col-resize'
     });
 
-    const leftTable = new Tabulator("#left-table", generateLeftTableConfig(dirtySock));
+    const leftTable = new Tabulator("#left-table", generateLeftTableConfig());
     const rightTable = new Tabulator("#right-table", rightTableConfig);
 
     rightTable.on("tableBuilt", function(){
@@ -109,15 +110,77 @@ document.addEventListener('DOMContentLoaded', function() {
                     const subRows = subTable.getRows().filter(r => r.getData().ino === data.ino);
                     subRows.forEach(r => r.delete());
                 }
-            }
+            } else if (action === 'actionSet') {
+                console.log(`Tabulator Tab: Received actionSet for path ${data.path} to action ${data.action}`);
+                const { path, action } = data;
 
+                // Update Left Table (Nested)
+                const rows = leftTable.getRows();
+                for (const row of rows) {
+                    const subTable = findSubTableByRow(row);
+                    if (subTable) {
+                        const subRow = subTable.getRow(path);
+                        if (subRow) {
+                            // Update both action and dummy columns to force re-render
+                            subRow.update({ action, delete_col: action, link_col: action }).then(() => {
+                                if (typeof checkAndUpdateMasterRow === 'function') checkAndUpdateMasterRow(subTable);
+                            });
+                            break;
+                        }
+                    }
+                }
+
+                // Update Right Table
+                const rightRow = rightTable.getRow(path);
+                if (rightRow) {
+                    rightRow.update({ action });
+                }
+            } else if (action === 'originalFileSet') {
+                console.log(`Tabulator Tab: Received originalFileSet for hash ${data.hash} to path ${data.path}`);
+                const { hash, path } = data;
+
+                const subTable = findSubTableByHash(hash);
+                if (subTable) {
+                    subTable.getRows().forEach(row => {
+                        const rowData = row.getData();
+                        const isOriginal = rowData.path === path;
+                        const newAction = isOriginal ? null : rowData.action;
+
+                        row.update({
+                            isOriginal,
+                            action: newAction,
+                            delete_col: newAction,
+                            link_col: newAction
+                        }).then(() => {
+                            // Update CSS class for original-row
+                            const rowEl = row.getElement();
+                            if (isOriginal) {
+                                rowEl.classList.add('original-row');
+                            } else {
+                                rowEl.classList.remove('original-row');
+                            }
+                        });
+                    });
+                    if (typeof checkAndUpdateMasterRow === 'function') checkAndUpdateMasterRow(subTable);
+                }
+            }
         };
+
+        function findSubTableByRow(row) {
+            const rowEl = row.getElement();
+            const subTableEl = rowEl.querySelector(".sub-table-instance");
+            if (subTableEl) {
+                const table = Tabulator.findTable(subTableEl);
+                return table ? table[0] : null;
+            }
+            return null;
+        }
 
         function findSubTableByHash(hash) {
             const row = leftTable.getRow(hash);
             if (row) {
                 const rowEl = row.getElement();
-                const subTableEl = rowEl.querySelector(".tabulator-table");
+                const subTableEl = rowEl.querySelector(".sub-table-instance");
                 if (subTableEl) {
                     const table = Tabulator.findTable(subTableEl);
                     return table ? table[0] : null;
@@ -137,21 +200,8 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
-    function dirtySock(action, data) {
-        const message = {
-            clientId: "dirt-tables.page",
-            action: action,
-            data: data
-        };
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify(message));
-        } else {
-            console.error("Tabulator Tab: WebSocket is not connected.");
-        }
-    }
-
     document.getElementById('process-button').addEventListener('click', () => {
-        dirtySock('processActions', {});
+        window.dirtySock('processActions', {});
         console.log("Tabulator Tab: Process actions requested.");
     });
 
