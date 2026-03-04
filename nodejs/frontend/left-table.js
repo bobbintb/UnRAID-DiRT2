@@ -62,7 +62,7 @@ const generateLeftTableConfig = () => ({
             hozAlign: "center",
             headerHozAlign: "center",
             resizable: false,
-            headerSort: false,
+            headerSort: true,
         },
     ],
     rowFormatter: function (row) {
