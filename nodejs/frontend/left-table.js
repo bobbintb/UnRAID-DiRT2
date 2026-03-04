@@ -56,6 +56,16 @@ const generateLeftTableConfig = () => ({
             headerSort: false,
         },
         {
+            title: "Recoverable",
+            field: "recoverable",
+            width: 120,
+            hozAlign: "right",
+            headerHozAlign: "right",
+            formatter: formatSize,
+            resizable: false,
+            headerSort: true,
+        },
+        {
             title: "Count",
             field: "count",
             width: 90,

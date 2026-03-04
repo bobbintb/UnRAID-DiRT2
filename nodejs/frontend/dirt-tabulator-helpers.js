@@ -111,12 +111,14 @@ function processDuplicateFiles(duplicates, state, actions) {
 
         // Calculate total size for the left table using unique inodes to avoid double-counting hardlinks
         const totalSize = uniqueInodes.reduce((acc, file) => acc + file.size, 0);
+        const recoverable = totalSize - (uniqueInodes.length > 0 ? uniqueInodes[0].size : 0);
 
         // Add processed group data to the left table
         leftTableData.push({
             hash: group.hash,
             count: fileList.length,
             size: totalSize,
+            recoverable: recoverable,
             fileList: fileList,
         });
     });
