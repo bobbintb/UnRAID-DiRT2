@@ -20,10 +20,6 @@ function deleteActionFormatter(cell, formatterParams, onRendered) {
         icon.classList.add("selected");
     }
 
-    if (isOriginal) {
-        icon.style.display = "none";
-    }
-
     icon.addEventListener('click', (e) => {
         e.stopPropagation();
         if (cell.getRow().getData().isOriginal) return;
@@ -50,10 +46,6 @@ function linkActionFormatter(cell, formatterParams, onRendered) {
 
     if (action === "link") {
         icon.classList.add("selected");
-    }
-
-    if (isOriginal) {
-        icon.style.display = "none";
     }
 
     icon.addEventListener('click', (e) => {
