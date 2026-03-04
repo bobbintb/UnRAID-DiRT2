@@ -270,15 +270,19 @@ async function main() {
                 break;
               }
               const redisClient = getRedisClient();
-              await redisClient.hSet('state', hash, path);
-              const jobId = Buffer.from(path).toString('base64');
-              await actionQueue.remove(jobId); // Clear any action for this file
-              console.log(`[DIRT] State updated for hash ${hash} to path ${path} and action cleared.`);
+              const currentOriginal = await redisClient.hGet('state', hash);
 
-              broadcaster.broadcast({
-                action: 'originalFileSet',
-                data: { hash, path }
-              });
+              if (currentOriginal !== path) {
+                  await redisClient.hSet('state', hash, path);
+                  const jobId = Buffer.from(path).toString('base64');
+                  await actionQueue.remove(jobId); // Clear any action for this file
+                  console.log(`[DIRT] State updated for hash ${hash} to path ${path} and action cleared.`);
+
+                  broadcaster.broadcast({
+                    action: 'originalFileSet',
+                    data: { hash, path }
+                  });
+              }
               break;
             }
             case 'setAction': {

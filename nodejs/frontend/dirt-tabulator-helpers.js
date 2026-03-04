@@ -89,15 +89,9 @@ function processDuplicateFiles(duplicates, state, actions) {
 
         // Process each file in the group
         const fileList = sortedFiles.map((file, index) => {
-            const isOriginal = originalPath ? file.path === originalPath : (!originalPath && index === 0);
-
-            // If it's the first file and no original exists, we need to persist it.
-            // This logic is called on initial data load.
-            if (!originalPath && index === 0) {
-                if (window.dirtySock) {
-                    window.dirtySock('setOriginalFile', { hash: group.hash, path: file.path });
-                }
-            }
+            // UI defaults to first file as original if not set in Redis,
+            // but we don't auto-persist this here to avoid reactivity loops.
+            const isOriginal = originalPath ? file.path === originalPath : index === 0;
 
             const fileData = {
                 ...file,

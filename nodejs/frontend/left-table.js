@@ -1,6 +1,6 @@
 let allRowsExpanded = true; // Global state for the toggle all feature
 
-const generateLeftTableConfig = () => ({
+window.generateLeftTableConfig = () => ({
     index: "hash",
     height: "100%",
     reactiveData: true,

@@ -2,6 +2,7 @@ Menu="DiskUtilities"
 Title="Deduplication in Real-Time"
 Icon="fa-search-minus"
 ---
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 <link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
 <link href="/plugins/bobbintb.system.dirt/nodejs/frontend/css/dirt-tabulator.css" rel="stylesheet">
 <script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
@@ -11,7 +12,8 @@ Icon="fa-search-minus"
 <script src="/plugins/bobbintb.system.dirt/nodejs/frontend/right-table.js"></script>
 <script src="https://unpkg.com/split.js/dist/split.min.js"></script>
 
-<div class="table-container">
+<div class="table-container" style="border-top: 2px solid #28a745;">
+    <div style="position: absolute; top: 0; right: 0; background: #28a745; color: white; padding: 2px 5px; font-size: 10px; z-index: 1000; pointer-events: none;">v2.1 - Reactive Dashboard</div>
     <div id="left-table"></div>
     <div id="right-panel">
         <div id="right-table"></div>
@@ -133,8 +135,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update Right Table
                 const rightRow = rightTable.getRow(path);
                 if (rightRow) {
-                    rightRow.update({ action });
+                    rightRow.update({ action }).then(() => {
+                        rightTable.refreshFilter();
+                    });
                 }
+            } else if (action === 'stateChanged') {
+                console.log("Tabulator Tab: State hash changed in Redis. Re-fetching duplicates.");
+                dirtySock('findDuplicates', null);
             } else if (action === 'originalFileSet') {
                 console.log(`Tabulator Tab: Received originalFileSet for hash ${data.hash} to path ${data.path}`);
                 const { hash, path } = data;

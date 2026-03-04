@@ -1,18 +1,18 @@
 
-function pathFormatter(cell, formatterParams) {
+window.pathFormatter = function(cell, formatterParams) {
     const path = cell.getValue();
     const data = cell.getRow().getData();
     if (data.nlink > 1) {
-        return `<i class="fa fa-link" style="transform: rotate(45deg); margin-right: 5px;"></i>${path}`;
+        return `<i class="fas fa-link" style="transform: rotate(45deg); margin-right: 5px;"></i>${path}`;
     }
     return path;
-}
+};
 
-function deleteActionFormatter(cell, formatterParams, onRendered) {
+window.deleteActionFormatter = function(cell, formatterParams, onRendered) {
     const data = cell.getRow().getData();
     const { path, action } = data;
     const icon = document.createElement("i");
-    icon.classList.add("fa", "fa-trash");
+    icon.classList.add("fas", "fa-trash");
     icon.style.cursor = "pointer";
     icon.title = "Delete";
 
@@ -28,20 +28,22 @@ function deleteActionFormatter(cell, formatterParams, onRendered) {
         const currentAction = row.getData().action;
         const newAction = currentAction === "delete" ? null : "delete";
 
-        row.update({ action: newAction });
-        if (window.dirtySock) {
-            window.dirtySock('setAction', { path, action: newAction });
-        }
+        // Update action and dummy columns for immediate local feedback
+        row.update({ action: newAction, delete_col: newAction, link_col: newAction }).then(() => {
+            if (window.dirtySock) {
+                window.dirtySock('setAction', { path, action: newAction });
+            }
+        });
     });
 
     return icon;
 }
 
-function linkActionFormatter(cell, formatterParams, onRendered) {
+window.linkActionFormatter = function(cell, formatterParams, onRendered) {
     const data = cell.getRow().getData();
     const { path, action } = data;
     const icon = document.createElement("i");
-    icon.classList.add("fa", "fa-link");
+    icon.classList.add("fas", "fa-link");
     icon.style.cursor = "pointer";
     icon.title = "Link";
 
@@ -57,16 +59,18 @@ function linkActionFormatter(cell, formatterParams, onRendered) {
         const currentAction = row.getData().action;
         const newAction = currentAction === "link" ? null : "link";
 
-        row.update({ action: newAction });
-        if (window.dirtySock) {
-            window.dirtySock('setAction', { path, action: newAction });
-        }
+        // Update action and dummy columns for immediate local feedback
+        row.update({ action: newAction, delete_col: newAction, link_col: newAction }).then(() => {
+            if (window.dirtySock) {
+                window.dirtySock('setAction', { path, action: newAction });
+            }
+        });
     });
 
     return icon;
 }
 
-function radioSelectFormatter(cell, formatterParams, onRendered) {
+window.radioSelectFormatter = function(cell, formatterParams, onRendered) {
     const { isOriginal, hash, path } = cell.getRow().getData();
     const radio = document.createElement("input");
     radio.type = "radio";
@@ -96,10 +100,16 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
             const rowData = row.getData();
             if (row === selectedRow) {
                 if (rowData.isOriginal === false) {
-                    row.update({ isOriginal: true, action: null });
-                    if (window.dirtySock) {
-                        window.dirtySock('setOriginalFile', { hash: rowData.hash, path: rowData.path });
-                    }
+                    row.update({
+                        isOriginal: true,
+                        action: null,
+                        delete_col: null,
+                        link_col: null
+                    }).then(() => {
+                        if (window.dirtySock) {
+                            window.dirtySock('setOriginalFile', { hash: rowData.hash, path: rowData.path });
+                        }
+                    });
                 }
                 row.getElement().classList.add('original-row');
             } else {

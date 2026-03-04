@@ -48,32 +48,43 @@ async function startRedisListener() {
     // Enable keyspace events for Hashes (h) and generic commands like DEL (g)
     await subscriber.configSet('notify-keyspace-events', 'Kgh');
 
-    await subscriber.pSubscribe('__keyspace@0__:ino:*', async (message, channel) => {
+    await subscriber.pSubscribe('__keyspace@0__:*', async (message, channel) => {
         const key = channel.substring(channel.indexOf(':') + 1);
-        const ino = key.split(':')[1];
-        console.log(`[REDIS-LISTENER] Event: '${message}' on key '${key}'`);
 
-        if (message === 'hset') {
-            try {
-                const fileEntity = await fileMetadataRepository.fetch(ino);
-                if (fileEntity && fileEntity.path) {
-                    const data = {
-                        ...fileEntity,
-                        ino: ino,
-                        path: Array.isArray(fileEntity.path) ? fileEntity.path.join('<br>') : fileEntity.path
-                    };
-                    console.log(`[REDIS-LISTENER] Broadcasting 'addOrUpdateFile' for ino '${ino}'`);
-                    broadcaster.broadcast({ action: 'addOrUpdateFile', data: data });
+        if (key.startsWith('ino:')) {
+            const ino = key.split(':')[1];
+            console.log(`[REDIS-LISTENER] Event: '${message}' on key '${key}'`);
+
+            if (message === 'hset') {
+                try {
+                    const fileEntity = await fileMetadataRepository.fetch(ino);
+                    if (fileEntity && fileEntity.path) {
+                        const data = {
+                            ...fileEntity,
+                            ino: ino,
+                            path: Array.isArray(fileEntity.path) ? fileEntity.path.join('<br>') : fileEntity.path
+                        };
+                        console.log(`[REDIS-LISTENER] Broadcasting 'addOrUpdateFile' for ino '${ino}'`);
+                        broadcaster.broadcast({ action: 'addOrUpdateFile', data: data });
+                    }
+                } catch (error) {
+                    console.error(`[REDIS-LISTENER] Error processing hset for key '${key}':`, error);
                 }
-            } catch (error) {
-                console.error(`[REDIS-LISTENER] Error processing hset for key '${key}':`, error);
+            } else if (message === 'del') {
+                console.log(`[REDIS-LISTENER] Broadcasting 'removeFile' for ino '${ino}'`);
+                broadcaster.broadcast({
+                    action: 'removeFile',
+                    data: { ino: ino }
+                });
             }
-        } else if (message === 'del') {
-            console.log(`[REDIS-LISTENER] Broadcasting 'removeFile' for ino '${ino}'`);
-            broadcaster.broadcast({
-                action: 'removeFile',
-                data: { ino: ino }
-            });
+        } else if (key === 'state') {
+            if (message === 'hset' || message === 'hdel' || message === 'del') {
+                console.log(`[REDIS-LISTENER] 'state' hash changed. Triggering clients to re-fetch duplicates.`);
+                // Since we can't easily know which hash changed without more complexity,
+                // we tell all clients to just re-fetch their data package.
+                // We'll broadcast a 'stateChanged' message.
+                broadcaster.broadcast({ action: 'stateChanged', data: {} });
+            }
         }
     });
 
