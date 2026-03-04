@@ -9,8 +9,8 @@ function pathFormatter(cell, formatterParams) {
 }
 
 function deleteActionFormatter(cell, formatterParams, onRendered) {
-    const { path, action, isOriginal } = cell.getRow().getData();
-    const { dirtySock } = formatterParams;
+    const data = cell.getRow().getData();
+    const { path, action } = data;
     const icon = document.createElement("i");
     icon.classList.add("fa", "fa-trash");
     icon.style.cursor = "pointer";
@@ -22,23 +22,24 @@ function deleteActionFormatter(cell, formatterParams, onRendered) {
 
     icon.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (cell.getRow().getData().isOriginal) return;
+        const row = cell.getRow();
+        if (row.getData().isOriginal) return;
 
-        const currentAction = cell.getRow().getData().action;
+        const currentAction = row.getData().action;
         const newAction = currentAction === "delete" ? null : "delete";
 
-        cell.getRow().update({ action: newAction }).then(() => {
-            checkAndUpdateMasterRow(cell.getTable());
-        });
-        dirtySock('setAction', { path, action: newAction });
+        row.update({ action: newAction });
+        if (window.dirtySock) {
+            window.dirtySock('setAction', { path, action: newAction });
+        }
     });
 
     return icon;
 }
 
 function linkActionFormatter(cell, formatterParams, onRendered) {
-    const { path, action, isOriginal } = cell.getRow().getData();
-    const { dirtySock } = formatterParams;
+    const data = cell.getRow().getData();
+    const { path, action } = data;
     const icon = document.createElement("i");
     icon.classList.add("fa", "fa-link");
     icon.style.cursor = "pointer";
@@ -50,15 +51,16 @@ function linkActionFormatter(cell, formatterParams, onRendered) {
 
     icon.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (cell.getRow().getData().isOriginal) return;
+        const row = cell.getRow();
+        if (row.getData().isOriginal) return;
 
-        const currentAction = cell.getRow().getData().action;
+        const currentAction = row.getData().action;
         const newAction = currentAction === "link" ? null : "link";
 
-        cell.getRow().update({ action: newAction }).then(() => {
-            checkAndUpdateMasterRow(cell.getTable());
-        });
-        dirtySock('setAction', { path, action: newAction });
+        row.update({ action: newAction });
+        if (window.dirtySock) {
+            window.dirtySock('setAction', { path, action: newAction });
+        }
     });
 
     return icon;
@@ -66,7 +68,6 @@ function linkActionFormatter(cell, formatterParams, onRendered) {
 
 function radioSelectFormatter(cell, formatterParams, onRendered) {
     const { isOriginal, hash, path } = cell.getRow().getData();
-    const { dirtySock } = formatterParams;
     const radio = document.createElement("input");
     radio.type = "radio";
     radio.name = "original-" + hash;
@@ -96,9 +97,8 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
             if (row === selectedRow) {
                 if (rowData.isOriginal === false) {
                     row.update({ isOriginal: true, action: null });
-                    if (dirtySock) {
-                        dirtySock('setAction', { path: rowData.path, action: null });
-                        dirtySock('setOriginalFile', { hash: rowData.hash, path: rowData.path });
+                    if (window.dirtySock) {
+                        window.dirtySock('setOriginalFile', { hash: rowData.hash, path: rowData.path });
                     }
                 }
                 row.getElement().classList.add('original-row');
@@ -109,8 +109,6 @@ function radioSelectFormatter(cell, formatterParams, onRendered) {
                 row.getElement().classList.remove('original-row');
             }
         });
-
-        checkAndUpdateMasterRow(table);
     });
 
     return radio;

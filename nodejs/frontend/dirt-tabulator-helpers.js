@@ -60,7 +60,7 @@ function checkAndUpdateMasterRow(table) {
     }
 }
 
-function processDuplicateFiles(duplicates, state, actions, dirtySock) {
+function processDuplicateFiles(duplicates, state, actions) {
     const rightTableData = [];
     const leftTableData = [];
 
@@ -94,7 +94,9 @@ function processDuplicateFiles(duplicates, state, actions, dirtySock) {
             // If it's the first file and no original exists, we need to persist it.
             // This logic is called on initial data load.
             if (!originalPath && index === 0) {
-                dirtySock('setOriginalFile', { hash: group.hash, path: file.path });
+                if (window.dirtySock) {
+                    window.dirtySock('setOriginalFile', { hash: group.hash, path: file.path });
+                }
             }
 
             const fileData = {

@@ -274,6 +274,11 @@ async function main() {
               const jobId = Buffer.from(path).toString('base64');
               await actionQueue.remove(jobId); // Clear any action for this file
               console.log(`[DIRT] State updated for hash ${hash} to path ${path} and action cleared.`);
+
+              broadcaster.broadcast({
+                action: 'originalFileSet',
+                data: { hash, path }
+              });
               break;
             }
             case 'setAction': {
@@ -284,17 +289,21 @@ async function main() {
               }
 
               const jobId = Buffer.from(path).toString('base64');
-              // If action is provided (e.g., 'link' or 'delete'), add/update the job.
-              // If action is null, the job is removed.
+
+              // Always remove first to clear existing state (BullMQ doesn't replace by default)
+              await actionQueue.remove(jobId);
+
               if (action) {
-                // Remove-then-add strategy ensures the job is updated if it exists
-                await actionQueue.remove(jobId);
                 await actionQueue.add(action, { path }, { jobId });
                 console.log(`[DIRT] Action queue job SET for path ${path} to action '${action}'`);
               } else {
-                await actionQueue.remove(jobId);
                 console.log(`[DIRT] Action queue job REMOVED for path ${path}`);
               }
+
+              broadcaster.broadcast({
+                action: 'actionSet',
+                data: { path, action }
+              });
               break;
             }
             case 'removeFileAction': {

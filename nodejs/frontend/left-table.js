@@ -1,6 +1,6 @@
 let allRowsExpanded = true; // Global state for the toggle all feature
 
-const generateLeftTableConfig = (dirtySock) => ({
+const generateLeftTableConfig = () => ({
     index: "hash",
     height: "100%",
     reactiveData: true,
@@ -70,6 +70,7 @@ const generateLeftTableConfig = (dirtySock) => ({
         if (data.fileList && data.fileList.length > 0) {
             const holderEl = document.createElement("div");
             const tableEl = document.createElement("div");
+            tableEl.classList.add("sub-table-instance");
 
             holderEl.classList.add("nested-table-container");
             holderEl.style.display = "block"; // Show the nested table by default
@@ -89,11 +90,12 @@ const generateLeftTableConfig = (dirtySock) => ({
                 renderVertical: "basic",
                 data: data.fileList,
                 index: "path",
+                reactiveData: true,
                 columns: [
                     {
                         title: "",
                         field: "isOriginal",
-                        formatter: (cell, formatterParams, onRendered) => radioSelectFormatter(cell, { ...formatterParams, dirtySock }, onRendered),
+                        formatter: (cell, formatterParams, onRendered) => radioSelectFormatter(cell, formatterParams, onRendered),
                         hozAlign: "center",
                         headerHozAlign: "center",
                         width: 40,
@@ -103,8 +105,8 @@ const generateLeftTableConfig = (dirtySock) => ({
                     },
                     {
                         title: "",
-                        field: "deleteAction",
-                        formatter: (cell, formatterParams, onRendered) => deleteActionFormatter(cell, { ...formatterParams, dirtySock }, onRendered),
+                        field: "delete_col",
+                        formatter: (cell, formatterParams, onRendered) => deleteActionFormatter(cell, formatterParams, onRendered),
                         hozAlign: "center",
                         headerHozAlign: "center",
                         width: 40,
@@ -114,8 +116,8 @@ const generateLeftTableConfig = (dirtySock) => ({
                     },
                     {
                         title: "",
-                        field: "linkAction",
-                        formatter: (cell, formatterParams, onRendered) => linkActionFormatter(cell, { ...formatterParams, dirtySock }, onRendered),
+                        field: "link_col",
+                        formatter: (cell, formatterParams, onRendered) => linkActionFormatter(cell, formatterParams, onRendered),
                         hozAlign: "center",
                         headerHozAlign: "center",
                         width: 40,

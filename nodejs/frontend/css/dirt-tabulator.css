@@ -31,8 +31,18 @@ body, html {
     width: 8px;
 }
 
-.fa-trash.selected, .fa-link.selected {
-    color: blue;
+.fa-trash.selected, #right-table .fa-trash {
+    color: red !important;
+}
+
+.fa-link.selected, #right-table .fa-link {
+    color: blue !important;
+}
+
+/* Right table hover effect */
+#right-table .action-reset-icon:hover {
+    color: red !important;
+    cursor: pointer;
 }
 
 .tabulator-row.original-row {
@@ -43,6 +53,11 @@ body, html {
 .tabulator-row.original-row .tabulator-cell:not([tabulator-field="isOriginal"]) {
     pointer-events: none;
     opacity: 0.6;
+}
+
+/* Ensure icons are visible even when cell is opaque */
+.tabulator-row.original-row .tabulator-cell i {
+    opacity: 1 !important;
 }
 
 #right-panel {
