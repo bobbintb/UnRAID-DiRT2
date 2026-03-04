@@ -4,6 +4,10 @@ body, html {
     overflow: hidden;
 }
 
+.tabulator {
+    height: 99% !important;
+}
+
 .table-container {
     display: flex;
     flex-direction: row;
