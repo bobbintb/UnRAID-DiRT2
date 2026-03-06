@@ -69,13 +69,8 @@ install_package() {
 }
 
 declare -A urls
-urls["https://github.com/bobbintb/Slackware_Packages/raw/refs/heads/main/builds/nodejs/nodejs-22.14.0-x86_64-1_SBo.tgz"]="nodejs"
-# urls["https://slackware.uk/slackware/slackware64-15.0/patches/packages/openssl-1.1.1zb-x86_64-1_slack15.0.txz"]="openssl"
-# urls["https://ftp.sotirov-bg.net/pub/contrib/slackware/packages/slackware64-15.0/protobuf-3.19.6-x86_64-1gds.txz"]="protobuf"
-urls["https://github.com/bobbintb/Slackware_Packages/raw/refs/heads/main/builds/dragonfly/dragonfly-1.29.0-x86_64-1_SBo.tgz"]="dragonfly"
-# urls["https://github.com/bobbintb/Slackware_Packages/raw/refs/heads/main/builds/valkey/valkey-8.0.2-x86_64-1_SBo.tgz"]="valkey"
-# urls["https://github.com/bobbintb/Slackware_Packages/raw/main/builds/redisearch/2.10.7/redisearch.so"]="redisearch"
-# urls["https://github.com/bobbintb/Slackware_Packages/raw/refs/heads/main/builds/yq/yq-4.44.5-x86_64-1_SBo.tgz"]="yq"
+urls["https://bobbintb.github.io/Slackware_Packages/builds/valkey/valkey-8.1.3-x86_64-2_SBo.tgz"]="valkey"
+urls["https://bobbintb.github.io/Slackware_Packages/builds/redisearch/redisearch-2.10.17-x86_64-1_SBo.tgz"]="redisearch"
 
 for url in "${!urls[@]}"; do
   install_package "$url" "${urls[$url]}"
